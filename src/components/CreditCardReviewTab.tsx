@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2, Inbox, BellRing } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2, Inbox, BellRing, MapPin } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
 import { ClearFiltersButton } from './ClearFiltersButton';
@@ -16,6 +16,7 @@ import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { PillMotion } from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
+import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -68,13 +69,14 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<CcPeriod>('ALL');
   const [review, setReview] = useState<CcFilter | ''>('');
+  const [region, setRegion] = useState<FieldScope>('ALL');
   const [branchId, setBranchId] = useState('');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(deferredQuery.trim()), 350); return () => clearTimeout(t); }, [deferredQuery]);
 
-  const [first] = useState(() => getCachedCcList(ccListKey({ from: null, to: null, review: '', branchId: '', search: '', page: 1, pageSize: 50 })));
+  const [first] = useState(() => getCachedCcList(ccListKey({ from: null, to: null, review: '', region: 'ALL', branchId: '', search: '', page: 1, pageSize: 50 })));
   const [rows, setRows] = useState<CcEntry[] | null>(first ? first.rows : null);
   const [total, setTotal] = useState(first ? first.total : 0);
   const [masked, setMasked] = useState(first ? first.masked : !isAdmin);
@@ -85,7 +87,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const [editing, setEditing] = useState<CcEntry | null>(null);   // (7 Nov 2026) Edit details
 
   const range = useMemo(() => ccPeriodRange(period), [period]);
-  const pg = usePager(total, [range.from, range.to, review, branchId, search]);
+  const pg = usePager(total, [range.from, range.to, review, region, branchId, search]);
 
   const cSeq = useRef(0);
   const loadCounts = useCallback(async (fresh = false) => {
@@ -106,7 +108,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const seqRef = useRef(0);
   const load = useCallback(async (fresh = false) => {
     const seq = ++seqRef.current;
-    const q = { from: range.from, to: range.to, review, branchId, search, page: pg.page, pageSize: pg.pageSize };
+    const q = { from: range.from, to: range.to, review, region, branchId, search, page: pg.page, pageSize: pg.pageSize };
     const key = ccListKey(q);
     let hit = getCachedCcList(key);
     // Instant client-side derivation from the cached "All" list when switching status tabs on page 1
@@ -132,15 +134,15 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     } finally {
       if (seq === seqRef.current) setLoading(false);
     }
-  }, [range.from, range.to, review, branchId, search, pg.page, pg.pageSize]);
+  }, [range.from, range.to, review, region, branchId, search, pg.page, pg.pageSize]);
   useEffect(() => { load(); }, [load]);
 
   const refresh = () => { load(true); loadCounts(true); };
-  const filtersActive = period !== 'ALL' || review !== '' || !!branchId || !!query;
-  const clearAll = () => { setPeriod('ALL'); setReview(''); setBranchId(''); setQuery(''); setSearch(''); };
+  const filtersActive = period !== 'ALL' || review !== '' || region !== 'ALL' || !!branchId || !!query;
+  const clearAll = () => { setPeriod('ALL'); setReview(''); setRegion('ALL'); setBranchId(''); setQuery(''); setSearch(''); };
   // (31 Oct 2026) Export CSV: every entry that matches the filters (all pages). Branch staff get masked account numbers.
   const exportCsv = async () => {
-    const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }, 0).then((r) => ({ rows: r.rows, total: r.total })), 200);
+    const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, region, branchId, search, page, pageSize: 200 }, 0).then((r) => ({ rows: r.rows, total: r.total })), 200);
     if (!rows.length) return 0;
     const label: Record<CcFilter, string> = { PENDING: 'Waiting review', WAITING_DOCS: 'Waiting documents', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
     downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
@@ -166,7 +168,13 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     window.setTimeout(() => { load(true); }, 9500);
   };
 
-  const branchOptions = useMemo(() => branches.filter((b) => b.id !== '100').sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [branches]);
+  const branchOptions = useMemo(
+    () =>
+      branches
+        .filter((b) => b.id !== '100' && isBranchInRegionScope(b, region))
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
+    [branches, region]
+  );
 
   const tabCount = (v: CcFilter | ''): number | undefined => {
     if (!counts) return undefined;
@@ -282,9 +290,33 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               })}
             </div>
             {isAdmin && (
+              <div className="relative inline-flex items-center shrink-0">
+                <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+                <select
+                  aria-label="Filter by region"
+                  value={region}
+                  onChange={(e) => {
+                    const next = e.target.value as FieldScope;
+                    setRegion(next);
+                    setBranchId('');
+                  }}
+                  className={`appearance-none pl-8 pr-7 py-2 text-xs font-medium rounded-xl border outline-none cursor-pointer ${
+                    region !== 'ALL'
+                      ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
+                      : 'bg-white text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <option value="ALL">All Regions</option>
+                  <option value="PHNOM_PENH">Phnom Penh</option>
+                  <option value="REGIONAL">Regional</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+              </div>
+            )}
+            {isAdmin && (
               <select aria-label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer max-w-[220px]">
                 <option value="">All branches</option>
-                <option value="100">Code 100 · Head Office</option>
+                {region !== 'REGIONAL' && <option value="100">Code 100 · Head Office</option>}
                 {branchOptions.map((b) => <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>)}
               </select>
             )}
@@ -595,7 +627,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           initial="initial"
           animate="animate"
           exit="exit"
-          className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100 will-change-[transform,opacity]"
+          className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100"
         >
           {onEdit && (
             <div className="flex justify-end pt-2 -mb-1">

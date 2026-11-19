@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { motion } from 'motion/react';
-import { BACKDROP_VARIANTS, DRAWER_VARIANTS } from '../utils/animationRules';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { usePresence } from 'motion/react';
 
 /**
  * Shared right-side slide-over drawer tokens and wrapper modelled after ManageSimModal.
@@ -102,6 +102,10 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
   panelRef,
   children,
 }) => {
+  const [isPresent, safeToRemove] = usePresence();
+  // Keep GPU compositor promotion ONLY during enter/exit slide; release once settled so Windows ClearType text stays razor-sharp
+  const [settled, setSettled] = useState(false);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !busy) {
@@ -115,44 +119,65 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
     };
   }, [busy, onClose]);
 
-  return (
+  useEffect(() => {
+    if (!isPresent) {
+      setSettled(false);
+      const timer = window.setTimeout(() => safeToRemove?.(), 180);
+      return () => window.clearTimeout(timer);
+    }
+    const settleTimer = window.setTimeout(() => setSettled(true), 230);
+    return () => window.clearTimeout(settleTimer);
+  }, [isPresent, safeToRemove]);
+
+  const isMoving = !isPresent || !settled;
+
+  const drawerNode = (
     <div
       className={`fixed inset-0 ${zClass} overflow-hidden flex justify-end overscroll-contain sm:p-3`}
-      style={{ animation: 'none' }}
+      style={{ animation: 'none', contain: 'layout style' }}
       role={role}
       aria-modal={ariaModal}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
     >
       {/* Keep full-bleed GPU backdrop as firstElementChild */}
-      <motion.div
-        variants={BACKDROP_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
+      <div
         onClick={() => {
           if (!busy) onClose();
         }}
         onWheel={(e) => e.stopPropagation()}
-        className={SIM_BACKDROP_CLS}
+        style={isMoving ? { willChange: 'opacity', contain: 'strict' } : { contain: 'strict' }}
+        className={`${SIM_BACKDROP_CLS} ${isPresent ? 'drawer-backdrop-in' : 'drawer-backdrop-out'}`}
         aria-hidden="true"
       />
 
-      <motion.div
+      <div
         ref={panelRef}
-        variants={DRAWER_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        style={{ contain: 'layout paint style' }}
-        className={`${SIM_DRAWER_BASE_CLS} ${wide ? SIM_DRAWER_WIDTH_WIDE : SIM_DRAWER_WIDTH_STD} ${
+        onAnimationEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (!isPresent) {
+            safeToRemove?.();
+          } else {
+            setSettled(true);
+          }
+        }}
+        style={
+          isMoving
+            ? { contain: 'layout paint style', willChange: 'transform', backfaceVisibility: 'hidden' }
+            : { contain: 'layout paint style' }
+        }
+        className={`${SIM_DRAWER_BASE_CLS} ${isPresent ? 'drawer-gpu-in' : 'drawer-gpu-out'} ${
+          wide ? SIM_DRAWER_WIDTH_WIDE : SIM_DRAWER_WIDTH_STD
+        } ${
           isLight
             ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100'
             : 'bg-[#12151e] text-slate-100'
         }`}
       >
         {children}
-      </motion.div>
+      </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(drawerNode, document.body) : drawerNode;
 };

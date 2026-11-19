@@ -946,7 +946,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
                   transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
-                  className="origin-top-right absolute right-0 mt-2.5 w-[360px] sm:w-[420px] rounded-2xl shadow-2xl border bg-white border-slate-200/90 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100 transform-gpu will-change-gpu"
+                  className="origin-top-right absolute right-0 mt-2.5 w-[360px] sm:w-[420px] rounded-2xl shadow-2xl border bg-white border-slate-200/90 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100"
                 >
                   {/* Clean, Modern Header */}
                   <div className="px-4 py-3 bg-slate-50/80 flex items-center justify-between">

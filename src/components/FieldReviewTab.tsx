@@ -25,7 +25,7 @@ import {
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
 import { getCachedFieldEvents, isFieldCacheComplete, setCachedFieldEvents } from '../services/fieldCache';
-import { normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
+import { FieldScope, normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -169,7 +169,7 @@ interface Props {
   onApplied: () => void;
   onOpenWorkflow?: (serial: string) => void;
   /** Settings: show Phnom Penh staff only, or Phnom Penh and regional staff */
-  scope?: 'PHNOM_PENH' | 'ALL';
+  scope?: FieldScope;
   /** (28 Oct 2026) the waiting count of each device type (badges of the Phone App Review sub-menus) */
   onPendingCountChange?: (counts: { pos: number; sb: number }) => void;
   /** (28 Oct 2026) Phone App Review sub-menu: show one device type only (POS Terminal or Sound Box) */
@@ -197,12 +197,12 @@ const resolve = (e: FieldEvent, o?: RowOpt) => ({
 type How = 'SCAN' | 'TYPED' | '';
 const howOf = (v: unknown): How => {
   const t = String(v ?? '').trim().toUpperCase();
-  return t === 'SCAN' || t === 'SCANNED' ? 'SCAN' : t === 'TYPED' || t === 'TYPE' || t === 'MANUAL' ? 'TYPED' : '';
+  return t === 'SCAN' || t === 'SCANNED' || t === 'S' ? 'SCAN' : t === 'TYPED' || t === 'TYPE' || t === 'MANUAL' || t === 'T' ? 'TYPED' : '';
 };
-/** POS visit forms (Operational Support / In-Active / Return): the phone app scans the MID only and fills the
- *  serial, TID and terminal name from it, so it never sends serial_input. A scanned MID means the unit was scanned. */
-const MID_LOOKUP_KINDS = new Set(['POS_MAINT', 'POS_INACTIVE', 'POS_RETURN']);
-const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How; serialFromMid: boolean } => {
+/** Maintenance / In-Active / Return forms: when the phone app scans the MID only and fills the
+ *  serial, TID and terminal name from it, it may omit serial_input. A scanned MID means the unit was scanned. */
+const MID_LOOKUP_KINDS = new Set(['POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'SB_MAINT', 'SB_RETURN']);
+const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How; oldBattery: How; newBattery: How; serialFromMid: boolean } => {
   const u = (e.payload && (e.payload.unit || e.payload)) || {};
   const serialReported = howOf(u.serial_input || u.serialInput || u.scan_type || u.scanType || e.payload?.serial_input);
   const mid = howOf(u.mid_input || u.midInput || e.payload?.mid_input);
@@ -211,6 +211,8 @@ const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How; serial
     serial: serialFromMid ? mid : serialReported,
     mid,
     oldSerial: howOf(u.old_serial_input || u.oldSerialInput || e.payload?.old_serial_input),
+    oldBattery: howOf(u.old_battery_input || u.oldBatteryInput || e.payload?.old_battery_input),
+    newBattery: howOf(u.new_battery_input || u.newBatteryInput || e.payload?.new_battery_input),
     serialFromMid,
   };
 };
@@ -297,9 +299,9 @@ export const FieldReviewTab: React.FC<Props> = ({
   onPendingCountChange,
   deviceType,
 }) => {
-  const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
+  const [activeScope, setActiveScope] = useState<FieldScope>(scope);
   useEffect(() => {
-    setActiveScope(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
+    setActiveScope(scope);
   }, [scope]);
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -1153,22 +1155,26 @@ export const FieldReviewTab: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
-          <button
-            type="button"
-            onClick={() => setActiveScope((prev) => (prev === 'ALL' ? 'PHNOM_PENH' : 'ALL'))}
-            className={`btn-press px-3 py-1.5 rounded-xl text-xs font-medium border inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-              activeScope === 'PHNOM_PENH'
-                ? 'bg-slate-100 text-slate-800 border-slate-300'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-            }`}
-            title="Click to switch between Phnom Penh staff only (33 Branches) and All Branches (Phnom Penh + Regional)"
-          >
-            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span>
-              {activeScope === 'PHNOM_PENH' ? 'Phnom Penh Staff Only' : 'All Branches'}
-            </span>
-          </button>
+          {/* Region Scope Select: All Regions / Phnom Penh / Regional */}
+          <div className="relative inline-flex items-center shrink-0">
+            <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+            <select
+              value={activeScope}
+              onChange={(e) => setActiveScope(e.target.value as FieldScope)}
+              aria-label="Filter by region"
+              className={`btn-press appearance-none pl-8 pr-7 py-1.5 rounded-xl text-xs font-medium border outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer ${
+                activeScope !== 'ALL'
+                  ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
+              title="Filter records by Phnom Penh, Regional, or All Regions"
+            >
+              <option value="ALL">All Regions</option>
+              <option value="PHNOM_PENH">Phnom Penh</option>
+              <option value="REGIONAL">Regional</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+          </div>
 
           {/* Record Type Select Filter */}
           <div className="relative inline-flex items-center shrink-0">
@@ -1799,10 +1805,10 @@ const ReviewRow = memo(function ReviewRow({
                 aria-hidden
               />
               <span
-                className={`font-normal tabular-nums tracking-tight ${
+                className={`tabular-nums tracking-tight ${
                   entry.serial === 'SCAN'
-                    ? 'text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
-                    : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100'
+                    ? 'font-medium text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
+                    : 'font-normal text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100'
                 }`}
               >
                 {e.serial}
@@ -1894,7 +1900,7 @@ const ReviewRow = memo(function ReviewRow({
             initial="initial"
             animate="animate"
             exit="exit"
-            className="px-5 pb-4 pt-3 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-200 bg-slate-50/90 will-change-[transform,opacity]"
+            className="px-5 pb-4 pt-3 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-200 bg-slate-50/90"
           >
             {onEdit && (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') && (
               <div className="md:col-span-2 flex justify-end -mb-2">
@@ -1912,18 +1918,77 @@ const ReviewRow = memo(function ReviewRow({
                 </span>
               </Line>
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
-              <Line k="Entered by">{`Serial: ${entry.serialFromMid ? `Filled from ${entry.mid === 'SCAN' ? 'scanned' : 'typed'} MID` : howText(entry.serial)} · MID: ${howText(entry.mid)}`}</Line>
+              <Line k="Entered by">
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>
+                    Serial:{' '}
+                    <span className={entry.serial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                      {entry.serialFromMid ? `Filled from ${entry.mid === 'SCAN' ? 'scanned' : 'typed'} MID` : howText(entry.serial)}
+                    </span>
+                  </span>
+                  {e.oldSerial && (
+                    <span>
+                      · Old Serial:{' '}
+                      <span className={entry.oldSerial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                        {howText(entry.oldSerial)}
+                      </span>
+                    </span>
+                  )}
+                  {e.mid && (
+                    <span>
+                      · MID:{' '}
+                      <span className={entry.mid === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                        {howText(entry.mid)}
+                      </span>
+                    </span>
+                  )}
+                  {e.newBattery && (
+                    <span>
+                      · Battery:{' '}
+                      <span className={entry.oldBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                        {howText(entry.oldBattery)}
+                      </span>
+                      {' → '}
+                      <span className={entry.newBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                        {howText(entry.newBattery)}
+                      </span>
+                    </span>
+                  )}
+                </span>
+              </Line>
               <Line k="MID · TID" mono>
-                {[e.mid, e.tid].filter(Boolean).join(' · ')}
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  {e.mid && (
+                    <span className={`inline-flex items-center gap-1 ${entry.mid === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                      {e.mid}
+                      <InputMethodBadge method={entry.mid} titlePrefix="MID" size="xs" />
+                    </span>
+                  )}
+                  {e.mid && e.tid && <span className="text-slate-400">·</span>}
+                  {e.tid && <span>{e.tid}</span>}
+                </span>
               </Line>
               {e.oldSerial && (
                 <Line k="Replaces" mono>
-                  {e.oldSerial}
+                  <span className={`inline-flex items-center gap-1 ${entry.oldSerial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                    {e.oldSerial}
+                    <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
+                  </span>
                 </Line>
               )}
               {e.newBattery && (
                 <Line k="Battery" mono>
-                  {`${e.oldBattery || '—'} → ${e.newBattery}`}
+                  <span className="inline-flex items-center gap-1.5 flex-wrap">
+                    <span className={`inline-flex items-center gap-1 ${entry.oldBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                      {e.oldBattery || '—'}
+                      <InputMethodBadge method={entry.oldBattery} titlePrefix="Old Battery" size="xs" />
+                    </span>
+                    <span className="text-slate-400">→</span>
+                    <span className={`inline-flex items-center gap-1 ${entry.newBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                      {e.newBattery}
+                      <InputMethodBadge method={entry.newBattery} titlePrefix="New Battery" size="xs" />
+                    </span>
+                  </span>
                 </Line>
               )}
               {Array.isArray(e.payload?.entry?.details) && e.payload.entry.details.length > 0 && (

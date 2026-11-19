@@ -949,7 +949,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         onMouseLeave={() => setHoveredBranchCode(null)}
         onFocus={() => setHoveredBranchCode(b.code)}
         onBlur={() => setHoveredBranchCode(null)}
-        onClick={() => onNavigateTab?.('branches')}
+        onClick={() => onNavigateTab?.('kpi_performance')}
         title={`#${rank} ${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)}`}
         className={`w-full h-full text-left rounded-xl border transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] active:scale-[0.99] cursor-pointer flex flex-col justify-between gap-2 min-w-0 group ${
           isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3.5 py-2.5'
@@ -1118,7 +1118,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
               Top Branches — Visual Performance Graph
             </h3>
             <p className="text-xs text-slate-500 truncate">
-              {activePeriodLabel} Bento output share · hover to inspect or click to view branches
+              {activePeriodLabel} Bento output share · hover to inspect or click to view KPI Performance
             </p>
           </div>
         </div>
@@ -2543,6 +2543,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const kpiCardClass = isLight
     ? 'bg-[#f8f9fb] border border-slate-200/55 text-[#0f172a]'
     : 'bg-[#1e2330] border border-slate-800 text-slate-100';
+  const kpiInteractiveClass = onNavigateTab
+    ? isLight
+      ? 'cursor-pointer group transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] hover:bg-white hover:border-[#155484]/35 hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.18)] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#155484]/40'
+      : 'cursor-pointer group transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] hover:border-sky-400/40 hover:bg-[#232938] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50'
+    : '';
   const kpiHeadingClass = isLight ? 'text-[#0f172a]' : 'text-white';
   const kpiSubtextClass = isLight ? 'text-slate-500' : 'text-slate-400';
   const kpiFooterBorderClass = isLight ? 'border-slate-200/50' : 'border-slate-800/80';
@@ -3111,13 +3116,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           aria-label="Key portal metrics"
         >
           {/* KPI 1: Field Tasks */}
-          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
-            <div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('kpi_performance')}
+            title="Open KPI Performance"
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+          >
+            <div className="w-full">
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Field Tasks · {activePeriodLabel}
                 </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'}`}>
                   <TrendingUp className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
@@ -3145,20 +3155,25 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 />
               </div>
             </div>
-            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+            <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
-              <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+              <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
             </div>
-          </div>
+          </button>
 
           {/* KPI 2: Hardware Deployments */}
-          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
-            <div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('merchants')}
+            title="Open Merchant Deployment"
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+          >
+            <div className="w-full">
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Hardware Deployments
                 </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
                   <Cpu className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
@@ -3186,26 +3201,35 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 />
               </div>
             </div>
-            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+            <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(hardwareSummary.posInstalled)} POS · {fmtNum(hardwareSummary.sbInstalled)} SB</span>
-              <button
-                type="button"
-                onClick={() => onNavigateTab?.('merchants')}
-                className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
-              >
+              <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>
                 {fmtNum(hardwareSummary.uniqueMerchants)} merchants
-              </button>
+              </span>
             </div>
-          </div>
+          </button>
 
           {/* KPI 3: Hardware Pool */}
-          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
+          <div
+            role={onNavigateTab ? 'button' : undefined}
+            tabIndex={onNavigateTab ? 0 : undefined}
+            onClick={() => onNavigateTab?.('inventory')}
+            onKeyDown={(e) => {
+              if (!onNavigateTab) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onNavigateTab('inventory');
+              }
+            }}
+            title="Open Stock Inventory"
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}
+          >
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Hardware Pool
                 </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
                   <Boxes className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
@@ -3238,13 +3262,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               {queues.pushPend > 0 ? (
                 <button
                   type="button"
-                  onClick={() => onNavigateTab?.('push_configuring')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateTab?.('push_configuring');
+                  }}
                   className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
                 >
                   {fmtNum(queues.pushPend)} push
                 </button>
               ) : (
-                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                   {fmtNum(materialsSummary.simTotal)} SIM
                 </span>
               )}
@@ -3252,13 +3279,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           {/* KPI 4: Merchant Outreach */}
-          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
-            <div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab?.('mobile_sync_khqr')}
+            title="Open KHQR Review"
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+          >
+            <div className="w-full">
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Merchant Outreach
                 </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
                   <Store className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
@@ -3286,11 +3318,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 />
               </div>
             </div>
-            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+            <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
-              <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
+              <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
             </div>
-          </div>
+          </button>
         </section>
       </div>
 

@@ -129,16 +129,25 @@
   html,
   body {
     font-family: var(--font-sans);
-    font-size: 14.5px; /* the spacing unit (1rem) stays as before; text sizes are whole pixels (body below, @theme above) */
+    font-size: 14px; /* whole-pixel base: keeps all rem spacing/heights on exact integer pixels so Windows ClearType text stays razor-sharp */
     line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: auto;
     letter-spacing: 0;
     background-color: #f3f4f6;
     color: #0f172a;
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* High-DPI / Retina displays (2x+) benefit from grayscale smoothing; 1x/1.25x Windows LCDs stay sharp with native ClearType */
+  @media (min-resolution: 2dppx) {
+    html,
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
   }
 
   *,
@@ -436,9 +445,7 @@ button:not(:disabled),
 .tactile-btn:not(:disabled),
 .interactive-tab-btn,
 .row-btn {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
+  text-rendering: auto;
   letter-spacing: 0.01em;
   transition: background-color var(--duration-fast) var(--ease-standard),
               border-color var(--duration-fast) var(--ease-standard),
@@ -557,13 +564,11 @@ button:hover:not(:disabled),
 }
 
 .will-change-gpu {
-  will-change: transform, opacity;
+  will-change: auto;
 }
 
-/* Prevent layout thrashing on slide drawers and modals */
+/* Keep layout containment without permanent 3D GPU texture promotion (preserves crisp Windows ClearType text) */
 .gpu-modal-container {
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
   contain: layout style;
 }
 
@@ -671,7 +676,11 @@ button:hover:not(:disabled),
   background: #ffffff;
   transition: background-color 0.09s ease-out;
 }
-.data-table tbody tr { contain: layout style; }
+.data-table tbody tr {
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 54px;
+}
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover td { background: #f4f8fb; }
 .data-table tbody tr[role="button"] { cursor: pointer; }
@@ -681,9 +690,9 @@ button:hover:not(:disabled),
 .data-table tbody td,
 .data-table tbody td * { font-weight: 400 !important; }
 .data-table tbody td .chip { font-weight: 500 !important; }
-.data-table .cell-sub { font-size: 11px; color: #64748b !important; margin-top: 3.5px; line-height: 1.4; }
+.data-table .cell-sub { font-size: 11px; color: #475569 !important; margin-top: 3.5px; line-height: 1.4; }
 .data-table .cell-mono { font-family: var(--font-mono); font-size: 12px; color: #0f172a; font-variant-numeric: tabular-nums; }
-.data-table .cell-mono-sub { font-family: var(--font-mono); font-size: 11px; color: #64748b !important; margin-top: 3.5px; }
+.data-table .cell-mono-sub { font-family: var(--font-mono); font-size: 11px; color: #475569 !important; margin-top: 3.5px; }
 .data-table .chip {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 9999px;
@@ -710,9 +719,12 @@ button:hover:not(:disabled),
 }
 .data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
 .data-table th:first-child, .data-table td:first-child { padding-left: 16px; }
-/* the action button stays in view on small screens */
+/* the action button stays in view on small screens (avoid 51 sticky compositor layers on desktop) */
 .data-table th.col-no, .data-table td.col-no { width: 52px; min-width: 52px; text-align: center; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 12px; padding-left: 14px; }
-.data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 16px; }
+.data-table .col-actions { padding-right: 16px; }
+@media (max-width: 1279px) {
+  .data-table .col-actions { position: sticky; right: 0; z-index: 1; }
+}
 
 .data-table .warn-text { color: #b45309 !important; font-weight: 600; }
 
@@ -762,18 +774,18 @@ button:hover:not(:disabled),
 @keyframes vtFadeOut { to { opacity: 0; } }
 @keyframes vtGlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-/* Modals and drawers open with the same glide */
+/* Modals and drawers open with the same glide (release transform when done for crisp native text) */
 @keyframes modalGlideIn {
   from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.96); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 1; transform: none; }
 }
-.modal-glide { animation: modalGlideIn var(--duration-normal) var(--ease-entrance) both; will-change: transform, opacity; }
+.modal-glide { animation: modalGlideIn var(--duration-normal) var(--ease-entrance) backwards; }
 
 @keyframes drawerGlideIn {
   from { transform: translate3d(100%, 0, 0); }
-  to { transform: translate3d(0, 0, 0); }
+  to { transform: none; }
 }
-.drawer-glide { animation: drawerGlideIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both; will-change: transform; }
+.drawer-glide { animation: drawerGlideIn 240ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 
 /* Whoever asked the device for less motion gets none */
 @media (prefers-reduced-motion: reduce) {
@@ -908,34 +920,33 @@ nav a:active,
 .data-table tbody td, .interactive-row { transition: background-color var(--duration-fast) var(--ease-standard); }
 a, summary, label { transition: color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard); }
 
-/* Drawers, modals and dropdowns: composited layers that decelerate like a physical object */
-[role="dialog"], [aria-modal="true"] { will-change: transform, opacity; backface-visibility: hidden; }
+/* Isolate main portal tree so portaled body drawers never trigger root-wide layout/prepaint */
+#root { contain: layout style; }
+
+/* Dropdowns and popovers: release GPU layer after opening so menu text renders crisply */
 [role="menu"], [role="listbox"], .popover {
   transform-origin: top center;
-  animation: popIn var(--duration-fast) var(--ease-standard) both;
-  will-change: transform, opacity;
+  animation: popIn var(--duration-fast) var(--ease-standard) backwards;
 }
 @keyframes popIn {
   from { opacity: 0; transform: translate3d(0, 4px, 0) scale(0.985); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Dock spring animation for floating bars and action docks */
 @keyframes dockSpringIn {
   0% { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.985); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  100% { opacity: 1; transform: none; }
 }
 @keyframes dockSpringOut {
   0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   100% { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.985); }
 }
 .dock-spring-enter {
-  animation: dockSpringIn var(--duration-normal) var(--ease-standard) forwards;
-  will-change: transform, opacity;
+  animation: dockSpringIn var(--duration-normal) var(--ease-standard) backwards;
 }
 .dock-spring-leave {
   animation: dockSpringOut var(--duration-fast) var(--ease-standard) forwards;
-  will-change: transform, opacity;
 }
 
 /* Expandable accordion / details section smooth unfold */
@@ -944,11 +955,11 @@ details > summary {
   cursor: pointer;
 }
 details[open] > *:not(summary) {
-  animation: detailsFadeIn var(--duration-fast) var(--ease-standard) both;
+  animation: detailsFadeIn var(--duration-fast) var(--ease-standard) backwards;
 }
 @keyframes detailsFadeIn {
   from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* Layout containment for tables to prevent layout shift during list updates */
@@ -986,7 +997,7 @@ details[open] > *:not(summary) {
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   letter-spacing: 0.01em;
 }
-.gpu { transform: translateZ(0); will-change: transform; }
+.gpu { contain: layout style; }
 
 /* A row that is saving in the background: gentle opacity pulse (GPU only), no layout or paint work */
 @keyframes syncPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
@@ -1117,8 +1128,8 @@ button, [role="button"], a {
    ========================================================================== */
 /* taps respond at once on phones (no 300 ms wait, no double-tap zoom on buttons) */
 button, [role="button"], a, select, summary, label, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }
-/* sharper, steadier text while animating, and no font-size jump when a phone rotates */
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+/* prevent font-size jump when a phone rotates (smoothing handled in @layer base) */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* pictures never push the page around while loading */
 /* (svg is left out on purpose: max-width on icons inside shrink-to-fit buttons collapsed the row checkboxes to nothing) */
 img, video { max-width: 100%; }
@@ -1353,6 +1364,44 @@ select.appearance-none {
   animation: none;
 }
 
+/* Pure GPU compositor-thread slide-over drawer keyframes (release transform on settle so drawer text uses crisp ClearType) */
+@keyframes drawerSlideIn {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: none; }
+}
+@keyframes drawerSlideOut {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(100%, 0, 0); }
+}
+@keyframes drawerBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes drawerBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.drawer-gpu-in {
+  animation: drawerSlideIn 210ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.drawer-gpu-out {
+  animation: drawerSlideOut 160ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.drawer-backdrop-in {
+  animation: drawerBackdropIn 140ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.drawer-backdrop-out {
+  animation: drawerBackdropOut 130ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-gpu-in,
+  .drawer-gpu-out,
+  .drawer-backdrop-in,
+  .drawer-backdrop-out {
+    animation-duration: 1ms !important;
+  }
+}
+
 /* Rule 5: Stretch moving knobs 12% */
 .toggle-knob-stretch:active,
 .toggle-switch:active .toggle-knob,
@@ -1431,8 +1480,7 @@ input[type="checkbox"].switch-toggle:active::after {
    Optimized for budget dual-core CPUs and integrated graphics (Intel HD/UHD).
    ========================================================================== */
 .hardware-accelerated {
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  contain: layout style;
 }
 
 /* Skip layout calculation and paint passes for offscreen rows */
@@ -1441,10 +1489,9 @@ tbody > tr {
   contain-intrinsic-size: 0 44px;
 }
 
-/* Isolate paint boundaries for data tables so scrolling never triggers full-page reflow */
+/* Isolate paint boundaries for data tables without 3D layer promotion (keeps table text crisp ClearType) */
 .fr-table-frame {
   contain: paint;
-  transform: translateZ(0);
 }
 
 

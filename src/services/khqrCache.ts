@@ -53,7 +53,7 @@ if (isSupabaseConfigured) {
 }
 
 export const entriesKey = (f: QrQuery, page: number, pageSize: number) =>
-  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.branchId || '', f.staffId || '', f.search || '', page, pageSize]);
+  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.region || 'ALL', f.branchId || '', f.staffId || '', f.search || '', page, pageSize]);
 const periodKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
 
 export const getCachedEntries = (key: string) => entries.get(key);
@@ -61,8 +61,8 @@ export function setCachedEntries(key: string, hit: EntriesHit): void {
   entries.delete(key); entries.set(key, hit);
   while (entries.size > MAX_KEYS) entries.delete(entries.keys().next().value as string);
 }
-export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; branchId?: string; staffId?: string; search?: string; kind?: string }, page: number, pageSize: number) =>
-  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.branchId || '', f.staffId || '', f.search || '', f.kind || 'SUBMIT_BLOCKED', page, pageSize]);
+export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; region?: string; branchId?: string; staffId?: string; search?: string; kind?: string }, page: number, pageSize: number) =>
+  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.region || 'ALL', f.branchId || '', f.staffId || '', f.search || '', f.kind || 'SUBMIT_BLOCKED', page, pageSize]);
 export const getCachedAttempts = (key: string) => attempts.get(key);
 export function setCachedAttempts(key: string, hit: { rows: QrAttempt[]; total: number }): void {
   attempts.delete(key); attempts.set(key, hit);

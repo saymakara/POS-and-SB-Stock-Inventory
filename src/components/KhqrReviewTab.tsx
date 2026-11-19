@@ -22,6 +22,7 @@ import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { PillMotion } from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
+import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -64,6 +65,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<Period>('ALL');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
+  const [region, setRegion] = useState<FieldScope>('ALL');
   const [branchId, setBranchId] = useState('');
   const [staffSel, setStaffSel] = useState<{ id: string; name: string } | null>(null);
   const [query, setQuery] = useState('');
@@ -100,9 +102,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const range = useMemo(() => periodRange(period), [period]);
   const from = range.from, to = range.to;
   // (28 Oct 2026) every KHQR entry is a request: no Completed / Failed Attempt split (failed attempts: the log)
-  const filters = useMemo<QrQuery>(() => ({ from, to, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search }),
-    [from, to, activity, branchId, staffSel, search]);
-  const pg = usePager(total, [from, to, activity, branchId, staffSel, search]);
+  const filters = useMemo<QrQuery>(() => ({ from, to, activity, region, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search }),
+    [from, to, activity, region, branchId, staffSel, search]);
+  const pg = usePager(total, [from, to, activity, region, branchId, staffSel, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
   // (31 Oct 2026) Export CSV of the view below, with the same filters (all pages; KHQR details are kept for the last 2 months)
@@ -119,7 +121,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     }
     if (view === 'failed' || view === 'wrong') {
       const kind: QrAttemptKind = view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED';
-      const rows = await collectAll((pg1) => fetchQrAttemptsPage({ from, to, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined,
+      const rows = await collectAll((pg1) => fetchQrAttemptsPage({ from, to, activity, region, branchId: branchId || undefined, staffId: staffSel?.id || undefined,
         search, kind, page: pg1, pageSize: 1000, withSaved: false }));
       if (!rows.length) return 0;
       const saved = new Map<string, string>();
@@ -138,7 +140,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     if (!rows.length) return 0;
     downloadCsv(`KHQR_Same_MID_2plus_Staff_${tag}`, ['Day', 'MID', 'Merchant Name', 'Staff Count', 'Entries', 'Record ID', 'Time', 'Staff ID', 'Staff Name', 'Branch', 'Activity', 'QR'], rows);
     return rows.length;
-  }, [view, filters, from, to, activity, branchId, staffSel, search, period]);
+  }, [view, filters, from, to, activity, region, branchId, staffSel, search, period]);
 
   // Single fast RPC for summary; monthly history is fetched once and updated on live events
   const statSeq = useRef(0);
@@ -203,11 +205,14 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
 
-  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
-  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('ALL'); };
+  const filtersActive = !!query || activity !== 'ALL' || region !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
+  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setRegion('ALL'); setBranchId(''); setStaffSel(null); setPeriod('ALL'); };
   const branchOptions = useMemo(
-    () => [...branches].sort((a, b) => String(a.code || a.id).localeCompare(String(b.code || b.id), undefined, { numeric: true })),
-    [branches]
+    () =>
+      branches
+        .filter((b) => isBranchInRegionScope(b, region))
+        .sort((a, b) => String(a.code || a.id).localeCompare(String(b.code || b.id), undefined, { numeric: true })),
+    [branches, region]
   );
   const loadingFirst = rows === null;
   const entriesRef = useRef<HTMLElement | null>(null);
@@ -397,6 +402,30 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <option value="QR_REPLACEMENT">QR Replacement{summary ? ` (${summary.replace.toLocaleString()})` : ''}</option>
           </select>
           {isAdmin && (
+            <div className="relative inline-flex items-center shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+              <select
+                value={region}
+                onChange={(e) => {
+                  const next = e.target.value as FieldScope;
+                  setRegion(next);
+                  setBranchId('');
+                }}
+                aria-label="Filter by region"
+                className={`btn-press appearance-none pl-8 pr-7 py-1.5 rounded-xl text-xs font-medium border outline-none focus:border-[#004e75] cursor-pointer ${
+                  region !== 'ALL'
+                    ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+              >
+                <option value="ALL">All Regions</option>
+                <option value="PHNOM_PENH">Phnom Penh</option>
+                <option value="REGIONAL">Regional</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+            </div>
+          )}
+          {isAdmin && (
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
@@ -460,13 +489,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       </section>
 
       {(view === 'failed' || view === 'wrong') && loadError !== 'SETUP' && (
-        <QrAttemptLog key={view} from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
+        <QrAttemptLog key={view} from={from} to={to} activity={activity} region={region} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
           kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} isSuper={isSuper} toast={triggerToast}
           onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(true); }} />
       )}
 
       {view === 'shared' && loadError !== 'SETUP' && (
-        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} search={search} isSuper={isSuper} toast={triggerToast}
+        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} region={region} search={search} isSuper={isSuper} toast={triggerToast}
           onDeleted={() => { clearKhqrCache(); load(true); loadStats(true); }} />
       )}
 
@@ -571,26 +600,26 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 };
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
-const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number;
+const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; region: FieldScope; branchId: string; staffId: string; search: string; reloadKey: number;
   kind: QrAttemptKind; isSuper: boolean; toast: (m: string) => void; onDeleted: () => void }> = ({
-  from, to, activity, branchId, staffId, search, reloadKey, kind, isSuper, toast, onDeleted,
+  from, to, activity, region, branchId, staffId, search, reloadKey, kind, isSuper, toast, onDeleted,
 }) => {
   const pick = useRecordSelection();                                 // (4 Nov 2026) Super Admin: delete failed attempts / wrong scans
   const [delOpen, setDelOpen] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
   const what = kind === 'WRONG_SCAN' ? 'wrong scans' : 'failed attempts';
   // (30 Oct 2026) two kinds, kept apart: Submit blocked (as before, the default) and Wrong scan (recorded at scan time)
-  const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind }, 1, 50)));
+  const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, region, branchId: branchId || undefined, staffId: staffId || undefined, search, kind }, 1, 50)));
   const [rows, setRows] = useState<QrAttempt[] | null>(first ? first.rows : null);
   const [total, setTotal] = useState(first ? first.total : 0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const pg = usePager(total, [from, to, activity, branchId, staffId, search, kind]);
+  const pg = usePager(total, [from, to, activity, region, branchId, staffId, search, kind]);
   const page = pg.page, pageSize = pg.pageSize;
   const seqRef = useRef(0);
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
-    const params = { from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind, page, pageSize };
+    const params = { from, to, activity, region, branchId: branchId || undefined, staffId: staffId || undefined, search, kind, page, pageSize };
     const key = attemptsKey(params, page, pageSize);
     const hit = getCachedAttempts(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }                // shown at once; the fresh rows replace it quietly
@@ -614,7 +643,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
     } finally {
       if (seq === seqRef.current) setLoading(false);
     }
-  }, [from, to, activity, branchId, staffId, search, kind, page, pageSize]);
+  }, [from, to, activity, region, branchId, staffId, search, kind, page, pageSize]);
   useEffect(() => { load(); }, [load, reloadKey]);
   const pageItems = (rows || []).map((a) => ({ id: a.id, rec: (a.gotMid || a.expectedMid || '#' + a.id) + ' · ' + (a.staffName || a.staffId) }));
   const pageAll = pageItems.length > 0 && pageItems.every((x) => pick.sel.has(x.id));
@@ -714,8 +743,8 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
 };
 
 /** (30 Oct 2026) MIDs entered by two or more different staff on the same day (Phnom Penh time), newest day first. */
-const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string; search: string; isSuper: boolean; toast: (m: string) => void;
-  onDeleted: () => void }> = ({ rows: all, periodLabel, search, isSuper, toast, onDeleted }) => {
+const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string; region: FieldScope; search: string; isSuper: boolean; toast: (m: string) => void;
+  onDeleted: () => void }> = ({ rows: all, periodLabel, region, search, isSuper, toast, onDeleted }) => {
   const [open, setOpen] = useState<string | null>(null);
   // (4 Nov 2026) Super Admin: tick a whole group (all its entries) or single entries, then delete those KHQR entries
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -723,10 +752,26 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
   const [delBusy, setDelBusy] = useState(false);
   const flip = (ids: string[], on: boolean) => setSel((p) => { const n = new Set(p); ids.forEach((x) => (on ? n.add(x) : n.delete(x))); return n; });
   const rows = useMemo(() => {
+    if (!all) return all;
+    const isPpBranchText = (text: string) => {
+      const t = String(text || '').trim();
+      if (!t || REGIONAL_KEYWORD_REGEX.test(t)) return false;
+      const m = t.match(/\b(\d{3})\b/);
+      if (m) return PHNOM_PENH_BRANCH_CODES.has(m[1]);
+      return PHNOM_PENH_NAME_REGEX.test(t);
+    };
     const q = search.trim().toLowerCase();
-    if (!all || !q) return all;
-    return all.filter((r) => `${r.mid} ${r.merchantName} ${r.branches} ${r.items.map((x) => `${x.staffId} ${x.staffName} ${x.recordId}`).join(' ')}`.toLowerCase().includes(q));
-  }, [all, search]);
+    return all.filter((r) => {
+      if (region !== 'ALL') {
+        const branchList = r.items.map((x) => x.branch).filter(Boolean);
+        const hasPp = branchList.length > 0 ? branchList.some(isPpBranchText) : isPpBranchText(r.branches);
+        if (region === 'PHNOM_PENH' && !hasPp) return false;
+        if (region === 'REGIONAL' && hasPp) return false;
+      }
+      if (!q) return true;
+      return `${r.mid} ${r.merchantName} ${r.branches} ${r.items.map((x) => `${x.staffId} ${x.staffName} ${x.recordId}`).join(' ')}`.toLowerCase().includes(q);
+    });
+  }, [all, region, search]);
   return (<>
     {isSuper && sel.size > 0 && <SelectionBar count={sel.size} onClear={() => setSel(new Set())} onDelete={() => setDelOpen(true)} label="KHQR entries" />}
     <DeleteRecordsDialog open={delOpen} count={sel.size} what="KHQR entries" sample={Array.from(sel)}
@@ -904,7 +949,6 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
             initial="initial"
             animate="animate"
             exit="exit"
-            className="will-change-[transform,opacity]"
           >
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               {onEdit && (

@@ -44,17 +44,24 @@ export function deduplicateStaffList(list: (string | null | undefined)[]): strin
   return result;
 }
 
+let cachedStaffAliases: Record<string, string> | null = null;
+
 /**
  * Returns stored staff name aliases (e.g. when an admin updates a staff name in the directory).
+ * Cached in memory so opening hardware drawers never runs synchronous localStorage + JSON.parse on frame 0.
  */
 export function getStaffAliases(): Record<string, string> {
+  if (cachedStaffAliases !== null) return cachedStaffAliases;
   // (29 Oct 2026) no built-in aliases: a staff member's name does not belong in the public code (and no unit uses the old one)
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STAFF_ALIASES_KEY) : null;
     const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    const res: Record<string, string> = parsed && typeof parsed === 'object' ? parsed : {};
+    cachedStaffAliases = res;
+    return res;
   } catch {
-    return {};
+    cachedStaffAliases = {};
+    return cachedStaffAliases;
   }
 }
 
@@ -64,8 +71,9 @@ export function getStaffAliases(): Record<string, string> {
 export function saveStaffAlias(oldName: string, newName: string): void {
   if (!oldName || !newName || oldName.trim().toLowerCase() === newName.trim().toLowerCase()) return;
   try {
-    const current = getStaffAliases();
+    const current = { ...getStaffAliases() };
     current[oldName.trim().toLowerCase()] = newName.trim();
+    cachedStaffAliases = current;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(STAFF_ALIASES_KEY, JSON.stringify(current));
     }

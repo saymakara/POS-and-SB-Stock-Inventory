@@ -19,8 +19,7 @@ import { todayPP } from '../utils/time';
 import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { isValidMidForType, midRuleError } from '../utils/display';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
-import { motion, AnimatePresence } from 'motion/react';
-import { WHILE_TAP_BUTTON } from '../utils/animationRules';
+import { AnimatePresence } from 'motion/react';
 import {
   RightDrawerFrame,
   SIM_HEADER_CLS,
@@ -69,6 +68,91 @@ const HARDWARE_PRIMARY_STEPS: Record<string, { step: string; title: string; subt
   CONFIGURING: { step: '3', title: 'Push Config', subtitle: 'Field activation' },
   COMPLETE: { step: '4', title: 'Deployed Live', subtitle: 'Active merchant' },
 };
+
+interface BranchStaffOption {
+  name: string;
+  empId?: string;
+  branchId: string;
+  telegram?: string;
+  label: string;
+  isCurrentBranch: boolean;
+}
+
+const branchStaffCache = new WeakMap<readonly AppUser[], WeakMap<readonly Branch[], Map<string, BranchStaffOption[]>>>();
+
+function getCachedBranchStaffOptions(
+  users: readonly AppUser[],
+  branches: readonly Branch[],
+  targetBranchId: string,
+): BranchStaffOption[] {
+  let byBranches = branchStaffCache.get(users);
+  if (!byBranches) {
+    byBranches = new WeakMap();
+    branchStaffCache.set(users, byBranches);
+  }
+  let byBranchId = byBranches.get(branches);
+  if (!byBranchId) {
+    byBranchId = new Map();
+    byBranches.set(branches, byBranchId);
+  }
+  const hit = byBranchId.get(targetBranchId);
+  if (hit) return hit;
+
+  const list: BranchStaffOption[] = [];
+  const seenNames = new Set<string>();
+  const seenEmpIds = new Set<string>();
+
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    if (u.status === 'Suspended') continue;
+    const uBranch = String(u.branchId || '').trim();
+    if (targetBranchId && uBranch !== targetBranchId) continue;
+
+    const baseName = normalizeStaffName(u.name);
+    if (!baseName) continue;
+    const nameKey = baseName.toLowerCase();
+    const empIdKey = u.empId?.trim().toLowerCase();
+
+    if (seenNames.has(nameKey) || (empIdKey && seenEmpIds.has(empIdKey))) continue;
+    seenNames.add(nameKey);
+    if (empIdKey) seenEmpIds.add(empIdKey);
+
+    list.push({
+      name: baseName,
+      empId: u.empId?.trim(),
+      branchId: uBranch,
+      telegram: u.telegramUsername?.trim(),
+      label: `${baseName}${u.empId ? ` (${u.empId})` : ''}`,
+      isCurrentBranch: true,
+    });
+  }
+
+  const currentBranchObj = branches.find((b) => String(b.code || b.id).trim() === targetBranchId);
+  if (currentBranchObj) {
+    for (const s of currentBranchObj.staff || []) {
+      const baseName = normalizeStaffName(s);
+      if (!baseName) continue;
+      const nameKey = baseName.toLowerCase();
+      const embeddedEmpId = extractEmpIdFromName(s)?.toLowerCase();
+
+      if (seenNames.has(nameKey) || (embeddedEmpId && seenEmpIds.has(embeddedEmpId))) continue;
+      seenNames.add(nameKey);
+      if (embeddedEmpId) seenEmpIds.add(embeddedEmpId);
+
+      list.push({
+        name: baseName,
+        empId: embeddedEmpId,
+        branchId: targetBranchId,
+        label: `${baseName}${embeddedEmpId ? ` (${embeddedEmpId})` : ''}`,
+        isCurrentBranch: true,
+      });
+    }
+  }
+
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  byBranchId.set(targetBranchId, list);
+  return list;
+}
 
 interface WorkflowModalProps {
   device: Device | null;
@@ -336,7 +420,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
         .catch(() => {
           // Non-critical lookup; keep user-entered value or blank
         });
-    }, 260);
+    }, 360);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -363,88 +447,26 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
 
   // selectedBranchObj resolved dynamically
 
+  // WeakMap-cached O(1) staff options per branch so frame 0 opens cleanly without a post-open second render
   const allStaffOptions = useMemo(() => {
-    const list: Array<{
-      name: string;
-      empId?: string;
-      branchId: string;
-      telegram?: string;
-      label: string;
-      isCurrentBranch: boolean;
-    }> = [];
-    const seenNames = new Set<string>();
-    const seenEmpIds = new Set<string>();
-
     const targetBranchId = String(branchId || '').trim();
+    const base = getCachedBranchStaffOptions(users, branches, targetBranchId);
+    if (!staff) return base;
 
-    // 1. Primary Staff Directory & IAM Accounts belonging ONLY to the selected branch
-    if (users && users.length > 0) {
-      for (const u of users) {
-        if (u.status === 'Suspended') continue;
-        const uBranch = String(u.branchId || '').trim();
-        if (targetBranchId && uBranch !== targetBranchId) continue;
+    const baseStaff = normalizeStaffName(resolveStaffFromDirectory(staff, targetBranchId, users));
+    if (!baseStaff) return base;
+    const lower = baseStaff.toLowerCase();
+    if (base.some((s) => s.name.toLowerCase() === lower)) return base;
 
-        const baseName = normalizeStaffName(u.name);
-        if (!baseName) continue;
-        const nameKey = baseName.toLowerCase();
-        const empIdKey = u.empId?.trim().toLowerCase();
-
-        if (seenNames.has(nameKey) || (empIdKey && seenEmpIds.has(empIdKey))) {
-          continue;
-        }
-        seenNames.add(nameKey);
-        if (empIdKey) seenEmpIds.add(empIdKey);
-
-        list.push({
-          name: baseName,
-          empId: u.empId?.trim(),
-          branchId: uBranch,
-          telegram: u.telegramUsername?.trim(),
-          label: `${baseName}${u.empId ? ` (${u.empId})` : ''}`,
-          isCurrentBranch: true,
-        });
-      }
-    }
-
-    // 2. Branch staff fallback for ONLY the selected branch
-    const currentBranchObj = branches.find((b) => String(b.code || b.id).trim() === targetBranchId);
-    if (currentBranchObj) {
-      for (const s of currentBranchObj.staff || []) {
-        const baseName = normalizeStaffName(s);
-        if (!baseName) continue;
-        const nameKey = baseName.toLowerCase();
-        const embeddedEmpId = extractEmpIdFromName(s)?.toLowerCase();
-
-        if (seenNames.has(nameKey) || (embeddedEmpId && seenEmpIds.has(embeddedEmpId))) {
-          continue;
-        }
-        seenNames.add(nameKey);
-        if (embeddedEmpId) seenEmpIds.add(embeddedEmpId);
-
-        list.push({
-          name: baseName,
-          empId: embeddedEmpId,
-          branchId: targetBranchId,
-          label: `${baseName}${embeddedEmpId ? ` (${embeddedEmpId})` : ''}`,
-          isCurrentBranch: true,
-        });
-      }
-    }
-
-    // 3. Currently assigned staff on this device (if already recorded)
-    if (staff) {
-      const baseStaff = normalizeStaffName(resolveStaffFromDirectory(staff, targetBranchId, users));
-      if (baseStaff && !seenNames.has(baseStaff.toLowerCase())) {
-        list.push({
-          name: baseStaff,
-          branchId: targetBranchId,
-          label: baseStaff,
-          isCurrentBranch: true,
-        });
-      }
-    }
-
-    return list.sort((a, b) => a.name.localeCompare(b.name));
+    return [
+      ...base,
+      {
+        name: baseStaff,
+        branchId: targetBranchId,
+        label: baseStaff,
+        isCurrentBranch: true,
+      },
+    ].sort((a, b) => a.name.localeCompare(b.name));
   }, [users, branches, branchId, staff]);
 
   const availableStaff = useMemo(() => {
@@ -1248,7 +1270,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                             value={staff}
                             aria-label="Assigned branch staff officer"
                             onChange={(e) => setStaff(e.target.value)}
-                            className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all ${
+                            className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-colors ${
                               isLight
                                 ? 'bg-white border-slate-200 text-slate-800 focus:border-[#155484] focus:ring-2 focus:ring-[#155484]/10'
                                 : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
@@ -1390,7 +1412,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                           value={staff}
                           aria-label="Assigned branch staff officer"
                           onChange={(e) => setStaff(e.target.value)}
-                          className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                          className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition-colors cursor-pointer pr-8 ${
                             isLight
                               ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
                               : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
@@ -1902,23 +1924,21 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                     Delete Permanently
                   </button>
                 )}
-                <motion.button
-                  whileTap={WHILE_TAP_BUTTON}
+                <button
                   type="button"
                   onClick={onClose}
-                  className={SIM_BTN_CANCEL_CLS}
+                  className={`${SIM_BTN_CANCEL_CLS} active:scale-[0.98]`}
                 >
                   Cancel
-                </motion.button>
+                </button>
               </div>
-              <motion.button
-                whileTap={WHILE_TAP_BUTTON}
+              <button
                 type="submit"
                 className={SIM_BTN_PRIMARY_CLS}
               >
                 <span>Review Changes</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </motion.button>
+              </button>
             </div>
           </form>
         </>
@@ -2295,25 +2315,23 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
 
             {/* Pinned Action Footer Bar */}
             <div className={SIM_FOOTER_CLS}>
-              <motion.button
-                whileTap={WHILE_TAP_BUTTON}
+              <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
+                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5 active:scale-[0.98]`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Edit</span>
-              </motion.button>
+              </button>
 
-              <motion.button
-                whileTap={WHILE_TAP_BUTTON}
+              <button
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer inline-flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Confirm &amp; Commit Changes</span>
-              </motion.button>
+              </button>
             </div>
           </div>
         )

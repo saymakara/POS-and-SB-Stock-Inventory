@@ -5462,10 +5462,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
 /** (18 Nov 2026) The Manage drawer of a POS Terminal / Sound Box: only this re-renders when a unit is opened or closed. */
 type WorkflowHostProps = Omit<React.ComponentProps<typeof WorkflowModal>, 'device' | 'isOpen' | 'onClose' | 'preset'> & { deviceBySerialMap: Map<string, Device> };
-const WorkflowDrawerHost: React.FC<WorkflowHostProps> = ({ deviceBySerialMap, ...rest }) => {
+const WorkflowDrawerHost: React.FC<WorkflowHostProps> = React.memo(({ deviceBySerialMap, ...rest }) => {
   const { serial, preset } = useWorkflowDrawer();
   const device = serial ? deviceBySerialMap.get(serial) || null : null;
   return <WorkflowModal {...rest} device={device} isOpen={Boolean(device)} preset={preset} onClose={workflowDrawer.close} />;
-};
+});
 
 export default App;

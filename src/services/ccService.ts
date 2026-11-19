@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { FieldScope } from '../utils/fieldScope';
 
 /**
  * (31 Oct 2026) Phone App Review → Credit Card: entries sent by the Merchant Visit phone app (Apps Script), reviewed by
@@ -62,7 +63,7 @@ export interface CcCounts {
   pendingAll: number;
   waitingDocs?: number;
 }
-export interface CcQuery { from: string | null; to: string | null; review?: CcFilter | ''; branchId?: string; search?: string; page: number; pageSize: number }
+export interface CcQuery { from: string | null; to: string | null; review?: CcFilter | ''; region?: FieldScope; branchId?: string; search?: string; page: number; pageSize: number }
 
 const map = (r: any): CcEntry => ({
   id: Number(r.id), recordId: r.record_id, requestType: r.request_type || '', cardStatus: r.card_status ?? null, failReason: r.fail_reason ?? null,
@@ -100,8 +101,11 @@ export function fetchCcList(q: CcQuery, maxAgeMs = 45000): Promise<{ rows: CcEnt
   return shared('L' + k, maxAgeMs, () => listCache.get(k), () => fetchCcListNow(q));
 }
 async function fetchCcListNow(q: CcQuery): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
+  const effectiveBranch =
+    q.branchId ||
+    (q.region === 'PHNOM_PENH' ? '__PHNOM_PENH__' : q.region === 'REGIONAL' ? '__REGIONAL__' : null);
   const { data, error } = await supabase.rpc('cc_list', {
-    p_from: q.from, p_to: q.to, p_review: q.review || null, p_branch: q.branchId || null, p_search: q.search || null,
+    p_from: q.from, p_to: q.to, p_review: q.review || null, p_branch: effectiveBranch, p_search: q.search || null,
     p_limit: q.pageSize, p_offset: (q.page - 1) * q.pageSize,
   });
   if (error) throw new Error(error.message);
@@ -161,7 +165,7 @@ export async function docsCc(recordId: string, action: 'WELL_RECEIVED' | 'FOLLOW
  *  the fresh answer replaces them quietly. */
 const listCache = new Map<string, { rows: CcEntry[]; total: number; masked: boolean }>();
 const countsCache = new Map<string, CcCounts>();
-export const ccListKey = (q: CcQuery) => JSON.stringify([q.from, q.to, q.review || '', q.branchId || '', q.search || '', q.page, q.pageSize]);
+export const ccListKey = (q: CcQuery) => JSON.stringify([q.from, q.to, q.review || '', q.region || 'ALL', q.branchId || '', q.search || '', q.page, q.pageSize]);
 export const getCachedCcList = (k: string) => listCache.get(k);
 export const setCachedCcList = (k: string, v: { rows: CcEntry[]; total: number; masked: boolean }) => { if (listCache.size > 40) listCache.clear(); listCache.set(k, v); };
 export const getCachedCcCounts = (k: string) => countsCache.get(k);

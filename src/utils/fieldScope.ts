@@ -1,7 +1,7 @@
 import type { Branch, Device, HistoricalMerchantRecord, Requisition, User } from '../types';
 import { extractEmpIdFromName, getStaffAliases, normalizeStaffName } from './staffUtils';
 
-export type FieldScope = 'PHNOM_PENH' | 'ALL';
+export type FieldScope = 'PHNOM_PENH' | 'REGIONAL' | 'ALL';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
 export const PHNOM_PENH_BRANCH_CODES = new Set([
@@ -10,6 +10,7 @@ export const PHNOM_PENH_BRANCH_CODES = new Set([
   '120', '121', '122', '123', '124', '125', '126', '127', '128', '129',
   '130', '131', '132', '133', '134', '801',
 ]);
+export const PHNOM_PENH_BRANCH_CODE_LIST: readonly string[] = Array.from(PHNOM_PENH_BRANCH_CODES);
 
 /** Explicit Provincial / Regional keywords that must NEVER pass when querying Phnom Penh Staff only. */
 export const REGIONAL_KEYWORD_REGEX =
@@ -62,35 +63,39 @@ export function isFieldEventInScope(
   ppStaffEmpIds: Set<string>,
   regions: Record<string, string>
 ): boolean {
-  if (scope !== 'PHNOM_PENH') return true;
+  if (scope === 'ALL') return true;
 
-  const rawId = String(e.branchId || '').trim();
-  const rawText = String(e.branchText || '').trim();
-  const combinedBranch = `${rawId} ${rawText}`.trim();
+  const isPp = (() => {
+    const rawId = String(e.branchId || '').trim();
+    const rawText = String(e.branchText || '').trim();
+    const combinedBranch = `${rawId} ${rawText}`.trim();
 
-  if (REGIONAL_KEYWORD_REGEX.test(combinedBranch)) return false;
+    if (REGIONAL_KEYWORD_REGEX.test(combinedBranch)) return false;
 
-  const codeMatch = rawId.match(/^(\d{3})$/) || rawText.match(/^\s*(\d{3})\b/);
-  if (codeMatch) {
-    const code = codeMatch[1];
-    if (/^[2-7]\d{2}$/.test(code)) return false;
-    if (!ppBranchCodes.has(code)) return false;
-    const r = regions[code];
-    if (r !== undefined && r !== '' && !/phnom\s*penh|head\s*office/i.test(r)) {
-      return false;
+    const codeMatch = rawId.match(/^(\d{3})$/) || rawText.match(/^\s*(\d{3})\b/);
+    if (codeMatch) {
+      const code = codeMatch[1];
+      if (/^[2-7]\d{2}$/.test(code)) return false;
+      if (!ppBranchCodes.has(code)) return false;
+      const r = regions[code];
+      if (r !== undefined && r !== '' && !/phnom\s*penh|head\s*office/i.test(r)) {
+        return false;
+      }
+      return true;
     }
+
+    if (rawText) {
+      return PHNOM_PENH_NAME_REGEX.test(rawText) || (!!e.staffId && ppStaffEmpIds.has(String(e.staffId).trim()));
+    }
+
+    if (e.staffId && ppStaffEmpIds.size > 0) {
+      return ppStaffEmpIds.has(String(e.staffId).trim());
+    }
+
     return true;
-  }
+  })();
 
-  if (rawText) {
-    return PHNOM_PENH_NAME_REGEX.test(rawText) || (!!e.staffId && ppStaffEmpIds.has(String(e.staffId).trim()));
-  }
-
-  if (e.staffId && ppStaffEmpIds.size > 0) {
-    return ppStaffEmpIds.has(String(e.staffId).trim());
-  }
-
-  return true;
+  return scope === 'PHNOM_PENH' ? isPp : !isPp;
 }
 
 export function countPendingFieldEventsScoped(
@@ -120,6 +125,16 @@ export function isPhnomPenhBranch(b: Pick<Branch, 'id' | 'code' | 'name' | 'regi
   const name = String(b.name || '').trim();
   if (/^[2-7]\d{2}$/.test(code) || REGIONAL_KEYWORD_REGEX.test(name)) return false;
   return PHNOM_PENH_BRANCH_CODES.has(code) || PHNOM_PENH_NAME_REGEX.test(name);
+}
+
+/** True when a branch matches the selected region scope ('ALL' | 'PHNOM_PENH' | 'REGIONAL'). */
+export function isBranchInRegionScope(
+  b: Pick<Branch, 'id' | 'code' | 'name' | 'region'>,
+  scope: FieldScope
+): boolean {
+  if (scope === 'ALL') return true;
+  const pp = isPhnomPenhBranch(b);
+  return scope === 'PHNOM_PENH' ? pp : !pp;
 }
 
 /** True when a Staff Directory user is based in Phnom Penh (default when location is unset). */

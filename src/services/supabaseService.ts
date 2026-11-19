@@ -4,7 +4,7 @@ import { normalizeMid } from '../utils/display';
 import { reportCaughtError } from '../utils/errorLogger';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey, clearInventoryCache } from './inventoryCache';
-import { FieldScope, countPendingFieldEventsScoped } from '../utils/fieldScope';
+import { FieldScope, PHNOM_PENH_BRANCH_CODE_LIST, countPendingFieldEventsScoped } from '../utils/fieldScope';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -2109,6 +2109,7 @@ export interface MvVisitQuery {
   from?: string | null;
   to?: string | null;
   activity?: string;
+  region?: FieldScope;
   branchId?: string;
   search?: string;
 }
@@ -2138,6 +2139,8 @@ function applyMvFilters(q: any, p: MvVisitQuery) {
   if (p.activity) query = query.eq('activity', p.activity);
   if (p.branchId === 'NONE') query = query.is('branch_id', null);
   else if (p.branchId) query = query.eq('branch_id', p.branchId);
+  else if (p.region === 'PHNOM_PENH') query = query.in('branch_id', PHNOM_PENH_BRANCH_CODE_LIST);
+  else if (p.region === 'REGIONAL') query = query.not('branch_id', 'in', `(${PHNOM_PENH_BRANCH_CODE_LIST.join(',')})`);
   const term = cleanSearchTerm(p.search);
   if (term) {
     if (/^\d{4,15}$/.test(term)) query = query.like('mid', `%${term}%`);
@@ -2184,6 +2187,7 @@ export interface QrQuery {
   to?: string | null;          // ISO, exclusive
   status?: 'ALL' | 'COMPLETED' | 'FAILED_ATTEMPT';
   activity?: 'ALL' | QrActivity;
+  region?: FieldScope;
   branchId?: string;
   staffId?: string;
   search?: string;
@@ -2197,6 +2201,8 @@ function applyQrFilters(q: any, p: QrQuery) {
   else if (p.status === 'FAILED_ATTEMPT') query = query.gt('failed_attempts', 0);
   if (p.activity && p.activity !== 'ALL') query = query.eq('activity', p.activity);
   if (p.branchId) query = query.eq('branch_id', p.branchId);
+  else if (p.region === 'PHNOM_PENH') query = query.in('branch_id', PHNOM_PENH_BRANCH_CODE_LIST);
+  else if (p.region === 'REGIONAL') query = query.not('branch_id', 'in', `(${PHNOM_PENH_BRANCH_CODE_LIST.join(',')})`);
   if (p.staffId) query = query.eq('staff_id', p.staffId);
   const term = cleanSearchTerm(p.search);
   if (term) {
@@ -2350,7 +2356,7 @@ export async function fetchQrSavedBySessions(sessions: string[]): Promise<Map<st
 }
 
 export async function fetchQrAttemptsPage(p: {
-  from?: string | null; to?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
+  from?: string | null; to?: string | null; activity?: 'ALL' | QrActivity; region?: FieldScope; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
   withSaved?: boolean;       // false: return the rows at once and look up 'saved later' separately (fetchQrSavedBySessions)
   kind?: 'ALL' | QrAttemptKind;
 }): Promise<PaginatedResult<QrAttempt>> {
@@ -2369,6 +2375,8 @@ export async function fetchQrAttemptsPage(p: {
     if (p.to) q = q.lt('received_at', p.to);
     if (p.activity && p.activity !== 'ALL') q = q.eq('activity', p.activity);
     if (p.branchId) q = q.eq('branch_id', p.branchId);
+    else if (p.region === 'PHNOM_PENH') q = q.in('branch_id', PHNOM_PENH_BRANCH_CODE_LIST);
+    else if (p.region === 'REGIONAL') q = q.not('branch_id', 'in', `(${PHNOM_PENH_BRANCH_CODE_LIST.join(',')})`);
     if (p.staffId) q = q.eq('staff_id', p.staffId);
     const term = cleanSearchTerm(p.search);
     if (term) {

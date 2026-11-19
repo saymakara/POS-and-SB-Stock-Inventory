@@ -11,13 +11,14 @@ import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary, deletePhoneRecords } from '../services/supabaseService';
 import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache } from '../services/mvCache';
-const mvKey = (r: { from: string | null; to: string | null }, activity: string, branchId: string, search: string, page: number, pageSize: number) =>
-  JSON.stringify([r.from, r.to, activity, branchId, search, page, pageSize]);
+const mvKey = (r: { from: string | null; to: string | null }, activity: string, region: FieldScope, branchId: string, search: string, page: number, pageSize: number) =>
+  JSON.stringify([r.from, r.to, activity, region, branchId, search, page, pageSize]);
 import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
+import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
 
 /**
  * Phone App Review → Merchant Visit (4 Nov 2026).
@@ -50,6 +51,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<Period>('MONTH');
   const [activity, setActivity] = useState('');
+  const [region, setRegion] = useState<FieldScope>('ALL');
   const [branchId, setBranchId] = useState('');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -60,7 +62,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   }, [deferredQuery]);
 
   // the page as it was last shown (memory only): no "Loading" flash when coming back
-  const [first] = useState(() => getMvPage(mvKey(periodRange('MONTH'), '', '', '', 1, 50)));
+  const [first] = useState(() => getMvPage(mvKey(periodRange('MONTH'), '', 'ALL', '', '', 1, 50)));
   const [rows, setRows] = useState<MvVisit[] | null>(first ? first.rows : null);
   const [total, setTotal] = useState(first ? first.total : 0);
   const [summary, setSummary] = useState<MvVisitSummary | null>(() => getMvSummary(`${periodRange('MONTH').from}|${periodRange('MONTH').to}`) || null);
@@ -72,14 +74,14 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
 
   const range = useMemo(() => periodRange(period), [period]);
   const from = range.from, to = range.to;
-  const filters = useMemo<MvVisitQuery>(() => ({ from, to, activity: activity || undefined, branchId: branchId || undefined, search }),
-    [from, to, activity, branchId, search]);
-  const pg = usePager(total, [from, to, activity, branchId, search]);
+  const filters = useMemo<MvVisitQuery>(() => ({ from, to, activity: activity || undefined, region, branchId: branchId || undefined, search }),
+    [from, to, activity, region, branchId, search]);
+  const pg = usePager(total, [from, to, activity, region, branchId, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
   const load = useCallback(async (force = false) => {
     const my = ++seq.current;
-    const key = mvKey({ from, to }, activity, branchId, search, page, pageSize);
+    const key = mvKey({ from, to }, activity, region, branchId, search, page, pageSize);
     const hit = getMvPage(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // the last answer at once; the fresh one replaces it
     if (hit && force !== true && isFresh('mv:p:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
@@ -98,7 +100,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     } finally {
       if (my === seq.current) setLoading(false);
     }
-  }, [filters, page, pageSize, from, to, activity, branchId, search]);
+  }, [filters, page, pageSize, from, to, activity, region, branchId, search]);
   const loadStats = useCallback(async (force = false) => {
     const k = `${from}|${to}`;
     const hit = getMvSummary(k);
@@ -116,7 +118,11 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     if (activity && !list.includes(activity)) list.unshift(activity);
     return list;
   }, [summary, activity]);
-  const filtered = !!(activity || branchId || query);
+  const branchOptions = useMemo(
+    () => branches.filter((b) => isBranchInRegionScope(b, region)),
+    [branches, region]
+  );
+  const filtered = !!(activity || region !== 'ALL' || branchId || query);
 
   const exportCsv = useCallback(async () => {
     const list = await collectAll((p1) => fetchMvVisitsPage({ ...filters, page: p1, pageSize: 1000 }));
@@ -226,6 +232,30 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
             ))}
           </select>
           {isAdmin && (
+            <div className="relative inline-flex items-center shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+              <select
+                value={region}
+                onChange={(e) => {
+                  const next = e.target.value as FieldScope;
+                  setRegion(next);
+                  setBranchId('');
+                }}
+                aria-label="Filter by region"
+                className={`appearance-none pl-8 pr-7 py-1.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer shadow-2xs outline-none ${
+                  region !== 'ALL'
+                    ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
+                    : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                <option value="ALL">All Regions</option>
+                <option value="PHNOM_PENH">Phnom Penh</option>
+                <option value="REGIONAL">Regional</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+            </div>
+          )}
+          {isAdmin && (
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
@@ -233,15 +263,15 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
               className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 cursor-pointer max-w-[260px] shadow-2xs outline-none"
             >
               <option value="">All branches</option>
-              <option value="NONE">No matched branch</option>
-              {branches.map((b) => (
+              {region === 'ALL' && <option value="NONE">No matched branch</option>}
+              {branchOptions.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.id} · {b.name}
                 </option>
               ))}
             </select>
           )}
-          <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setBranchId(''); setQuery(''); }} />
+          <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setRegion('ALL'); setBranchId(''); setQuery(''); }} />
         </div>
 
         {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
@@ -399,7 +429,6 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
             initial="initial"
             animate="animate"
             exit="exit"
-            className="will-change-[transform,opacity]"
           >
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               {onEdit && (

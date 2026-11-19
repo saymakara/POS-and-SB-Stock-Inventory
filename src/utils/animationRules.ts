@@ -283,22 +283,16 @@ export const MODAL_VARIANTS: Variants = {
 export const DRAWER_VARIANTS: Variants = {
   hidden: {
     x: '100%',
-    scale: 0.985,
-    opacity: 0.92,
   },
   visible: {
     x: 0,
-    scale: 1,
-    opacity: 1,
     transition: {
-      duration: 0.22,
+      duration: 0.21,
       ease: [0.22, 1, 0.36, 1],
     },
   },
   exit: {
     x: '100%',
-    scale: 0.985,
-    opacity: 0.92,
     transition: {
       duration: 0.16,
       ease: [0.32, 0.72, 0, 1],

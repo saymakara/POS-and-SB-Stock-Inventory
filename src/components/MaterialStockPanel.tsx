@@ -405,6 +405,7 @@ const ProductStockPageComponent: React.FC<{
 
   const [unitsScope, setUnitsScope] = useState<'HARDWARE' | 'MATERIAL'>('HARDWARE');
   const [selectedMaterialCode, setSelectedMaterialCode] = useState<MaterialCode | 'ALL'>('ALL');
+  const [hasExplicitCardSelection, setHasExplicitCardSelection] = useState(false);
   const [materialSnap, setMaterialSnap] = useState<{
     summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>;
     total: number;
@@ -415,6 +416,7 @@ const ProductStockPageComponent: React.FC<{
   useEffect(() => {
     setUnitsScope('HARDWARE');
     setSelectedMaterialCode('ALL');
+    setHasExplicitCardSelection(false);
     setMatPrewarmed(false);
     const t = setTimeout(() => setMatPrewarmed(true), 60);
     return () => clearTimeout(t);
@@ -500,15 +502,19 @@ const ProductStockPageComponent: React.FC<{
       summaries={materialSnap.summaries}
       selectedCode={view === 'UNITS' && unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
       hardwareSummary={computedHardwareSummary}
-      isHardwareSelected={view === 'UNITS' && unitsScope === 'HARDWARE'}
+      isHardwareSelected={hasExplicitCardSelection && view === 'UNITS' && unitsScope === 'HARDWARE'}
       onSelectHardware={() => {
         if (view !== 'UNITS') onViewChange('UNITS');
-        React.startTransition(() => setUnitsScope('HARDWARE'));
+        React.startTransition(() => {
+          setHasExplicitCardSelection(true);
+          setUnitsScope('HARDWARE');
+        });
       }}
       lostCount={lostCount}
       onOpenLostMaterials={() => {
         if (view !== 'UNITS') onViewChange('UNITS');
         React.startTransition(() => {
+          setHasExplicitCardSelection(true);
           setSelectedMaterialCode('ALL');
           setUnitsScope('MATERIAL');
         });
@@ -516,6 +522,7 @@ const ProductStockPageComponent: React.FC<{
       onSelectCode={(code) => {
         if (view !== 'UNITS') onViewChange('UNITS');
         React.startTransition(() => {
+          setHasExplicitCardSelection(true);
           setSelectedMaterialCode(code);
           setUnitsScope('MATERIAL');
         });
