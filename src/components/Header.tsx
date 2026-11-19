@@ -100,6 +100,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       id: string;
       label: string;
       icon: React.ElementType;
+      iconColor?: string;
+      iconBg?: string;
       count?: number;
       highlight?: boolean;
       children?: Array<{ id: string; label: string; icon: React.ElementType; iconColor?: string; count?: number }>;
@@ -112,24 +114,30 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'dashboard',
           label: 'Dashboard',
           icon: LayoutDashboard,
+          iconColor: 'text-[#155484]',
+          iconBg: 'bg-[#155484]/10',
         },
         {
           id: 'kpi_performance',
           label: 'KPI Performance',
           icon: Trophy,
+          iconColor: 'text-amber-600',
+          iconBg: 'bg-amber-50',
         },
         {
           id: 'mobile_sync',
           label: 'Merchant App Review',
           icon: Smartphone,
+          iconColor: 'text-sky-600',
+          iconBg: 'bg-sky-50',
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
-            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
-            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
-            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode },
-            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList },
-            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, count: reviewCounts?.cc || undefined },
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-600', count: reviewCounts?.pos },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-indigo-600', count: reviewCounts?.sb },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-[#155484]' },
+            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList, iconColor: 'text-emerald-600' },
+            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-600', count: reviewCounts?.cc || undefined },
           ],
         },
       ],
@@ -141,11 +149,15 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'merchants',
           label: 'Merchant Deployment',
           icon: Store,
+          iconColor: 'text-teal-600',
+          iconBg: 'bg-teal-50',
         },
         {
           id: 'merchant_history',
           label: 'Merchant History',
           icon: RotateCcw,
+          iconColor: 'text-indigo-600',
+          iconBg: 'bg-indigo-50',
         },
         {
           // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
@@ -153,33 +165,43 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'inventory',
           label: 'Stock Inventory',
           icon: Boxes,
+          iconColor: 'text-[#155484]',
+          iconBg: 'bg-[#155484]/10',
           children: [
             // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
-            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pushPos || undefined },
-            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.pushSb || undefined },
-            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, count: reviewCounts?.lostSim || undefined },
+            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-600', count: reviewCounts?.pushPos || undefined },
+            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-indigo-600', count: reviewCounts?.pushSb || undefined },
+            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-600', count: reviewCounts?.lostSim || undefined },
           ],
         },
         {
           id: 'requisitions',
           label: 'Stock Requests',
           icon: ScrollText,
+          iconColor: 'text-orange-600',
+          iconBg: 'bg-orange-50',
           count: pendingReqs,
         },
         {
           id: 'branches',
           label: 'Branch Codes',
           icon: Building2,
+          iconColor: 'text-blue-600',
+          iconBg: 'bg-blue-50',
         },
         {
           id: 'users',
           label: 'Staff Directory',
           icon: UserCog,
+          iconColor: 'text-violet-600',
+          iconBg: 'bg-violet-50',
         },
         {
           id: 'audit_log',
           label: 'Audit Trail',
           icon: History,
+          iconColor: 'text-slate-600',
+          iconBg: 'bg-slate-100',
         },
         ...(role === 'SUPER_ADMIN'
           ? [
@@ -187,6 +209,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 id: 'settings',
                 label: 'Settings',
                 icon: Settings,
+                iconColor: 'text-slate-600',
+                iconBg: 'bg-slate-100',
               },
             ]
           : []),
@@ -199,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-zinc-900 border-b border-zinc-200/90"
+          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-slate-900 border-b border-slate-200/80"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -230,10 +254,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   : 'flex-1 min-w-0 opacity-0 -translate-x-1 pointer-events-none'
               }`}
             >
-              <div className="text-[13px] font-semibold tracking-tight text-zinc-900 truncate">
+              <div className="text-[13px] font-semibold tracking-tight text-slate-900 truncate">
                 {appSettings?.customLogoTitle || 'In-Store Management Portal'}
               </div>
-              <div className="text-[11px] font-normal text-zinc-500 tracking-tight mt-0.5 truncate">
+              <div className="text-[11px] font-normal text-slate-500 tracking-tight mt-0.5 truncate">
                 {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
               </div>
             </div>
@@ -244,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onCloseMobile}
-              className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 cursor-pointer"
               title="Close Navigation"
             >
               <X className="w-5 h-5" />
@@ -252,12 +276,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           )}
         </div>
 
-        {/* Linear Monochrome Grouped Navigation */}
+        {/* Clean Linear Grouped Navigation with Semantic Channel Colors */}
           <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-0.5">
               <div
-                className={`px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                className={`px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                   isMobileView || !collapsed
                     ? 'h-5 pb-1 opacity-100 translate-x-0'
                     : 'h-0 pb-0 opacity-0 -translate-x-1 overflow-hidden pointer-events-none'
@@ -287,24 +311,24 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       title={!isMobileView && collapsed ? item.label : undefined}
                       className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-2.5 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-semibold text-zinc-950 bg-white border border-zinc-200/95 shadow-[0_1px_2px_rgba(0,0,0,0.04)]'
-                          : 'font-medium text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60 border border-transparent'
+                          ? 'font-semibold text-[#0f2942] bg-white border border-slate-200/95 shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
+                          : 'font-medium text-slate-600 hover:text-slate-950 hover:bg-white/75 border border-transparent hover:border-slate-200/60'
                       }`}
                     >
-                      {/* minimal monochrome active edge bar */}
+                      {/* crisp corporate-blue active edge bar */}
                       {isActive && (
                         <span
                           aria-hidden
-                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-zinc-900 pointer-events-none"
+                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#155484] pointer-events-none"
                         />
                       )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors duration-150 ${
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
-                              ? 'text-zinc-950'
-                              : 'text-zinc-500 group-hover:text-zinc-900'
+                              ? `${item.iconBg || 'bg-[#155484]/10'} ${item.iconColor || 'text-[#155484]'}`
+                              : `${item.iconColor || 'text-slate-500'} opacity-85 group-hover:opacity-100`
                           }`}
                         >
                           <Icon className="w-[15px] h-[15px]" />
@@ -312,23 +336,23 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         <span
                           className={`truncate whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none'
-                          } ${isActive ? 'text-zinc-950 font-semibold' : ''}`}
+                          } ${isActive ? 'text-[#0f2942] font-semibold' : ''}`}
                         >
                           {item.label}
                         </span>
                       </div>
 
-                      {/* Subtle Monochrome Counter Badge */}
+                      {/* Subtle Counter Badge */}
                       {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
                           className={`font-figure text-[10px] px-1.5 py-0.5 rounded-md tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
                           } ${
                             isActive
-                              ? 'bg-zinc-900 text-white font-semibold'
+                              ? 'bg-[#155484] text-white font-semibold'
                               : item.highlight
-                              ? 'bg-white text-zinc-900 border border-zinc-200 font-semibold shadow-2xs'
-                              : 'bg-zinc-200/80 text-zinc-700 font-medium group-hover:bg-white group-hover:text-zinc-900'
+                              ? 'bg-sky-50 text-[#155484] border border-sky-200/90 font-semibold'
+                              : 'bg-white text-slate-700 border border-slate-200/90 font-medium group-hover:border-slate-300 group-hover:text-slate-900'
                           }`}
                         >
                           {fmtNum(item.count)}
@@ -336,7 +360,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       )}
                     </motion.button>
                     {showChildren && (
-                      <div className="relative ml-[21px] pl-2.5 my-0.5 flex flex-col gap-0.5 border-l border-zinc-300/80 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
+                      <div className="relative ml-[21px] pl-2.5 my-0.5 flex flex-col gap-0.5 border-l border-slate-200/95 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = navTab === c.id;
@@ -355,22 +379,28 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
                                 if (c.id === 'sim_cards') import('./SimCardTab');
                               }}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 ease-out border ${
+                              className={`group relative w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on
-                                  ? 'font-semibold text-zinc-950 bg-white border-zinc-200/95 shadow-[0_1px_2px_rgba(0,0,0,0.04)]'
-                                  : 'font-normal text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/55 border-transparent'
+                                  ? 'font-semibold text-[#0f2942] bg-white border-slate-200/95 shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
+                                  : 'font-normal text-slate-600 hover:text-slate-950 hover:bg-white/75 border-transparent hover:border-slate-200/60'
                               }`}
                             >
+                              {on && (
+                                <span
+                                  aria-hidden
+                                  className="nav-bar-in absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-r-full bg-[#155484] pointer-events-none"
+                                />
+                              )}
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${c.iconColor || (on ? 'text-zinc-950' : 'text-zinc-400 group-hover:text-zinc-800')}`} />
-                                <span className={`truncate ${on ? 'text-zinc-950 font-semibold' : 'text-zinc-600 group-hover:text-zinc-950 font-normal'}`}>{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-opacity ${c.iconColor || 'text-slate-500'} ${on ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} />
+                                <span className={`truncate ${on ? 'text-[#0f2942] font-semibold' : 'text-slate-600 group-hover:text-slate-950 font-normal'}`}>{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
                                   className={`font-figure text-[10px] px-1.5 py-0.5 rounded-md tabular-nums shrink-0 transition-colors duration-150 ${
                                     on
-                                      ? 'bg-zinc-900 text-white font-semibold'
-                                      : 'bg-white text-zinc-700 border border-zinc-200/90 group-hover:border-zinc-300 group-hover:text-zinc-950 font-medium'
+                                      ? 'bg-[#155484] text-white font-semibold'
+                                      : 'bg-white text-slate-700 border border-slate-200/90 group-hover:border-slate-300 group-hover:text-slate-950 font-medium'
                                   }`}
                                   title="Records waiting for review"
                                 >
@@ -394,16 +424,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       {/* Bottom Collapse Control (Desktop Only) */}
       {!isMobileView && (
-        <div className="relative z-10 p-3 border-t border-zinc-200/90 bg-[#f4f4f5]">
+        <div className="relative z-10 p-3 border-t border-slate-200/80 bg-[#f6f7f9]">
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-full py-2 px-3.5 rounded-xl bg-white hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 hover:text-zinc-950 flex items-center justify-start gap-2.5 text-xs font-medium cursor-pointer border border-zinc-200/95 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.03)] overflow-hidden"
+            className="w-full py-2 px-3.5 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-[#0f2942] flex items-center justify-start gap-2.5 text-xs font-medium cursor-pointer border border-slate-200/95 transition-colors shadow-[0_1px_2px_rgba(15,23,42,0.03)] overflow-hidden"
           >
             <ChevronLeft
-              className={`w-4 h-4 text-zinc-600 shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`w-4 h-4 text-[#155484] shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 collapsed ? 'rotate-180' : ''
               }`}
             />
