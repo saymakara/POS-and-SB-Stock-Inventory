@@ -24,7 +24,9 @@ import { safeHref } from '../utils/safeUrl';
 /**
  * Phone App Review → Merchant Visit (4 Nov 2026).
  * Every Merchant Visit form activity from the phone app (Account Opening, QR Merchant Onboarding, KHQR Issue, ABA Mobile
- * Support, Key Merchant Visit, ...). KHQR New Installation / QR Replacement have their own page (KHQR). No approval step:
+ * Support, Key Merchant Visit, ...). KHQR New Installation / QR Replacement have their own page (KHQR). (20 Nov 2026, app
+ * 4.09.2) Also POS Refreshment Training and POS Offline Count: POS service visits that move no stock, so they come here and
+ * not to the POS Terminal review (their answers: Terminal Name, MID, TID, SN of each POS). No approval step:
  * the page shows the totals of the period and every visit (newest first), read from the server one page at a time.
  * The questions of the visit form are set in the phone app's Fields tab, so each visit's answers are shown as they came.
  */
@@ -380,7 +382,7 @@ const VISIT_ORDER = ['Activity Type', 'Tag', 'Booth Owner', 'Booth Owner Other',
   'Merchant Name', 'MID or Acc Number', 'Phone Number', 'Business Type', 'Location', 'Khan', 'Latitude', 'Longitude', 'Address', 'Product Types', 'Remarks'];
 const VISIT_ACTIVITIES = ['Account Opening', 'QR Merchant Onboarding', 'Declined – Cash Only (No QR)', 'KHQR Issue', 'ABA Mobile Support', "Other Bank's Promo",
   'ABA QR in Good Condition', 'Key Merchant Visit', 'PaySound / Alert Telegram', 'On-site ATM Location', 'Bring Document to Merchant',
-  'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection', 'QR Refreshment', 'Booth Event', 'Standby VIP Merchant'];
+  'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection', 'Return & Terminate QR', 'QR Refreshment', 'Booth Event', 'Standby VIP Merchant'];   // (20 Nov 2026) + Return & Terminate QR (an app activity since 3.98)
 const DAY_TYPES = ['Full Day', 'Half Day'];   // (19 Nov 2026) Booth Event / Standby VIP: counted on the KPI as Full Day / Half Day
 export function visitEditFields(v: MvVisit): EditField[] {
   const a: Record<string, string> = { ...v.answers };
