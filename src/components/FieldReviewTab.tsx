@@ -91,7 +91,7 @@ const DOT = { 'POS Terminal': 'bg-[#184e77]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => normalizeFieldDeviceType(e.deviceType);
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_180px_185px_minmax(130px,1.25fr)_minmax(125px,1.15fr)_minmax(125px,1.2fr)_84px_88px]';
+  'grid items-center gap-x-2.5 grid-cols-[32px_34px_96px_165px_160px_minmax(175px,1.35fr)_minmax(160px,1.25fr)_minmax(128px,1fr)_76px_84px]';
 const CACHE_KEY = 'fe_review_cache_v6';
 
 // one formatter, reused for every row (same text as toLocaleString with these options, ~20x faster)
@@ -237,7 +237,7 @@ const InputMethodBadge: React.FC<{
     return (
       <span
         title={`${titlePrefix} scanned with barcode scanner`}
-        className="inline-flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 select-none cursor-help"
+        className="inline-flex items-center justify-center text-slate-500/85 dark:text-slate-400 shrink-0 select-none cursor-help"
         aria-label={`${titlePrefix} scanned`}
       >
         <ScanLine className={iconCls} aria-hidden="true" />
@@ -1544,13 +1544,13 @@ export const FieldReviewTab: React.FC<Props> = ({
             <SortBtn k="kind" sort={sort} onSort={toggleSort}>
               Record Type
             </SortBtn>
-            <SortBtn k="date" sort={sort} onSort={toggleSort} className="pl-3">
+            <SortBtn k="date" sort={sort} onSort={toggleSort} className="pl-2">
               Date Sent
             </SortBtn>
-            <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-6">
+            <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-2">
               Serial Number
             </SortBtn>
-            <SortBtn k="merchant" sort={sort} onSort={toggleSort} className="pl-6">
+            <SortBtn k="merchant" sort={sort} onSort={toggleSort} className="pl-2">
               Terminal / MID
             </SortBtn>
             <SortBtn k="branch" sort={sort} onSort={toggleSort}>
@@ -1783,19 +1783,19 @@ const ReviewRow = memo(function ReviewRow({
             </span>
           )}
         </span>
-        <span className="leading-tight min-w-0 pl-3">
+        <span className="leading-tight min-w-0 pl-2">
           <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap block" title={fmtTime(e.receivedAt)}>
             {fmtTime(e.receivedAt)}
           </span>
           {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
-        <div className="flex flex-col min-w-0 pl-6 pr-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex flex-col min-w-0 pl-2 pr-1">
+          <div className="flex items-center gap-1 flex-nowrap min-w-0">
             <button
               type="button"
               onClick={() => onToggle(e.id)}
               aria-expanded={isOpen}
-              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group shrink-0"
+              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0"
               title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
             >
               <ChevronDown
@@ -1805,11 +1805,7 @@ const ReviewRow = memo(function ReviewRow({
                 aria-hidden
               />
               <span
-                className={`tabular-nums tracking-tight ${
-                  entry.serial === 'SCAN'
-                    ? 'font-medium text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
-                    : 'font-normal text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100'
-                }`}
+                className="tabular-nums tracking-tight whitespace-nowrap font-normal text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100"
               >
                 {e.serial}
               </span>
@@ -1818,17 +1814,13 @@ const ReviewRow = memo(function ReviewRow({
           </div>
 
           {e.oldSerial && (
-            <div className="pl-5 mt-0.5 flex items-center gap-1.5">
+            <div className="pl-4 mt-0.5 flex items-center gap-1.5">
               <span
-                className={`text-[10px] font-mono inline-flex items-center gap-1 truncate ${
-                  entry.oldSerial === 'SCAN'
-                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
+                className="text-[10px] font-mono inline-flex items-center gap-1 truncate text-slate-500 dark:text-slate-400"
                 title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
               >
                 <span className="text-slate-400 font-bold">←</span>
-                <span className="truncate">{e.oldSerial}</span>
+                <span className="truncate whitespace-nowrap">{e.oldSerial}</span>
                 {entry.oldSerial && (
                   <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
                 )}
@@ -1836,17 +1828,13 @@ const ReviewRow = memo(function ReviewRow({
             </div>
           )}
         </div>
-        <span className="min-w-0 leading-snug pl-6" title={merchant}>
+        <span className="min-w-0 leading-snug pl-2" title={merchant}>
           <span className="block truncate khmer font-normal text-slate-800">
             {e.terminalName || e.outletName || '—'}
           </span>
           {e.mid && (
             <span
-              className={`flex items-center gap-1.5 truncate font-mono text-[11px] ${
-                entry.mid === 'SCAN'
-                  ? 'text-emerald-600 dark:text-emerald-400 font-medium'
-                  : 'text-slate-500 dark:text-slate-400 font-normal'
-              }`}
+              className="flex items-center gap-1.5 truncate font-mono text-[11px] text-slate-500 dark:text-slate-400 font-normal"
               title={howTitle('MID', e.mid, entry.mid)}
             >
               <span className="truncate">{e.mid}</span>
@@ -1920,38 +1908,28 @@ const ReviewRow = memo(function ReviewRow({
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
               <Line k="Entered by">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  <span>
+                  <span className="inline-flex items-center gap-1">
                     Serial:{' '}
-                    <span className={entry.serial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
+                    <span>
                       {entry.serialFromMid ? `Filled from ${entry.mid === 'SCAN' ? 'scanned' : 'typed'} MID` : howText(entry.serial)}
                     </span>
+                    <InputMethodBadge method={entry.serial} titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'} size="xs" />
                   </span>
                   {e.oldSerial && (
-                    <span>
-                      · Old Serial:{' '}
-                      <span className={entry.oldSerial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
-                        {howText(entry.oldSerial)}
-                      </span>
+                    <span className="inline-flex items-center gap-1">
+                      · Old Serial: <span>{howText(entry.oldSerial)}</span>
+                      <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
                     </span>
                   )}
                   {e.mid && (
-                    <span>
-                      · MID:{' '}
-                      <span className={entry.mid === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
-                        {howText(entry.mid)}
-                      </span>
+                    <span className="inline-flex items-center gap-1">
+                      · MID: <span>{howText(entry.mid)}</span>
+                      <InputMethodBadge method={entry.mid} titlePrefix="MID" size="xs" />
                     </span>
                   )}
                   {e.newBattery && (
-                    <span>
-                      · Battery:{' '}
-                      <span className={entry.oldBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
-                        {howText(entry.oldBattery)}
-                      </span>
-                      {' → '}
-                      <span className={entry.newBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}>
-                        {howText(entry.newBattery)}
-                      </span>
+                    <span className="inline-flex items-center gap-1">
+                      · Battery: <span>{howText(entry.oldBattery)}</span> → <span>{howText(entry.newBattery)}</span>
                     </span>
                   )}
                 </span>
@@ -1959,7 +1937,7 @@ const ReviewRow = memo(function ReviewRow({
               <Line k="MID · TID" mono>
                 <span className="inline-flex items-center gap-1.5 flex-wrap">
                   {e.mid && (
-                    <span className={`inline-flex items-center gap-1 ${entry.mid === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                    <span className="inline-flex items-center gap-1">
                       {e.mid}
                       <InputMethodBadge method={entry.mid} titlePrefix="MID" size="xs" />
                     </span>
@@ -1970,7 +1948,7 @@ const ReviewRow = memo(function ReviewRow({
               </Line>
               {e.oldSerial && (
                 <Line k="Replaces" mono>
-                  <span className={`inline-flex items-center gap-1 ${entry.oldSerial === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                  <span className="inline-flex items-center gap-1">
                     {e.oldSerial}
                     <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
                   </span>
@@ -1979,12 +1957,12 @@ const ReviewRow = memo(function ReviewRow({
               {e.newBattery && (
                 <Line k="Battery" mono>
                   <span className="inline-flex items-center gap-1.5 flex-wrap">
-                    <span className={`inline-flex items-center gap-1 ${entry.oldBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                    <span className="inline-flex items-center gap-1">
                       {e.oldBattery || '—'}
                       <InputMethodBadge method={entry.oldBattery} titlePrefix="Old Battery" size="xs" />
                     </span>
                     <span className="text-slate-400">→</span>
-                    <span className={`inline-flex items-center gap-1 ${entry.newBattery === 'SCAN' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : ''}`}>
+                    <span className="inline-flex items-center gap-1">
                       {e.newBattery}
                       <InputMethodBadge method={entry.newBattery} titlePrefix="New Battery" size="xs" />
                     </span>
