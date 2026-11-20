@@ -91,7 +91,7 @@ const DOT = { 'POS Terminal': 'bg-[#184e77]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => normalizeFieldDeviceType(e.deviceType);
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[32px_34px_96px_165px_160px_minmax(175px,1.35fr)_minmax(160px,1.25fr)_minmax(128px,1fr)_76px_84px]';
+  'grid items-center gap-x-2.5 grid-cols-[32px_34px_96px_158px_150px_minmax(192px,1.45fr)_minmax(160px,1.25fr)_minmax(125px,1fr)_76px_84px]';
 const CACHE_KEY = 'fe_review_cache_v6';
 
 // one formatter, reused for every row (same text as toLocaleString with these options, ~20x faster)
@@ -1805,7 +1805,7 @@ const ReviewRow = memo(function ReviewRow({
                 aria-hidden
               />
               <span
-                className="tabular-nums tracking-tight whitespace-nowrap font-normal text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100"
+                className="tabular-nums tracking-tight whitespace-nowrap font-medium text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white"
               >
                 {e.serial}
               </span>
@@ -1814,17 +1814,19 @@ const ReviewRow = memo(function ReviewRow({
           </div>
 
           {e.oldSerial && (
-            <div className="pl-4 mt-0.5 flex items-center gap-1.5">
+            <div className="pl-[16px] mt-1 flex items-center gap-1 min-w-0">
               <span
-                className="text-[10px] font-mono inline-flex items-center gap-1 truncate text-slate-500 dark:text-slate-400"
+                className="inline-flex items-center gap-1 px-1.5 py-[1px] rounded-md bg-slate-50/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 min-w-0 max-w-full"
                 title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
               >
-                <span className="text-slate-400 font-bold">←</span>
-                <span className="truncate whitespace-nowrap">{e.oldSerial}</span>
-                {entry.oldSerial && (
-                  <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
-                )}
+                <span className="text-[8.5px] font-sans font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
+                  Old
+                </span>
+                <span className="text-[10px] font-mono tabular-nums text-slate-500 dark:text-slate-400 truncate whitespace-nowrap">
+                  {e.oldSerial}
+                </span>
               </span>
+              <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
             </div>
           )}
         </div>
