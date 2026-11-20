@@ -2712,36 +2712,27 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* ───────────── 1 & 2. iOS MINIMAL HERO + 4 INSET KPI SQUIRCLES ───────────── */}
       <div
         data-hero-backdrop="dashboard"
-        style={{
-          backgroundImage: isLight
-            ? 'radial-gradient(620px 220px at 0% 0%, rgba(21,84,132,0.07), transparent 65%), radial-gradient(500px 200px at 100% 0%, rgba(79,81,140,0.06), transparent 65%)'
-            : 'radial-gradient(620px 220px at 0% 0%, rgba(56,189,248,0.09), transparent 65%), radial-gradient(500px 200px at 100% 0%, rgba(129,140,248,0.08), transparent 65%)',
-        }}
-        className={`relative ${dateMenuOpen ? 'z-30' : ''} rounded-3xl p-5 sm:p-6 border ${
-          isLight
-            ? 'bg-white border-slate-200/85 text-slate-900 shadow-[0_2px_14px_rgba(15,23,42,0.03)]'
-            : 'bg-[#161a24] border-slate-800 text-slate-100'
-        }`}
+        className={`relative ${dateMenuOpen ? 'z-30' : ''} space-y-4`}
       >
-        <div className="relative z-20 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+        <div className="relative z-20 px-1 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="flex items-center gap-3.5 min-w-0">
             <span
-              className={`w-12 h-12 rounded-[15px] flex items-center justify-center shrink-0 ${
+              className={`w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0 ${
                 isLight
-                  ? 'bg-white border border-[#155484]/25 text-[#002F4A] shadow-[0_3px_10px_rgba(21,84,132,0.12)]'
-                  : 'bg-slate-900/90 border border-sky-400/25 text-sky-300 shadow-[0_3px_12px_rgba(2,6,23,0.45)]'
+                  ? 'bg-[#002F4A] text-white shadow-[0_4px_12px_rgba(0,47,74,0.18)]'
+                  : 'bg-sky-500/20 border border-sky-400/30 text-sky-300 shadow-[0_4px_12px_rgba(2,6,23,0.4)]'
               }`}
             >
-              <BarChart3 className="w-[26px] h-[26px]" strokeWidth={2.1} aria-hidden="true" />
+              <BarChart3 className="w-[22px] h-[22px]" strokeWidth={2.1} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h1 className={`text-xl sm:text-[22px] 2xl:text-[24px] sm:whitespace-nowrap font-bold tracking-[-0.02em] leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h1 className={`text-xl sm:text-[22px] 2xl:text-[24px] sm:whitespace-nowrap font-extrabold tracking-[-0.025em] leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {branchScopedId
                   ? `Branch Code ${branchScopedId} Operations Overview`
                   : 'Executive Operations Overview'}
               </h1>
               <p className={`text-[13px] leading-relaxed mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
-                <span className={`font-semibold ${isLight ? 'text-[#155484]' : 'text-sky-300'}`}>{branchScopeDisplay}</span>
+                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
                 <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
                 <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
               </p>
@@ -2753,7 +2744,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div
               className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
                 isLight
-                  ? 'bg-slate-100/90 border-slate-200/60'
+                  ? 'bg-slate-200/65 border-slate-200/80'
                   : 'bg-slate-900/80 border-slate-700'
               }`}
               role="tablist"
@@ -2801,7 +2792,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
                   isLight
-                    ? 'bg-[#f8f9fb] border-slate-200/80 text-slate-700'
+                    ? 'bg-white border-slate-200/90 text-slate-700 shadow-2xs'
                     : 'bg-slate-900/80 border-slate-700 text-slate-200'
                 }`}
               >
@@ -2871,7 +2862,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <div
                   className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
                     isLight
-                      ? 'bg-[#f8f9fb] border-slate-200/80 text-slate-700'
+                      ? 'bg-white border-slate-200/90 text-slate-700 shadow-2xs'
                       : 'bg-slate-900/80 border-slate-700 text-slate-200'
                   }`}
                 >
@@ -3097,12 +3088,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span
                 className={`inline-flex items-center gap-1.5 text-[11.5px] rounded-full border px-2.5 py-1 font-semibold whitespace-nowrap ${
                   isLight
-                    ? 'border-slate-200/80 bg-[#f8f9fb] text-slate-700'
+                    ? 'border-slate-200/90 bg-white text-slate-700 shadow-2xs'
                     : 'border-slate-700 bg-slate-900/80 text-slate-200'
                 }`}
                 title="Scoped to active Phnom Penh staff from the Staff Directory"
               >
-                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#155484]' : 'text-sky-400'}`} aria-hidden="true" />
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#002F4A]' : 'text-sky-400'}`} aria-hidden="true" />
                 <span>Phnom Penh · Staff Directory</span>
               </span>
             )}
@@ -3111,7 +3102,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div
               className={`inline-flex items-center p-0.5 rounded-full border ${
                 isLight
-                  ? 'border-slate-200/90 bg-[#f8f9fb]'
+                  ? 'border-slate-200/90 bg-white shadow-2xs'
                   : 'border-slate-700 bg-slate-900/80'
               }`}
             >
@@ -3120,7 +3111,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 onClick={() => void handleSyncAll()}
                 className={`btn-press px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                   isLight
-                    ? 'hover:bg-white text-slate-700 hover:shadow-2xs'
+                    ? 'hover:bg-slate-100/80 text-slate-700'
                     : 'hover:bg-slate-800 text-slate-200'
                 }`}
                 title="Refresh live summary counts"
@@ -3137,7 +3128,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     onClick={onOpenExportModal}
                     className={`btn-press px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                       isLight
-                        ? 'hover:bg-white text-slate-800 hover:shadow-2xs'
+                        ? 'hover:bg-slate-100/80 text-slate-800'
                         : 'hover:bg-slate-800 text-slate-100'
                     }`}
                     title="Export Reports & Data"
@@ -3151,9 +3142,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
 
-        {/* 4 Inset iOS KPI Squircles */}
+        {/* 4 Inset iOS KPI Squircles inside Standalone White Shelf */}
+        <div
+          className={`relative z-10 rounded-3xl p-3.5 sm:p-4 border ${
+            isLight
+              ? 'bg-white border-slate-200/80 shadow-[0_1px_10px_rgba(15,23,42,0.025)]'
+              : 'bg-[#161a24] border-slate-800'
+          }`}
+        >
         <section
-          className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-5"
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5"
           aria-label="Key portal metrics"
         >
           {/* KPI 1: Field Tasks */}
@@ -3365,6 +3363,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </button>
         </section>
+        </div>
       </div>
 
       {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT ───────────── */}
