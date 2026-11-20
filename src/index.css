@@ -921,7 +921,10 @@ nav a:active,
 a, summary, label { transition: color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard); }
 
 /* Isolate main portal tree so portaled body drawers never trigger root-wide layout/prepaint */
-#root { contain: layout style; }
+/* (20 Nov 2026) style containment only: layout (or paint) containment on #root makes it the "screen" for every fixed
+   element inside it - dialogs, toasts, banners opened 1,300 px below the view on long pages (Staff Directory Delete User
+   seemed to do nothing). Checked by tests/static_guards.cjs. */
+#root { contain: style; }
 
 /* Dropdowns and popovers: release GPU layer after opening so menu text renders crisply */
 [role="menu"], [role="listbox"], .popover {
