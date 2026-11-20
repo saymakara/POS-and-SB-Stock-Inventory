@@ -1815,7 +1815,7 @@ const ReviewRow = memo(function ReviewRow({
           </div>
           {e.oldSerial && (
             <div
-              className="flex items-center gap-1 flex-nowrap min-w-0 font-mono text-[11px] font-normal text-slate-500 dark:text-slate-400"
+              className="flex items-center gap-1 flex-nowrap min-w-0 font-mono text-xs font-medium text-slate-500 dark:text-slate-400"
               title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
             >
               <span className="w-3.5 shrink-0 inline-flex items-center justify-center">
@@ -1824,7 +1824,7 @@ const ReviewRow = memo(function ReviewRow({
               <span className="tabular-nums tracking-tight truncate whitespace-nowrap">
                 {e.oldSerial}
               </span>
-              <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
+              <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
             </div>
           )}
         </div>
