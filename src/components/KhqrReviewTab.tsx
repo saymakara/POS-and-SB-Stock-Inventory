@@ -23,6 +23,7 @@ import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelectio
 import { PillMotion } from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
+import { safeHref } from '../utils/safeUrl';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -980,8 +981,8 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
                 />
                 <Detail
                   k="Photos"
-                  v={e.telegramLink ? (
-                    <a href={e.telegramLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:underline">
+                  v={safeHref(e.telegramLink) ? (
+                    <a href={safeHref(e.telegramLink)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:underline">
                       <Send className="w-3 h-3" /> {e.photoCount} on Telegram
                     </a>
                   ) : `${e.photoCount} (Telegram post not linked)`}

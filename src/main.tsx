@@ -67,7 +67,14 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta
 
 // (21 Oct 2026) the app opens only after sign-in with the shared database; it restarts for each person signed in
 // (03 Nov 2026) MotionConfig reducedMotion="user" now lives in AppWithMotion.tsx (keeps Motion off the sign-in screen)
-createRoot(document.getElementById('root')!).render(
+// (20 Nov 2026, security review) never inside another site's frame: a hidden frame could trick a signed-in admin into
+// clicking buttons ("clickjacking"). GitHub Pages cannot send the X-Frame-Options / frame-ancestors header, so the page
+// itself refuses to start when it is framed.
+const framed = (() => { try { return window.top !== window.self; } catch { return true; } })();
+if (framed) {
+  document.getElementById('root')!.textContent = 'For your security, the In-Store Management Portal cannot be opened inside another website.';
+  try { window.top!.location.href = window.self.location.href; } catch { /* the other site blocks it: the message stays */ }
+} else createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <AuthGate>{(profile) => (
       <Suspense fallback={<AppLoading />}>

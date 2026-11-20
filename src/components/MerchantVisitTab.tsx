@@ -19,6 +19,7 @@ import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
+import { safeHref } from '../utils/safeUrl';
 
 /**
  * Phone App Review → Merchant Visit (4 Nov 2026).
@@ -464,8 +465,8 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
                 />
                 <Detail
                   k="Photos"
-                  v={v.photoLink ? (
-                    <a href={v.photoLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#2d6a4f] hover:text-[#1b4332] hover:underline">
+                  v={safeHref(v.photoLink) ? (
+                    <a href={safeHref(v.photoLink)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#2d6a4f] hover:text-[#1b4332] hover:underline">
                       <Send className="w-3 h-3" /> View on Telegram
                     </a>
                   ) : '—'}
