@@ -2425,12 +2425,14 @@ export async function fetchQrAttemptsPage(p: {
   }
 }
 
-/** New entries, live. */
+/** New entries, live.
+ *  (20 Nov 2026) New entries only: each entry is changed again after it is saved (its Telegram link and photo count), and
+ *  those changes were counted as "new" and made the page work out all its KHQR figures again (about 650 times a day). */
 export function subscribeToQrEntries(onChange: (e: QrEntry) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
   const channel = supabase
     .channel(channelName('qr_installations_feed'))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'qr_installations' }, (payload) => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qr_installations' }, (payload) => {
       if (payload.new && (payload.new as any).id) onChange(mapQrEntry(payload.new));
     })
     .subscribe();
@@ -2526,7 +2528,7 @@ export async function deleteStaffAccount(p: {
     const { data, error } = await supabase.rpc('admin_delete_staff', { p });
     if (error) {
       if (/could not find the function|admin_delete_staff/i.test(error.message || '')) {
-        throw new Error('Database migration required: apply 20261114_01_admin_delete_staff.sql in Supabase SQL Editor.');
+        throw new Error('Database update required: run 20261120_04_staff_delete.sql in the Supabase SQL Editor.');
       }
       throw error;
     }

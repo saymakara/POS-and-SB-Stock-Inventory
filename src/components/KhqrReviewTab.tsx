@@ -50,6 +50,8 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 const monthLabel = (ymd: string) => { const [y, m] = ymd.split('-').map(Number); return `${MONTH_NAMES[m - 1]} ${y}`; };
 
 const isMissingTable = (msg: string) => /qr_installations|qr_summary|PGRST20[25]|does not exist|schema cache/i.test(msg);
+/** (20 Nov 2026) at most one refresh of the KHQR figures a minute while new entries arrive */
+const STATS_REFRESH_MS = 60_000;
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 
 interface Props {
@@ -197,11 +199,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   useEffect(() => { load(); }, [load]);
 
   // Live: new entries are announced (the list does not jump while someone reads it) – "Show" loads them.
+  // (20 Nov 2026) The figures (summary, same MID by 2+ staff, this month) are worked out again at most once a minute
+  // while entries come in (was 5 s after every change: about 650 times a day each); ↻ still refreshes them at once.
   useEffect(() => {
     let statTimer: ReturnType<typeof setTimeout> | null = null;
     const unsub = subscribeToQrEntries(() => {
       setNewCount((n) => n + 1);
-      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }, 5000);
+      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }, STATS_REFRESH_MS);
     });
     return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
