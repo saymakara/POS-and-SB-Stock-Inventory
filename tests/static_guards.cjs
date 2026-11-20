@@ -44,6 +44,18 @@ if (fs.existsSync(MIG)) {
     });
   }
 }
+// (20 Nov 2026) layout / paint containment (or a transform / filter) on the page's root makes it the "screen" for every
+// fixed element inside: on 19 Nov "#root { contain: layout style }" put dialogs and toasts 1,300 px below the view
+// (Staff Directory Delete User seemed to do nothing). html, body, #root and main may only use style containment.
+{
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const re = /(^|[}\s,])(html|body|#root|main)\s*(?:,[^{]*)?\{([^}]*)\}/g; let m;
+  while ((m = re.exec(css))) {
+    const body = m[3];
+    if (/contain\s*:\s*[^;]*(layout|paint|strict|content)/i.test(body) || /(^|;)\s*(transform|filter|perspective)\s*:\s*(?!none)/i.test(body) || /will-change\s*:[^;]*(transform|filter)/i.test(body))
+      problems.push('src/index.css: "' + m[2] + '" must not use layout/paint containment, transform, filter or perspective (dialogs and toasts would leave the screen)');
+  }
+}
 problems.forEach((p) => console.log('FAIL ' + p));
 console.log(problems.length ? problems.length + ' FAILED' : 'PASS static guards (' + files.length + ' files)\nALL PASSED');
 process.exit(problems.length ? 1 : 0);
