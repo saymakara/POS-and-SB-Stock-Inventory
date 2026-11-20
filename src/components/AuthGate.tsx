@@ -155,6 +155,40 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }, [enter]);
 
+  // (20 Nov 2026) The sign-in kept by this browser can disappear without a "signed out" notice in this tab: another tab
+  // or another page on the same github.io address cleared it, or the browser's site data was cleared. On 20 Nov the
+  // pages then stayed on "Loading…" for 5 minutes while every request was refused as "not signed in". The portal now
+  // checks when that storage changes, when the tab comes back into view, and once a minute (no server call: the sign-in
+  // is read from this browser), and goes back to the sign-in page.
+  useEffect(() => {
+    if (!isSupabaseConfigured || phase !== 'ready') return;
+    let alive = true;
+    const check = () => {
+      supabase.auth.getSession().then(({ data }) => {
+        if (!alive || data.session) return;
+        clearLocalCaches();
+        setProfile(null);
+        setError('You were signed out on this browser. Please sign in again.');
+        setPhase('signin');
+      }).catch(() => { /* cannot tell: keep the page */ });
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || (/^sb-.+-auth-token$/.test(e.key) && e.newValue === null)) check();
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    const timer = window.setInterval(check, 60_000);
+    return () => {
+      alive = false;
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.clearInterval(timer);
+    };
+  }, [phase]);
+
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
