@@ -1170,7 +1170,9 @@ img { height: auto; }
 
 /* pop-ups: the dimmed background fades in while the box glides up */
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
-.fixed.inset-0 { animation: backdropIn 200ms var(--ease-premium) backwards; }
+/* (20 Nov 2026) no "backwards" fill: if the fade cannot run (seen on an admin's PC), the pop-up is simply shown -
+   with "backwards" it stayed at opacity 0, and the lock screen's password box was invisible (nobody could unlock) */
+.fixed.inset-0 { animation: backdropIn 200ms var(--ease-premium); }
 .modal-glide { animation-duration: 320ms; animation-timing-function: var(--ease-premium); }
 
 /* menus, drop-downs and tooltips open from their anchor */
@@ -1499,3 +1501,9 @@ tbody > tr {
 .tabbar-pill-in { animation: tabbarPillIn 0.22s var(--ease-out) both; }
 @keyframes tabbarPillIn { from { opacity: 0; transform: translateX(-50%) scaleX(0.4); } to { opacity: 1; transform: translateX(-50%) scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .tabbar-pill-in { animation: none; } }
+
+/* (20 Nov 2026) lock screen card: a short slide only - it is visible from the first frame (no opacity animation) */
+@keyframes lockCardIn {
+  from { transform: translateY(10px) scale(0.97); }
+  to { transform: none; }
+}

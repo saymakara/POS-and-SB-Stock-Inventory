@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, KeyRound, Loader2, LogOut } from 'lucide-react';
 import { AppBrandLogo } from './AppBrandLogo';
 import { ThemeMode } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { signOutEverywhere } from './AuthGate';
 import { unlockWorkstation, getWorkstationLockState, notifySessionSignOut, clearWorkstationLock } from '../utils/sessionSecurity';
@@ -147,23 +147,19 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
       {isOpen && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto"
+          style={{ animation: 'none' }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="session-lock-modal-title"
         >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="fixed inset-0 bg-slate-950/85 backdrop-blur-md transform-gpu will-change-gpu"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 460, mass: 0.55 }}
-            className={`relative z-10 border-0 rounded-3xl w-full max-w-sm shadow-2xl p-6 flex flex-col items-center text-center transform-gpu will-change-gpu gpu-modal-container ${
+          {/* (20 Nov 2026) The lock screen never depends on an animation to become visible: on an admin's PC the card's
+              fade-in stalled at 0% - the page stayed blurred with an INVISIBLE password box (Chrome still offered the saved
+              password there) and nobody could unlock. Backdrop and card are now shown at once; only a short CSS slide
+              (transform only, never opacity) remains. */}
+          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md" style={{ animation: 'none' }} />
+          <div
+            style={{ animation: 'lockCardIn 180ms ease-out' }}
+            className={`relative z-10 border-0 rounded-3xl w-full max-w-sm shadow-2xl p-6 flex flex-col items-center text-center gpu-modal-container ${
               isLight
                 ? 'bg-white text-slate-800'
                 : 'bg-[#0f1b2e] text-white'
@@ -263,7 +259,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
               <KeyRound className="w-3.5 h-3.5 text-slate-400" />
               <span>Multi-Tab Session Security Protection</span>
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
     </AnimatePresence>
