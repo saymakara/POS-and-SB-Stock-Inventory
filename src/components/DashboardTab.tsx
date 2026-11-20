@@ -2712,35 +2712,40 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* ───────────── 1 & 2. iOS MINIMAL HERO + 4 INSET KPI SQUIRCLES ───────────── */}
       <div
         data-hero-backdrop="dashboard"
+        style={{
+          backgroundImage: isLight
+            ? 'radial-gradient(620px 220px at 0% 0%, rgba(21,84,132,0.07), transparent 65%), radial-gradient(500px 200px at 100% 0%, rgba(79,81,140,0.06), transparent 65%)'
+            : 'radial-gradient(620px 220px at 0% 0%, rgba(56,189,248,0.09), transparent 65%), radial-gradient(500px 200px at 100% 0%, rgba(129,140,248,0.08), transparent 65%)',
+        }}
         className={`relative ${dateMenuOpen ? 'z-30' : ''} rounded-3xl p-5 sm:p-6 border ${
           isLight
-            ? 'bg-white border-slate-200/75 text-slate-900 shadow-[0_1px_10px_rgba(15,23,42,0.025)]'
+            ? 'bg-white border-slate-200/85 text-slate-900 shadow-[0_2px_14px_rgba(15,23,42,0.03)]'
             : 'bg-[#161a24] border-slate-800 text-slate-100'
         }`}
       >
         <div className="relative z-20 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="space-y-1 min-w-0">
-            <h1 className={`text-xl sm:text-[22px] 2xl:text-[25px] sm:whitespace-nowrap font-bold tracking-tight flex items-center gap-2.5 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <span
-                className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-xs ${
-                  isLight
-                    ? 'bg-gradient-to-br from-[#005bb5] to-[#0ea5e9] text-white'
-                    : 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5" aria-hidden="true" />
-              </span>
-              <span>
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className={`w-10 h-10 rounded-[13px] flex items-center justify-center shrink-0 ${
+                isLight
+                  ? 'bg-white border border-[#155484]/20 text-[#002F4A] shadow-[0_2px_8px_rgba(21,84,132,0.10)]'
+                  : 'bg-slate-900/90 border border-sky-400/25 text-sky-300 shadow-[0_2px_10px_rgba(2,6,23,0.4)]'
+              }`}
+            >
+              <BarChart3 className="w-5 h-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1 className={`text-xl sm:text-[22px] 2xl:text-[24px] sm:whitespace-nowrap font-bold tracking-[-0.02em] leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {branchScopedId
                   ? `Branch Code ${branchScopedId} Operations Overview`
                   : 'Executive Operations Overview'}
-              </span>
-            </h1>
-            <p className={`text-[13.5px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
-              <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
-              <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
-              <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
-            </p>
+              </h1>
+              <p className={`text-[13px] leading-relaxed mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
+                <span className={`font-semibold ${isLight ? 'text-[#155484]' : 'text-sky-300'}`}>{branchScopeDisplay}</span>
+                <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
+                <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-1.5 shrink-0">
@@ -3092,45 +3097,57 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span
                 className={`inline-flex items-center gap-1.5 text-[11.5px] rounded-full border px-2.5 py-1 font-semibold whitespace-nowrap ${
                   isLight
-                    ? 'border-slate-200/70 bg-[#f8f9fb] text-slate-700'
+                    ? 'border-slate-200/80 bg-[#f8f9fb] text-slate-700'
                     : 'border-slate-700 bg-slate-900/80 text-slate-200'
                 }`}
                 title="Scoped to active Phnom Penh staff from the Staff Directory"
               >
-                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-rose-500' : 'text-rose-400'}`} aria-hidden="true" />
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#155484]' : 'text-sky-400'}`} aria-hidden="true" />
                 <span>Phnom Penh · Staff Directory</span>
               </span>
             )}
 
-            <button
-              type="button"
-              onClick={() => void handleSyncAll()}
-              className={`btn-press px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+            {/* Unified Utility Dock (Sync | Export) */}
+            <div
+              className={`inline-flex items-center p-0.5 rounded-full border ${
                 isLight
-                  ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-700'
-                  : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200'
+                  ? 'border-slate-200/90 bg-[#f8f9fb]'
+                  : 'border-slate-700 bg-slate-900/80'
               }`}
-              title="Refresh live summary counts"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-sky-400'} ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span>Sync</span>
-            </button>
-
-            {isAdminLike && (
               <button
                 type="button"
-                onClick={onOpenExportModal}
-                className={`btn-press px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+                onClick={() => void handleSyncAll()}
+                className={`btn-press px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                   isLight
-                    ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-800'
-                    : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-100'
+                    ? 'hover:bg-white text-slate-700 hover:shadow-2xs'
+                    : 'hover:bg-slate-800 text-slate-200'
                 }`}
-                title="Export Reports & Data"
+                title="Refresh live summary counts"
               >
-                <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} aria-hidden="true" />
-                <span>Export</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-[#004e75]' : 'text-sky-400'} ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span>Sync</span>
               </button>
-            )}
+
+              {isAdminLike && (
+                <>
+                  <span className={`w-px h-3.5 ${isLight ? 'bg-slate-200' : 'bg-slate-700'}`} aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={onOpenExportModal}
+                    className={`btn-press px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+                      isLight
+                        ? 'hover:bg-white text-slate-800 hover:shadow-2xs'
+                        : 'hover:bg-slate-800 text-slate-100'
+                    }`}
+                    title="Export Reports & Data"
+                  >
+                    <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-400'}`} aria-hidden="true" />
+                    <span>Export</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
