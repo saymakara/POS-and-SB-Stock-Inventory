@@ -14,10 +14,11 @@ import {
 import { AnimatePresence } from 'motion/react';
 import {
   RightDrawerFrame,
+  DossierChip,
   SIM_HEADER_CLS,
   SIM_ICON_BOX_CLS,
   SIM_CLOSE_BTN_CLS,
-  SIM_BODY_CLS,
+  SIM_BODY_FIT_CLS,
   SIM_FOOTER_CLS,
   SIM_BTN_CANCEL_CLS,
 } from './RightDrawerShell';
@@ -26,7 +27,6 @@ import {
   Calendar,
   Search,
   FileSpreadsheet,
-  Building2,
   Clock,
   RotateCcw,
   Cpu,
@@ -34,13 +34,6 @@ import {
   X,
   Phone,
   MapPin,
-  UserCheck,
-  Copy,
-  Check,
-  BatteryCharging,
-  Hash,
-  CreditCard,
-  Wrench,
 } from 'lucide-react';
 import { csvFile } from '../utils/csv';
 import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
@@ -614,10 +607,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <RightDrawerFrame
                   onClose={() => setSelectedRecord(null)}
                   zClass="z-50"
+                  fitContent
                   isLight={isLight}
                   ariaLabel={`Merchant history ${selectedRecord.recordId}`}
                 >
-              {/* SIM-Style Header Bar */}
+              {/* Header Bar */}
               <div className={SIM_HEADER_CLS}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -629,14 +623,15 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <h3 className="text-base font-bold text-white tracking-tight truncate">
                           {dash(selectedRecord.merchantName)}
                         </h3>
-                        <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
-                          Decommissioned
+                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
+                          {statusText(selectedRecord.status) === 'Terminated' ? 'Returned' : statusText(selectedRecord.status)}
                         </span>
                       </div>
-                      <p className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">
-                        15D MID: {selectedRecord.mid} · Branch Code {selectedRecord.branchId} ({selectedRecord.branchName})
-                      </p>
+                      <div className="text-[11.5px] text-sky-100/85 mt-0.5 flex flex-wrap items-center gap-1.5 font-mono">
+                        <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
+                        <span>·</span>
+                        <span className="font-sans">Code {selectedRecord.branchId} ({selectedRecord.branchName})</span>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -650,453 +645,167 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   </button>
                 </div>
               </div>
-              <div className={`${SIM_BODY_CLS} text-xs`}>
-                {/* Status banner */}
-                <div
-                  className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
-                    isLight
-                      ? 'bg-amber-50/70 border-amber-200/90 text-amber-950'
-                      : 'bg-amber-950/20 border-amber-800/40 text-amber-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                      <RotateCcw className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
-                        Device Decommission &amp; Return Completed
-                      </div>
-                      <div className="text-xs text-amber-900/90 dark:text-amber-300/90 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                        <span>
-                          Active in service for{' '}
-                          <strong>
-                            {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
-                          </strong>
-                        </span>
-                        <span className="text-amber-400">•</span>
-                        <span className="font-mono text-[11px]">
-                          {dash(selectedRecord.installedDate)} &rarr; {dash(selectedRecord.returnedDate)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wide font-mono bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 flex items-center gap-1.5 shadow-2xs">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                      <span>{dash(selectedRecord.status)}</span>
-                    </span>
-                  </div>
-                </div>
 
-                {/* 2-Column Info Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {/* Left Column: Merchant Profile */}
-                  <div
-                    className={`p-4 rounded-2xl border ${
-                      isLight ? 'bg-slate-50/70 border-slate-200' : 'bg-white/5 border-white/10'
-                    } space-y-3.5`}
-                  >
-                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200 dark:border-white/10">
-                      <div className="w-7 h-7 rounded-lg bg-[#155484]/10 dark:bg-sky-500/20 text-[#155484] dark:text-sky-300 flex items-center justify-center shrink-0">
-                        <Store className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                          Merchant Profile
-                        </h4>
-                        <p className="text-[10px] text-slate-400">Account details &amp; store location</p>
-                      </div>
-                    </div>
-
-                    {/* Merchant Name */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold uppercase text-slate-400">
-                        Merchant Name
-                      </span>
-                      <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                        <Store className="w-3.5 h-3.5 text-[#155484] dark:text-sky-400 shrink-0" />
-                        <span>{dash(selectedRecord.merchantName)}</span>
-                      </div>
-                    </div>
-
-                    {/* MID & TID Row */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div
-                        className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-                          isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                        }`}
-                      >
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Hash className="w-3 h-3 text-sky-500" /> MID (15D)
-                        </span>
-                        <div className="flex items-center justify-between gap-1">
-                          <span
-                            className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200 truncate"
-                            title={selectedRecord.mid}
-                          >
-                            {selectedRecord.mid}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(selectedRecord.mid, 'MID')}
-                            title="Copy MID"
-                            aria-label="Copy MID"
-                            className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
-                          >
-                            {copiedField === 'MID' ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-                          isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                        }`}
-                      >
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <CreditCard className="w-3 h-3 text-indigo-500" /> TID
-                        </span>
-                        <div className="flex items-center justify-between gap-1">
-                          <span
-                            className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200 truncate"
-                            title={selectedRecord.tid || '—'}
-                          >
-                            {dash(selectedRecord.tid)}
-                          </span>
-                          {selectedRecord.tid && (
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(selectedRecord.tid, 'TID')}
-                              title="Copy TID"
-                              aria-label="Copy TID"
-                              className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
-                            >
-                              {copiedField === 'TID' ? (
-                                <Check className="w-3 h-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contact Phone */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold uppercase text-slate-400">
-                        Contact Phone
-                      </span>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        <Phone className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                        {selectedRecord.merchantPhone && showFullContact ? (
-                          <a
-                            href={`tel:${selectedRecord.merchantPhone}`}
-                            className="hover:underline font-mono"
-                          >
-                            {phoneFor(role, selectedRecord.merchantPhone)}
-                          </a>
-                        ) : (
-                          <span className="font-mono">{phoneFor(role, selectedRecord.merchantPhone)}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Physical Address */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold uppercase text-slate-400">
-                        Physical Address
-                      </span>
-                      <div className="flex items-start gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span className="leading-snug">{dash(selectedRecord.address)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Hardware & Servicing */}
-                  <div
-                    className={`p-4 rounded-2xl border ${
-                      isLight ? 'bg-slate-50/70 border-slate-200' : 'bg-white/5 border-white/10'
-                    } space-y-3.5`}
-                  >
-                    <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200 dark:border-white/10">
-                      <div className="w-7 h-7 rounded-lg bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0">
-                        <Cpu className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                          Hardware &amp; Servicing
-                        </h4>
-                        <p className="text-[10px] text-slate-400">Deployed unit &amp; custody log</p>
-                      </div>
-                    </div>
-
-                    {/* Product Type & Model */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold uppercase text-slate-400">
-                        Product Type &amp; Model
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                          selectedRecord.deviceType === 'POS Terminal'
-                            ? 'bg-[#184e77]/10 dark:bg-[#184e77]/30 text-[#184e77] dark:text-[#5cc8ff]'
-                            : 'bg-[#4F518C]/10 dark:bg-[#4F518C]/30 text-[#4F518C] dark:text-[#a2a5e0]'
-                        }`}>
-                          {selectedRecord.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3.5 h-3.5" />
-                          ) : (
-                            <Volume2 className="w-3.5 h-3.5" />
-                          )}
-                        </div>
-                        <span className="font-bold text-xs text-slate-900 dark:text-white">
-                          {selectedRecord.deviceType} · {dash(selectedRecord.model)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Terminal Serial Highlight Card with Copy */}
-                    <div
-                      className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-                        isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                      }`}
-                    >
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center justify-between">
-                        <span>Terminal Serial (SN)</span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800 font-bold">
-                          Hardware Unit
-                        </span>
-                      </span>
-                      <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <span className="font-mono font-bold text-xs text-zinc-900 dark:text-zinc-100 tracking-wide select-all">
-                          {selectedRecord.serial}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(selectedRecord.serial, 'Serial')}
-                          title="Copy Serial Number"
-                          className="flex items-center gap-1 text-[11px] font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400 px-2 py-1 rounded-md hover:bg-sky-50 dark:hover:bg-white/10 transition cursor-pointer"
-                        >
-                          {copiedField === 'Serial' ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-600" />
-                              <span className="text-emerald-600 font-bold">Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Battery Serial & Branch Office */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div
-                        className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-                          isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                        }`}
-                      >
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <BatteryCharging className="w-3 h-3 text-amber-500" /> Battery SN
-                        </span>
-                        <span
-                          className="font-mono font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate"
-                          title={selectedRecord.batterySerial || '—'}
-                        >
-                          {dash(selectedRecord.batterySerial)}
-                        </span>
-                      </div>
-
-                      <div
-                        className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-                          isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                        }`}
-                      >
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-[#155484] dark:text-sky-400" /> Branch Office
-                        </span>
-                        <span
-                          className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 truncate"
-                          title={`Branch Code ${selectedRecord.branchId} (${selectedRecord.branchName})`}
-                        >
-                          Code {selectedRecord.branchId}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* In Service Duration & Timeline Details */}
-                    <div
-                      className={`p-2.5 rounded-xl border flex flex-col gap-1.5 ${
-                        isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#155484] dark:text-sky-400" /> In Service Duration
-                        </span>
-                        <span className="font-bold text-xs text-[#155484] dark:text-sky-300">
-                          {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Active Since</span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                            {dash(selectedRecord.installedDate)}
-                          </span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Returned Date</span>
-                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                            {dash(selectedRecord.returnedDate)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Field Officers Breakdown */}
-                    <div
-                      className={`p-2.5 rounded-xl border flex flex-col gap-1.5 ${
-                        isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
-                      }`}
-                    >
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">
-                        Field Officers Custody
-                      </span>
-
-                      <div className="flex items-center justify-between gap-1 text-[11px]">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <UserCheck className="w-3 h-3 text-emerald-600" /> Installer:
-                        </span>
-                        <span
-                          className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]"
-                          title={selectedRecord.installedByStaff || selectedRecord.handledByStaff}
-                        >
-                          {dash(selectedRecord.installedByStaff || selectedRecord.handledByStaff)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-1 text-[11px]">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <Wrench className="w-3 h-3 text-amber-500" /> Replaced by:
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span
-                            className={`font-semibold truncate max-w-[120px] ${
-                              selectedRecord.replacedByStaff &&
-                              selectedRecord.replacedByStaff !==
-                                (selectedRecord.installedByStaff || selectedRecord.handledByStaff)
-                                ? 'text-amber-800 dark:text-amber-300 font-bold'
-                                : 'text-slate-700 dark:text-slate-300'
-                            }`}
-                            title={selectedRecord.replacedByStaff || 'None (Original unit)'}
-                          >
-                            {selectedRecord.replacedByStaff || (
-                              <span className="text-slate-400 font-normal italic">None</span>
-                            )}
-                          </span>
-                          {selectedRecord.replacedByStaff &&
-                            selectedRecord.replacedByStaff !==
-                              (selectedRecord.installedByStaff || selectedRecord.handledByStaff) && (
-                              <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700">
-                                Diff
-                              </span>
-                            )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-1 text-[11px]">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <RotateCcw className="w-3 h-3 text-indigo-500" /> Returned by:
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span
-                            className={`font-semibold truncate max-w-[120px] ${
-                              (selectedRecord.returnedByStaff || selectedRecord.handledByStaff) !==
-                              (selectedRecord.installedByStaff || selectedRecord.handledByStaff)
-                                ? 'text-indigo-800 dark:text-indigo-300 font-bold'
-                                : 'text-slate-700 dark:text-slate-300'
-                            }`}
-                            title={
-                              selectedRecord.returnedByStaff || selectedRecord.handledByStaff
-                            }
-                          >
-                            {dash(selectedRecord.returnedByStaff || selectedRecord.handledByStaff)}
-                          </span>
-                          {(selectedRecord.returnedByStaff || selectedRecord.handledByStaff) !==
-                            (selectedRecord.installedByStaff || selectedRecord.handledByStaff) && (
-                            <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-700">
-                              Diff
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Multi-Officer Lifecycle Accountability (if differences exist) */}
+              <div className={`${SIM_BODY_FIT_CLS} text-xs`}>
                 {(() => {
                   const inst = selectedRecord.installedByStaff || selectedRecord.handledByStaff;
                   const repl = selectedRecord.replacedByStaff;
                   const ret = selectedRecord.returnedByStaff || selectedRecord.handledByStaff;
-                  const hasDifference = (repl && repl !== inst) || (ret && ret !== inst);
-
-                  if (!hasDifference) return null;
+                  const hasReplacement = Boolean(repl);
+                  const batVal = String(selectedRecord.batterySerial || '').trim();
+                  const showBattery = selectedRecord.deviceType === 'POS Terminal' || (batVal !== '' && !['N/A', '-', '—'].includes(batVal.toUpperCase()));
+                  const hasPhone = Boolean(selectedRecord.merchantPhone && phoneFor(role, selectedRecord.merchantPhone) !== '—');
+                  const hasAddr = Boolean(selectedRecord.address && selectedRecord.address.trim() && !['-', '—'].includes(selectedRecord.address.trim()));
+                  const durationLabel = serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate);
 
                   return (
-                    <div className="p-3.5 rounded-2xl border border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-800/40 text-sky-950 dark:text-sky-200 text-xs space-y-1.5 font-medium">
-                      <div className="flex items-center gap-2 font-bold text-sky-900 dark:text-sky-300 text-xs">
-                        <UserCheck className="w-4 h-4 text-[#005a8c] dark:text-sky-400 shrink-0" />
-                        <span>Multi-Officer Lifecycle Accountability Log</span>
+                    <>
+                      {/* Top Copyable Identifier Strip */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <DossierChip
+                          label="MID 15D"
+                          value={selectedRecord.mid}
+                          onCopy={() => handleCopy(selectedRecord.mid, 'MID')}
+                          copied={copiedField === 'MID'}
+                        />
+                        {selectedRecord.tid && (
+                          <DossierChip
+                            label="TID"
+                            value={selectedRecord.tid}
+                            onCopy={() => handleCopy(selectedRecord.tid || '', 'TID')}
+                            copied={copiedField === 'TID'}
+                          />
+                        )}
+                        <DossierChip
+                          label="SN"
+                          value={selectedRecord.serial}
+                          onCopy={() => handleCopy(selectedRecord.serial, 'Serial')}
+                          copied={copiedField === 'Serial'}
+                        />
+                        {showBattery && (
+                          <DossierChip label="BAT" value={dash(selectedRecord.batterySerial)} />
+                        )}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
-                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 border border-sky-100 dark:border-white/10 shadow-2xs">
-                          <span className="text-[10px] text-slate-400 block font-semibold uppercase">
-                            1. Field Installer
+
+                      {/* Custody Timeline Card */}
+                      <div
+                        className={`rounded-xl border p-3.5 space-y-3 ${
+                          isLight
+                            ? 'bg-white border-slate-200/85 shadow-[0_1px_2px_rgba(15,23,42,0.03)]'
+                            : 'bg-slate-800/95 border-slate-700/80'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                                selectedRecord.deviceType === 'POS Terminal'
+                                  ? 'bg-[#184e77]/10 dark:bg-[#184e77]/30 text-[#184e77] dark:text-[#5cc8ff]'
+                                  : 'bg-[#4F518C]/10 dark:bg-[#4F518C]/30 text-[#4F518C] dark:text-[#a2a5e0]'
+                              }`}
+                            >
+                              {selectedRecord.deviceType === 'POS Terminal' ? (
+                                <Cpu className="w-3.5 h-3.5" />
+                              ) : (
+                                <Volume2 className="w-3.5 h-3.5" />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                Custody Timeline · {durationLabel}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {selectedRecord.deviceType} · {dash(selectedRecord.model)}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[10.5px] font-bold shrink-0">
+                            Decommissioned
                           </span>
-                          <strong className="text-slate-900 dark:text-white block mt-0.5">
-                            {dash(inst)}
-                          </strong>
                         </div>
-                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 border border-sky-100 dark:border-white/10 shadow-2xs">
-                          <span className="text-[10px] text-slate-400 block font-semibold uppercase">
-                            2. Replacement Officer
-                          </span>
-                          <strong
-                            className={`block mt-0.5 ${
-                              repl && repl !== inst
-                                ? 'text-amber-800 dark:text-amber-300 font-bold'
-                                : 'text-slate-900 dark:text-white'
-                            }`}
-                          >
-                            {repl || 'None (Original unit)'}
-                          </strong>
+
+                        <div
+                          className={`grid grid-cols-1 ${
+                            hasReplacement ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                          } gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/70`}
+                        >
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                              <span>Active · {dash(selectedRecord.installedDate)}</span>
+                            </div>
+                            <div className="text-[11.5px] text-slate-600 dark:text-slate-300 mt-1">
+                              Installed by{' '}
+                              <strong className="text-slate-900 dark:text-white">{dash(inst)}</strong>
+                            </div>
+                          </div>
+
+                          {hasReplacement && (
+                            <div>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                <span>Replaced</span>
+                              </div>
+                              <div className="text-[11.5px] text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span>
+                                  By <strong className="text-slate-900 dark:text-white">{repl}</strong>
+                                </span>
+                                {repl !== inst && (
+                                  <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700">
+                                    Diff
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                              <span>Returned · {dash(selectedRecord.returnedDate)}</span>
+                            </div>
+                            <div className="text-[11.5px] text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span>
+                                Returned by <strong className="text-slate-900 dark:text-white">{dash(ret)}</strong>
+                              </span>
+                              {ret !== inst && (
+                                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-700">
+                                  Diff
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 border border-sky-100 dark:border-white/10 shadow-2xs">
-                          <span className="text-[10px] text-slate-400 block font-semibold uppercase">
-                            3. Returned By
-                          </span>
-                          <strong
-                            className={`block mt-0.5 ${
-                              ret && ret !== inst
-                                ? 'text-indigo-800 dark:text-indigo-300 font-bold'
-                                : 'text-slate-900 dark:text-white'
-                            }`}
-                          >
-                            {dash(ret)}
-                          </strong>
-                        </div>
+
+                        {(hasPhone || hasAddr || selectedRecord.returnReason) && (
+                          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-700/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                            {hasPhone && (
+                              <span className="inline-flex items-center gap-1 font-mono text-slate-700 dark:text-slate-200">
+                                <Phone className="w-3 h-3 text-sky-600 shrink-0" />
+                                {selectedRecord.merchantPhone && showFullContact ? (
+                                  <a href={`tel:${selectedRecord.merchantPhone}`} className="hover:underline">
+                                    {phoneFor(role, selectedRecord.merchantPhone)}
+                                  </a>
+                                ) : (
+                                  <span>{phoneFor(role, selectedRecord.merchantPhone)}</span>
+                                )}
+                              </span>
+                            )}
+                            {hasAddr && (
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                <span>{selectedRecord.address}</span>
+                              </span>
+                            )}
+                            {selectedRecord.returnReason && (
+                              <span>
+                                Reason: <strong className="text-slate-700 dark:text-slate-200 font-medium">{selectedRecord.returnReason}</strong>
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    </>
                   );
                 })()}
               </div>

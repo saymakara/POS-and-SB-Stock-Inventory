@@ -761,7 +761,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
     device.stage !== 'HQ_STOCK' &&
     (role === 'SUPER_ADMIN' || canMove(device.stage, 'HQ_STOCK')) &&
     (isAdminLike ? !!onReturnToAdminStock : !!onRequestReturnToAdminStock);
-  const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && stage === 'CONFIGURING' && !!onNotifyConfigReady);
+  const hasQuickActions = canReturnToReserve || (isAdminLike && stage === 'CONFIGURING' && !!onNotifyConfigReady);
 
   const handleCopySerial = () => {
     navigator.clipboard?.writeText(device.serial);
@@ -1819,50 +1819,6 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                     </button>
                   )}
 
-                  {canReturnToHq && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isAdminLike && onReturnToAdminStock) {
-                          setPendingPayload(
-                            quickMove(
-                              'HQ_STOCK',
-                              'RETURN_ADMIN_STOCK',
-                              'Return Unit to Head Office Admin Stock (Code 100)',
-                              '100',
-                              operatorLabel.trim(),
-                              'Returned back to Admin HQ Stock (Branch Code 100)'
-                            )
-                          );
-                          setModalStep('PREVIEW');
-                        } else if (onRequestReturnToAdminStock) {
-                          onRequestReturnToAdminStock(
-                            device.serial,
-                            note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
-                          );
-                          onClose();
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
-                        isLight
-                          ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
-                          : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
-                      }`}
-                      title={
-                        isAdminLike
-                          ? 'Return unit back to Head Office Admin Stock'
-                          : 'Submit a return request to Admin HQ for approval'
-                      }
-                    >
-                      <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>
-                        {isAdminLike
-                          ? 'Return to Admin Stock'
-                          : 'Request Return to Admin Stock'}
-                      </span>
-                    </button>
-                  )}
-
                   {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
                     notifyCooldownSecs > 0 ? (
                       <button
@@ -1908,8 +1864,8 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
             )}
 
             {/* SIM-Style Pinned Action Footer Bar */}
-            <div className={SIM_FOOTER_CLS}>
-              <div className="flex items-center gap-2">
+            <div className={`${SIM_FOOTER_CLS} flex-wrap`}>
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
                   <button
                     type="button"
@@ -1919,22 +1875,65 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                         onClose();
                       }
                     }}
-                    className="btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 cursor-pointer"
+                    className="btn-press px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 cursor-pointer whitespace-nowrap"
                   >
                     Delete Permanently
+                  </button>
+                )}
+                {canReturnToHq && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAdminLike && onReturnToAdminStock) {
+                        setPendingPayload(
+                          quickMove(
+                            'HQ_STOCK',
+                            'RETURN_ADMIN_STOCK',
+                            'Return Unit to Head Office Admin Stock (Code 100)',
+                            '100',
+                            operatorLabel.trim(),
+                            'Returned back to Admin HQ Stock (Branch Code 100)'
+                          )
+                        );
+                        setModalStep('PREVIEW');
+                      } else if (onRequestReturnToAdminStock) {
+                        onRequestReturnToAdminStock(
+                          device.serial,
+                          note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
+                        );
+                        onClose();
+                      }
+                    }}
+                    className={`btn-press inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer whitespace-nowrap ${
+                      isLight
+                        ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                        : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
+                    }`}
+                    title={
+                      isAdminLike
+                        ? 'Return unit back to Head Office Admin Stock'
+                        : 'Submit a return request to Admin HQ for approval'
+                    }
+                  >
+                    <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>
+                      {isAdminLike
+                        ? 'Return to Admin Stock'
+                        : 'Request Return to Admin Stock'}
+                    </span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={onClose}
-                  className={`${SIM_BTN_CANCEL_CLS} active:scale-[0.98]`}
+                  className={`${SIM_BTN_CANCEL_CLS} !px-3 !py-1.5 active:scale-[0.98] whitespace-nowrap`}
                 >
                   Cancel
                 </button>
               </div>
               <button
                 type="submit"
-                className={SIM_BTN_PRIMARY_CLS}
+                className={`${SIM_BTN_PRIMARY_CLS} !px-4 !py-1.5 ml-auto whitespace-nowrap`}
               >
                 <span>Review Changes</span>
                 <ArrowRight className="w-3.5 h-3.5" />

@@ -10,11 +10,13 @@ import { AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   RightDrawerFrame,
+  DossierChip,
   SIM_HEADER_CLS,
   SIM_ICON_BOX_CLS,
   SIM_HEADER_TAG_CLS,
   SIM_CLOSE_BTN_CLS,
   SIM_BODY_CLS,
+  SIM_BODY_FIT_CLS,
   SIM_FOOTER_CLS,
   SIM_BTN_CANCEL_CLS,
   SIM_BTN_PRIMARY_CLS,
@@ -40,8 +42,6 @@ BarChart3,
 ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Phone,
-  User,
 } from 'lucide-react';
 import {
   ComposedChart,
@@ -202,6 +202,12 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const [replaceNewSerial, setReplaceNewSerial] = useState<string>('');
   const [replaceStaffName, setReplaceStaffName] = useState<string>('');
   const [replaceReason, setReplaceReason] = useState<string>('Broken / Hardware Malfunction');
+  const [copiedCrmField, setCopiedCrmField] = useState<string | null>(null);
+  const handleCopyChip = (val: string, key: string) => {
+    navigator.clipboard?.writeText(val);
+    setCopiedCrmField(key);
+    window.setTimeout(() => setCopiedCrmField(null), 1800);
+  };
 
   // Modal state for onboarding a brand-new Merchant Profile with a reserve serial
   const [newMerchantModalOpen, setNewMerchantModalOpen] = useState(false);
@@ -1383,6 +1389,7 @@ return (
               <RightDrawerFrame
                 onClose={() => setSelectedMid(null)}
                 zClass="z-50"
+                fitContent
                 isLight={isLight}
                 ariaLabel={`Merchant 360 ${dash(selectedMerchantProfile.merchantName)}`}
               >
@@ -1401,8 +1408,11 @@ return (
                           Merchant 360
                         </span>
                       </div>
-                      <p className="font-mono text-[11.5px] text-slate-300 mt-0.5 truncate">
-                        MID: {selectedMerchantProfile.mid} · Code {selectedMerchantProfile.branchId}
+                      <p
+                        className="text-[11.5px] text-sky-100/85 mt-0.5 truncate"
+                        title={`Code ${selectedMerchantProfile.branchId} · ${selectedMerchantProfile.branchName} · ${dash(selectedMerchantProfile.accountOfficer)}`}
+                      >
+                        Code {selectedMerchantProfile.branchId} · {selectedMerchantProfile.branchName} · {dash(selectedMerchantProfile.accountOfficer)}
                       </p>
                     </div>
                   </div>
@@ -1415,7 +1425,7 @@ return (
                           setSelectedMid(null);
                           handleOpenBindModal(target);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/15 hover:bg-white/25 text-white inline-flex items-center gap-1 transition cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/15 hover:bg-white/25 text-white inline-flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
                         title="Bind an additional POS Terminal or Sound Box to this merchant store"
                       >
                         <Plus className="w-3 h-3" />
@@ -1430,7 +1440,7 @@ return (
                           setSelectedMid(null);
                           handleOpenTerminateModal(m);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 inline-flex items-center gap-1 transition cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-400 hover:bg-amber-300 text-slate-950 inline-flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
                         title="Return assigned hardware units back to branch reserve or HQ stock"
                       >
                         <RotateCcw className="w-3 h-3" />
@@ -1450,100 +1460,81 @@ return (
                 </div>
               </div>
 
-              <div className={SIM_BODY_CLS}>
-                {/* Merchant Metadata Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div
-                    className={`p-3.5 rounded-2xl border transition-all ${
-                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Contact</span>
-                    </div>
-                    {(() => {
-                      const ph = phoneFor(role, selectedMerchantProfile.merchantPhone);
-                      const hasPh = ph && ph !== '—';
-                      return (
-                        <div className={`font-mono text-xs mt-1.5 font-bold ${hasPh ? (isLight ? 'text-sky-700' : 'text-cyan-300') : 'text-slate-400 font-normal'}`}>
-                          {ph}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div
-                    className={`p-3.5 rounded-2xl border transition-all ${
-                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <Building2 className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-cyan-400'}`} />
-                      <span>Servicing Branch</span>
-                    </div>
-                    <div className="font-bold text-xs mt-1.5 text-slate-800 dark:text-slate-100 truncate" title={`Code ${selectedMerchantProfile.branchId} — ${selectedMerchantProfile.branchName}`}>
-                      Code {selectedMerchantProfile.branchId} — {selectedMerchantProfile.branchName}
-                    </div>
-                    <div className="text-[11px] mt-0.5 text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
-                      <User className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span>Staff: {dash(selectedMerchantProfile.accountOfficer)}</span>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`p-3.5 rounded-2xl border transition-all ${
-                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                      <Layers className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
-                      <span>Hardware Summary</span>
-                    </div>
-                    <div className="font-mono font-bold text-xs mt-1.5 text-slate-800 dark:text-slate-100">
-                      {selectedMerchantProfile.posCount} POS &bull; {selectedMerchantProfile.sbCount} Sound Box
-                    </div>
-                    <div className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1.5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-                      <span>{selectedMerchantProfile.liveCount} Units Live at Store</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Assigned Hardware Units List */}
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Assigned Hardware Serials &amp; Terminal IDs (TID)
-                    </h4>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {onReplaceMerchantDevice && selectedMerchantProfile.devices.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const dev = selectedMerchantProfile.devices[0];
-                            setReplaceModalDevice(dev);
-                            const branchCandidates = availableReserveDevices.filter(
-                              (c) => c.type === dev.type && c.branchId === dev.branchId
-                            );
-                            const fallbackCandidates = availableReserveDevices.filter(
-                              (c) => c.type === dev.type
-                            );
-                            const firstPick = branchCandidates[0] || fallbackCandidates[0];
-                            setReplaceNewSerial(firstPick ? firstPick.serial : '');
-                            setReplaceStaffName(activeStaff || dev.staff || selectedMerchantProfile.accountOfficer || '');
-                            setReplaceReason('Broken / Hardware Malfunction');
-                          }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100/90 text-amber-900 border border-amber-300/80 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Record Device Replacement (Broken / Swap)</span>
-                        </button>
+              <div className={SIM_BODY_FIT_CLS}>
+                {/* Copyable Dossier Identifier & Pool Strip */}
+                {(() => {
+                  const singleDev = selectedMerchantProfile.devices.length === 1 ? selectedMerchantProfile.devices[0] : null;
+                  const ph = phoneFor(role, selectedMerchantProfile.merchantPhone);
+                  const hasPh = ph && ph !== '—';
+                  const poolText = `${selectedMerchantProfile.posCount} POS · ${selectedMerchantProfile.sbCount} SB${selectedMerchantProfile.liveCount > 0 ? ` · ${selectedMerchantProfile.liveCount} live` : ''}`;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <DossierChip
+                        label="MID"
+                        value={selectedMerchantProfile.mid}
+                        onCopy={() => handleCopyChip(selectedMerchantProfile.mid, 'MID')}
+                        copied={copiedCrmField === 'MID'}
+                      />
+                      {singleDev && (
+                        <>
+                          <DossierChip
+                            label="TID"
+                            value={dash(singleDev.tid)}
+                            onCopy={singleDev.tid ? () => handleCopyChip(singleDev.tid, 'TID') : undefined}
+                            copied={copiedCrmField === 'TID'}
+                          />
+                          <DossierChip
+                            label="SN"
+                            value={singleDev.serial}
+                            onCopy={() => handleCopyChip(singleDev.serial, 'SN')}
+                            copied={copiedCrmField === 'SN'}
+                          />
+                        </>
                       )}
+                      <DossierChip label="POOL" value={poolText} />
+                      {hasPh && <DossierChip label="PHONE" value={ph} />}
                     </div>
+                  );
+                })()}
+
+                {/* Assigned Hardware & Lifecycle Panel */}
+                <div
+                  className={`rounded-xl border p-3.5 space-y-2.5 ${
+                    isLight
+                      ? 'bg-white border-slate-200/85 shadow-[0_1px_2px_rgba(15,23,42,0.03)]'
+                      : 'bg-slate-800/95 border-slate-700/80'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Assigned Hardware ({selectedMerchantProfile.devices.length})
+                    </h4>
+                    {onReplaceMerchantDevice && selectedMerchantProfile.devices.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const dev = selectedMerchantProfile.devices[0];
+                          setReplaceModalDevice(dev);
+                          const branchCandidates = availableReserveDevices.filter(
+                            (c) => c.type === dev.type && c.branchId === dev.branchId
+                          );
+                          const fallbackCandidates = availableReserveDevices.filter(
+                            (c) => c.type === dev.type
+                          );
+                          const firstPick = branchCandidates[0] || fallbackCandidates[0];
+                          setReplaceNewSerial(firstPick ? firstPick.serial : '');
+                          setReplaceStaffName(activeStaff || dev.staff || selectedMerchantProfile.accountOfficer || '');
+                          setReplaceReason('Broken / Hardware Malfunction');
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 hover:bg-amber-100/90 text-amber-900 border border-amber-300/80 inline-flex items-center gap-1 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                      >
+                        <RefreshCw className="w-3 h-3 text-amber-700" />
+                        <span>Swap / Replace</span>
+                      </button>
+                    )}
                   </div>
                   {replaceModalDevice && onReplaceMerchantDevice && (
-                    <div className={`mb-4 p-4 rounded-2xl border-2 border-amber-400/70 ${isLight ? 'bg-amber-50/90 text-slate-900' : 'bg-amber-950/30 text-slate-100'} flex flex-col gap-3`}>
+                    <div className={`mb-2 p-3.5 rounded-xl border-2 border-amber-400/70 ${isLight ? 'bg-amber-50/90 text-slate-900' : 'bg-amber-950/30 text-slate-100'} flex flex-col gap-3`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 dark:text-amber-300">
                           <RefreshCw className="w-4 h-4" />
@@ -1560,7 +1551,7 @@ return (
                       <p className="text-[11px] opacity-85">
                         Swapping broken device <strong className="font-mono">{replaceModalDevice.serial}</strong> on MID <strong className="font-mono">{selectedMerchantProfile.mid}</strong>. The new serial will replace the broken serial on the front table while recording the staff member and previous serial in 360 history.
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                         <div>
                           <label className="block text-[10px] font-bold uppercase mb-1">Broken Serial (Out)</label>
                           <select
@@ -1631,38 +1622,25 @@ return (
                       </div>
                     </div>
                   )}
-                  <div className="hidden">
-                    <h4>
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = selectedMerchantProfile;
-                        setSelectedMid(null);
-                        handleOpenBindModal(target);
-                      }}
-                      className="text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Bind Additional Serial</span>
-                    </button>
-                  </div>
 
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     {selectedMerchantProfile.devices.map((dev) => {
                       const st = STAGE_META[dev.stage] || STAGE_META.BRANCH_RESERVE;
                       const badge = isLight ? st.badgeClassLight : st.badgeClassDark;
                       const isSoundBox = dev.type === 'Sound Box';
+                      const multiDevice = selectedMerchantProfile.devices.length > 1;
+                      const installer = dash(dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer);
+                      const updatedText = showDateTime(dev.updatedAt);
                       return (
                         <div
                           key={dev.serial}
-                          className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                          className={`px-3 py-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
                             isLight
-                              ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs'
-                              : 'bg-[#091729] border-[#1a355a]'
+                              ? 'bg-[#f8f9fb] border-slate-200/80'
+                              : 'bg-slate-900/70 border-slate-700/70'
                           }`}
                         >
-                          <div className="flex items-start gap-3 min-w-0">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             <div className={`p-2 rounded-xl shrink-0 border ${
                               isSoundBox
                                 ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
@@ -1672,65 +1650,71 @@ return (
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-100">
-                                  {dev.serial}
+                                <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                                  {dev.type} · {dev.model}
                                 </span>
-                                <span className="text-xs text-slate-500 font-medium">{dev.model}</span>
+                                {multiDevice && (
+                                  <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                    ({dev.serial})
+                                  </span>
+                                )}
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge}`}
                                 >
                                   {st.short}
                                 </span>
                               </div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center gap-1.5 flex-wrap">
-                                <span>MID: <span className="text-slate-700 dark:text-slate-200">{dash(dev.mid)}</span></span>
-                                <span>&bull;</span>
-                                <span>TID: <span className="text-slate-700 dark:text-slate-200">{dash(dev.tid)}</span></span>
-                                <span>&bull;</span>
-                                <span>Updated: <span className="text-slate-700 dark:text-slate-200">{showDateTime(dev.updatedAt)}</span></span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1.5 text-[11px] flex-wrap">
-                                <span className="text-slate-500">
-                                  Installer:{' '}
-                                  <strong className="text-slate-800 dark:text-slate-200">
-                                    {dash(dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer)}
-                                  </strong>
-                                </span>
-                                {dev.replacedByStaff && (
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-x-1.5 gap-y-0.5 flex-wrap">
+                                {multiDevice && dev.tid && (
                                   <>
-                                    <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                                    <span className="text-slate-500">
-                                      Replaced by:{' '}
+                                    <span>
+                                      TID <span className="font-mono text-slate-700 dark:text-slate-200">{dev.tid}</span>
+                                    </span>
+                                    <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
+                                  </>
+                                )}
+                                <span>
+                                  Installed by <strong className="text-slate-800 dark:text-slate-200">{installer}</strong>
+                                </span>
+                                {updatedText && updatedText !== '—' && (
+                                  <>
+                                    <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
+                                    <span>Updated {updatedText}</span>
+                                  </>
+                                )}
+                              </div>
+                              {(dev.replacedByStaff || dev.returnedByStaff) && (
+                                <div className="flex items-center gap-2 mt-1 text-[11px] flex-wrap">
+                                  {dev.replacedByStaff && (
+                                    <span className="inline-flex items-center gap-1.5 text-slate-500">
+                                      Replaced by{' '}
                                       <strong
                                         className={
-                                          dev.replacedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer)
+                                          dev.replacedByStaff !== installer
                                             ? 'text-amber-700 dark:text-amber-400 font-bold'
                                             : 'text-slate-800 dark:text-slate-200'
                                         }
                                       >
                                         {dev.replacedByStaff}
                                       </strong>
+                                      {dev.replacedPrevSerial && (
+                                        <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30">
+                                          Old SN: {dev.replacedPrevSerial}{dev.replacedDate ? ` (${dev.replacedDate})` : ''}
+                                        </span>
+                                      )}
+                                      {dev.replacedByStaff !== installer && (
+                                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
+                                          Different Person
+                                        </span>
+                                      )}
                                     </span>
-                                    {dev.replacedPrevSerial && (
-                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30">
-                                        Replaced Old SN: {dev.replacedPrevSerial}{dev.replacedDate ? ` (${dev.replacedDate})` : ''}
-                                      </span>
-                                    )}
-                                    {dev.replacedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer) && (
-                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
-                                        Different Person
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                                {dev.returnedByStaff && (
-                                  <>
-                                    <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                                    <span className="text-slate-500">
-                                      Returned by:{' '}
+                                  )}
+                                  {dev.returnedByStaff && (
+                                    <span className="inline-flex items-center gap-1.5 text-slate-500">
+                                      Returned by{' '}
                                       <strong
                                         className={
-                                          dev.returnedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer)
+                                          dev.returnedByStaff !== installer
                                             ? 'text-indigo-700 dark:text-indigo-400 font-bold'
                                             : 'text-slate-800 dark:text-slate-200'
                                         }
@@ -1738,14 +1722,9 @@ return (
                                         {dev.returnedByStaff}
                                       </strong>
                                     </span>
-                                    {dev.returnedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer) && (
-                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
-                                        Different Person
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
+                                  )}
+                                </div>
+                              )}
                               {dev.note && (
                                 <div className="text-[11px] text-slate-400 mt-0.5 italic">
                                   Note: {dev.note}
@@ -1760,7 +1739,7 @@ return (
                               setSelectedMid(null);
                               onOpenWorkflow(dev.serial);
                             }}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#155484] hover:bg-[#114670] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#155484] hover:bg-[#114670] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs whitespace-nowrap"
                           >
                             Update Lifecycle
                           </button>
@@ -1770,11 +1749,11 @@ return (
                   </div>
                 </div>
 
-                {/* (5 Nov 2026) What the merchant holds with each unit: SIM, battery, adaptor, stand, dock */}
-                <MerchantKitCard devices={selectedMerchantProfile.devices} role={role} />
+                {/* Compact Merchant Kit Row */}
+                <MerchantKitCard devices={selectedMerchantProfile.devices} role={role} compact />
               </div>
               </RightDrawerFrame>
-        )}
+            )}
           </AnimatePresence>,
           document.body
         )}

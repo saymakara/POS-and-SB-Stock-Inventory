@@ -64,6 +64,15 @@ interface RequisitionsTabProps {
 }
 
 const norm = (s: string | null | undefined) => String(s || '').trim().toUpperCase();
+/** Strip redundant phone-app item count breakdown (e.g. " – SIM Card: POS 2 · Sound Box 2") from Reason. */
+const cleanReqReason = (raw?: string | null): string => {
+  const s = (raw || '').trim();
+  if (!s) return '';
+  return s
+    .replace(/(?:\s*[–—·\-]\s*)?SIM Card:\s*(?:(?:POS|Sound Box|SB)\s*\d+(?:\s*[·,|]\s*(?:POS|Sound Box|SB)\s*\d+)*)\.?/gi, '')
+    .replace(/\s*\(\d+\s*items?\)\s*$/i, '')
+    .trim();
+};
 /** Oldest stock-in first (FIFO); units with no stock-in date go last; serial breaks ties so the order is stable. */
 /** Fast deterministic FIFO comparison: date first, then serial number */
 const fifo = (a: Device, b: Device) => {
@@ -98,7 +107,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
       branch: (r) => Number(r.branchId) || r.branchId,
       qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
       status: (r) => r.status,
-      reason: (r) => (r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : r.reason || ''),
+      reason: (r) => (r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : cleanReqReason(r.reason)),
     },
     { key: 'date', dir: 'desc' }
   );
@@ -441,7 +450,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
     setEditingReq(req);
     setEditPos(String(req.posQty));
     setEditSb(String(req.sbQty));
-    setEditReason(req.reason || '');
+    setEditReason(cleanReqReason(req.reason));
   };
   const saveEdit = () => {
     if (!editingReq || !onEditRequisition) return;
@@ -491,7 +500,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         reqType,
         staffBranch,
         qtyFormatted,
-        r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : r.reason || '-',
+        r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : cleanReqReason(r.reason) || '-',
         statusLabel,
       ];
     });
@@ -720,20 +729,25 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       })()}
                     </td>
                     <td>
-                      <div
-                        className="cell-main max-w-[340px] xl:max-w-[440px] truncate"
-                        title={
-                          req.status === 'REJECTED'
-                            ? `Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${req.reason ? ` (Original request: ${req.reason})` : ''}`
-                            : req.reason || ''
-                        }
-                      >
-                        {req.status === 'REJECTED' ? (
-                          <span>Rejected: {req.rejectReason || 'no reason recorded'}</span>
-                        ) : (
-                          req.reason || <span className="cell-sub font-mono">—</span>
-                        )}
-                      </div>
+                      {(() => {
+                        const displayReason = cleanReqReason(req.reason);
+                        return (
+                          <div
+                            className="cell-main max-w-[340px] xl:max-w-[440px] truncate"
+                            title={
+                              req.status === 'REJECTED'
+                                ? `Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${displayReason ? ` (Original request: ${displayReason})` : ''}`
+                                : displayReason
+                            }
+                          >
+                            {req.status === 'REJECTED' ? (
+                              <span>Rejected: {req.rejectReason || 'no reason recorded'}</span>
+                            ) : (
+                              displayReason || <span className="cell-sub font-mono">—</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="whitespace-nowrap">
                       {statusBadge}
@@ -946,7 +960,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                         Target Branch: Code {arrangingReq.branchId} — {arrangingReq.branchName}
                       </span>
                       <span className={`block text-xs mt-0.5 ${subtextClass}`}>
-                        Requested by {arrangingReq.staff} · Reason: {arrangingReq.reason}
+                        Requested by {arrangingReq.staff}{cleanReqReason(arrangingReq.reason) ? ` · Reason: ${cleanReqReason(arrangingReq.reason)}` : ''}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1340,7 +1354,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     {/* Reason */}
                     <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Request Reason</span>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{selectedRequisition.reason || 'No specific reason entered.'}</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{cleanReqReason(selectedRequisition.reason) || 'No specific reason entered.'}</p>
                       {selectedRequisition.status === 'REJECTED' && (
                         <div className="mt-2 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs">
                           <strong>Rejection Note:</strong> {selectedRequisition.rejectReason || 'Rejected by management'}

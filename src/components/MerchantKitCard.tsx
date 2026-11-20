@@ -17,7 +17,7 @@ const KIND_LABEL: Record<string, string> = {
   LOST: 'Reported lost', FAULTY: 'Returned faulty', RECOVER: 'Recovered', WRITE_OFF: 'Written off',
 };
 
-export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole }> = ({ devices, role }) => {
+export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole; compact?: boolean }> = ({ devices, role, compact = false }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const serials = useMemo(() => devices.map((d) => d.serial), [devices]);
   const [kits, setKits] = useState<Map<string, DeviceKit> | null>(null);
@@ -40,25 +40,53 @@ export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole }> = 
   if (err === 'SETUP') return null;   // materials not set up yet: the card stays hidden
   return (
     <div>
-      <div className="flex items-center justify-between mb-2.5">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-slate-400" />Kit held by the merchant</h4>
-      </div>
-      {msg && <div role="status" className="mb-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs text-emerald-900">{msg}</div>}
-      {err && <div role="alert" className="mb-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs text-rose-800">Could not load the kit: {err}</div>}
-      <div className="flex flex-col gap-2.5">
+      {compact ? (
+        <span className="sr-only">Kit held by the merchant</span>
+      ) : (
+        <div className="flex items-center justify-between mb-2.5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-slate-400" />Kit held by the merchant</h4>
+        </div>
+      )}
+      {msg && <div role="status" className="mb-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900">{msg}</div>}
+      {err && <div role="alert" className="mb-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-800">Could not load the kit: {err}</div>}
+      <div className="flex flex-col gap-2">
         {devices.map((dev) => {
           const k = kits?.get(dev.serial);
           const items = k?.items || [];
+          const hasRecordedKit = items.length > 0 || !!k?.connection;
           return (
-            <div key={dev.serial} className="p-3.5 rounded-2xl border bg-slate-50/80 border-slate-200/90 shadow-2xs hover:bg-slate-50 transition-all">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-900">{dev.type} · <span className="font-mono">{dev.serial}</span></div>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {k?.connection === 'SIM' ? <Pill tone="info"><Signal className="w-3 h-3" />4G SIM</Pill> : k?.connection === 'WIFI' ? <Pill tone="mute"><Wifi className="w-3 h-3" />Merchant Wi-Fi</Pill> : <Pill tone="warn">Connection not recorded</Pill>}
+            <div
+              key={dev.serial}
+              className={compact
+                ? 'px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-800/95 border-slate-200/85 dark:border-slate-700/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)]'
+                : 'p-3.5 rounded-2xl border bg-slate-50/80 border-slate-200/90 shadow-2xs hover:bg-slate-50 transition-all'}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0 flex items-center flex-wrap gap-2">
+                  <div className={compact ? 'text-xs font-bold text-slate-800 dark:text-slate-100' : 'text-sm font-bold text-slate-900'}>
+                    {compact ? 'Kit · ' : ''}{dev.type} · <span className="font-mono">{dev.serial}</span>
                   </div>
+                  {compact ? (
+                    hasRecordedKit ? (
+                      k?.connection === 'SIM'
+                        ? <Pill tone="info"><Signal className="w-3 h-3" />4G SIM</Pill>
+                        : k?.connection === 'WIFI'
+                        ? <Pill tone="mute"><Wifi className="w-3 h-3" />Merchant Wi-Fi</Pill>
+                        : null
+                    ) : (
+                      kits !== null && (
+                        <span className="text-[11px] text-slate-400">
+                          No kit recorded{dev.batterySerial && dev.type === 'POS Terminal' ? ` · Bat ${dev.batterySerial}` : ''}
+                        </span>
+                      )
+                    )
+                  ) : (
+                    <div className="mt-1 flex flex-wrap gap-1.5 w-full">
+                      {k?.connection === 'SIM' ? <Pill tone="info"><Signal className="w-3 h-3" />4G SIM</Pill> : k?.connection === 'WIFI' ? <Pill tone="mute"><Wifi className="w-3 h-3" />Merchant Wi-Fi</Pill> : <Pill tone="warn">Connection not recorded</Pill>}
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   {isAdmin && items.length === 0 && <button type="button" className={btnRow} onClick={() => setDlg({ kind: 'RECORD', device: dev })}><Plus className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Record kit</button>}
                   {isAdmin && <button type="button" className={btnRow} onClick={() => setDlg({ kind: 'ISSUE', device: dev })}>Issue from stock</button>}
                   {isAdmin && items.length > 0 && <button type="button" className={btnRow} onClick={() => setDlg({ kind: 'REPLACE', device: dev })}><Repeat className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Replace</button>}
@@ -66,8 +94,12 @@ export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole }> = 
                   <button type="button" className={btnRow} onClick={() => openHist(dev.serial)} aria-expanded={hist?.serial === dev.serial}><History className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />History</button>
                 </div>
               </div>
-              {kits === null ? <div className="skeleton h-4 rounded w-1/2 mt-3" /> : items.length === 0 ? (
-                <p className="mt-2.5 text-xs text-slate-500">No kit recorded for this unit yet.{dev.batterySerial ? ` Battery on the unit record: ${dev.batterySerial}.` : ''}</p>
+              {kits === null ? (
+                <div className="skeleton h-4 rounded w-1/2 mt-2.5" />
+              ) : items.length === 0 ? (
+                !compact && (
+                  <p className="mt-2.5 text-xs text-slate-500">No kit recorded for this unit yet.{dev.batterySerial ? ` Battery on the unit record: ${dev.batterySerial}.` : ''}</p>
+                )
               ) : (
                 <ul className="mt-2.5 divide-y divide-slate-100">
                   {items.map((it, i) => (
