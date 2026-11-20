@@ -234,7 +234,7 @@ const InputMethodBadge: React.FC<{
 }> = ({ method, titlePrefix = 'Value', size = 'sm' }) => {
   if (method === 'SCAN') {
     const iconCls = size === 'xs' ? 'w-2.5 h-2.5' : 'w-3 h-3';
-    return (
+  return (
       <span
         title={`${titlePrefix} scanned with barcode scanner`}
         className="inline-flex items-center justify-center text-slate-500/85 dark:text-slate-400 shrink-0 select-none cursor-help"
@@ -382,7 +382,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         /* storage full or blocked: fine */
       }
     }, 1200);
-    return () => window.clearTimeout(t);
+  return () => window.clearTimeout(t);
   }, [events, pendingReady]);
 
   const load = useCallback(async () => {
@@ -467,7 +467,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       queued.set(e.id, e);
       if (frame === null) frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flushQueued) : (window.setTimeout(flushQueued, 16) as unknown as number);
     });
-    return () => {
+  return () => {
       unsub();
       if (frame !== null) { try { cancelAnimationFrame(frame); } catch { /* not a frame */ } }
       queued.clear();
@@ -516,7 +516,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
-    return () => {
+  return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
@@ -561,7 +561,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       .finally(() => {
         if (alive) setDateLoading(false);
       });
-    return () => {
+  return () => {
       alive = false;
     };
   }, [hasDateFilter, effRange.from, effRange.to]);
@@ -912,7 +912,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const typePill = (t: TypeFilter, label: string, n: number) => {
     const active = typeFilter === t;
-    return (
+  return (
       <button
         key={t}
         type="button"
@@ -1028,7 +1028,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             const isActive = recordTypeFilter === k;
             const dimmed = recordTypeFilter !== 'ALL' && !isActive;
 
-            return (
+  return (
               <button
                 key={k}
                 type="button"
@@ -1110,7 +1110,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               { f: 'ALL' as Filter, label: 'All', Icon: ScanLine, accent: 'text-[#003857]' },
             ]).map(({ f, label, Icon, accent }) => {
               const isActive = filter === f;
-              return (
+  return (
                 <button
                   key={f}
                   type="button"
@@ -1267,7 +1267,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                         const active =
                           (!p.from && !p.to && !hasDateFilter) ||
                           (Boolean(p.from) && effRange.from === p.from && effRange.to === p.to);
-                        return (
+  return (
                           <button
                             key={p.label}
                             type="button"
@@ -1755,6 +1755,7 @@ const ReviewRow = memo(function ReviewRow({
   const entry = entryOf(e);
   const canApprove = !blocks && !busy && (!needsBranch || !!r.branchId);
 
+  const serialCls = 'font-mono text-xs tabular-nums tracking-tight whitespace-nowrap font-medium text-slate-800 dark:text-slate-200';
   return (
     <div
       className={`transition-colors border-b border-slate-200/90 ${
@@ -1804,7 +1805,7 @@ const ReviewRow = memo(function ReviewRow({
                 }`}
                 aria-hidden
               />
-              <span className="tabular-nums tracking-tight whitespace-nowrap font-medium text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white">
+              <span className={`${serialCls} group-hover:text-slate-950 dark:group-hover:text-white`}>
                 {e.serial}
               </span>
             </button>
@@ -1815,13 +1816,13 @@ const ReviewRow = memo(function ReviewRow({
           </div>
           {e.oldSerial && (
             <div
-              className="flex items-center gap-1 flex-nowrap min-w-0 font-mono text-xs font-medium text-slate-500 dark:text-slate-400"
+              className="flex items-center gap-1 flex-nowrap min-w-0"
               title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
             >
               <span className="w-3.5 shrink-0 inline-flex items-center justify-center">
                 <ArrowLeftRight className="w-3 h-3 text-amber-600 dark:text-amber-400" aria-hidden />
               </span>
-              <span className="tabular-nums tracking-tight truncate whitespace-nowrap">
+              <span className={`${serialCls} truncate`}>
                 {e.oldSerial}
               </span>
               <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
