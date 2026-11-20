@@ -2724,15 +2724,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         }`}
       >
         <div className="relative z-20 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3.5 min-w-0">
             <span
-              className={`w-10 h-10 rounded-[13px] flex items-center justify-center shrink-0 ${
+              className={`w-12 h-12 rounded-[15px] flex items-center justify-center shrink-0 ${
                 isLight
-                  ? 'bg-white border border-[#155484]/20 text-[#002F4A] shadow-[0_2px_8px_rgba(21,84,132,0.10)]'
-                  : 'bg-slate-900/90 border border-sky-400/25 text-sky-300 shadow-[0_2px_10px_rgba(2,6,23,0.4)]'
+                  ? 'bg-white border border-[#155484]/25 text-[#002F4A] shadow-[0_3px_10px_rgba(21,84,132,0.12)]'
+                  : 'bg-slate-900/90 border border-sky-400/25 text-sky-300 shadow-[0_3px_12px_rgba(2,6,23,0.45)]'
               }`}
             >
-              <BarChart3 className="w-5 h-5" aria-hidden="true" />
+              <BarChart3 className="w-[26px] h-[26px]" strokeWidth={2.1} aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <h1 className={`text-xl sm:text-[22px] 2xl:text-[24px] sm:whitespace-nowrap font-bold tracking-[-0.02em] leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
