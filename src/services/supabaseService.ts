@@ -2528,7 +2528,7 @@ export async function deleteStaffAccount(p: {
     const { data, error } = await supabase.rpc('admin_delete_staff', { p });
     if (error) {
       if (/could not find the function|admin_delete_staff/i.test(error.message || '')) {
-        throw new Error('Database migration required: apply 20261114_01_admin_delete_staff.sql in Supabase SQL Editor.');
+        throw new Error('Database update required: run 20261120_04_staff_delete.sql in the Supabase SQL Editor.');
       }
       throw error;
     }
