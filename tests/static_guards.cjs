@@ -25,6 +25,25 @@ for (const file of files) {
     if (/^\s*await\s+supabase\s*\.\s*(rpc\(|from\()/.test(line) && !/=\s*await/.test(line)) problems.push(rel + ':' + (i + 1) + ' database call whose error is never read');
   });
 }
+// (20 Nov 2026, security review) a database function runs for EVERYONE (PUBLIC, which includes "anon" = not signed in)
+// unless it is revoked by hand - three functions were left open that way. From 20261120 on, every migration that creates a
+// SECURITY DEFINER function must also revoke it from public in the same file.
+const MIG = path.join(__dirname, '..', 'supabase', 'migrations');
+if (fs.existsSync(MIG)) {
+  for (const f of fs.readdirSync(MIG).filter((x) => /^\d{8}.*\.sql$/.test(x) && x.slice(0, 8) >= '20261120').sort()) {
+    const sql = fs.readFileSync(path.join(MIG, f), 'utf8').replace(/--[^\n]*/g, '');
+    const re = /create\s+(?:or\s+replace\s+)?function\s+([\w."]+)\s*\(/gi, starts = [];
+    let m; while ((m = re.exec(sql))) starts.push({ name: m[1].replace(/"/g, ''), at: m.index });
+    starts.forEach((s, k) => {
+      const body = sql.slice(s.at, k + 1 < starts.length ? starts[k + 1].at : sql.length);
+      const asAt = body.search(/\bas\s+\$/i), head = asAt > 0 ? body.slice(0, asAt) : body;   // SECURITY DEFINER is written before "as $..$"
+      if (!/security\s+definer/i.test(head)) return;
+      const esc = s.name.replace(/[.]/g, '\\.');
+      if (!new RegExp('revoke[^;]*on\\s+function\\s+' + esc + '\\s*\\([^;]*from[^;]*\\bpublic\\b', 'i').test(sql))
+        problems.push('supabase/migrations/' + f + ': SECURITY DEFINER function ' + s.name + ' is not revoked from public (anyone could call it without signing in)');
+    });
+  }
+}
 problems.forEach((p) => console.log('FAIL ' + p));
 console.log(problems.length ? problems.length + ' FAILED' : 'PASS static guards (' + files.length + ' files)\nALL PASSED');
 process.exit(problems.length ? 1 : 0);

@@ -17,6 +17,7 @@ import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { PillMotion } from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
+import { safeHref } from '../utils/safeUrl';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -691,8 +692,8 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            {e.telegramLink && (
-              <a href={e.telegramLink} target="_blank" rel="noreferrer" className="btn btn-secondary">
+            {safeHref(e.telegramLink) && (
+              <a href={safeHref(e.telegramLink)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
                 <ExternalLink className="w-3.5 h-3.5" aria-hidden />Open group post
               </a>
             )}
