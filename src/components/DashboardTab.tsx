@@ -2715,15 +2715,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         className={`relative ${dateMenuOpen ? 'z-30' : ''} space-y-4`}
       >
         <div className="relative z-20 px-1 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <span
-              className={`w-11 h-11 rounded-[13px] flex items-center justify-center shrink-0 ${
+              className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-xs ${
                 isLight
-                  ? 'bg-[#002F4A] text-white shadow-[0_4px_12px_rgba(0,47,74,0.18)]'
-                  : 'bg-sky-500/20 border border-sky-400/30 text-sky-300 shadow-[0_4px_12px_rgba(2,6,23,0.4)]'
+                  ? 'bg-gradient-to-br from-[#005bb5] to-[#0ea5e9] text-white'
+                  : 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white'
               }`}
             >
-              <BarChart3 className="w-[22px] h-[22px]" strokeWidth={2.1} aria-hidden="true" />
+              <BarChart3 className="w-5 h-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <h1 className={`text-xl sm:text-[22px] 2xl:text-[24px] sm:whitespace-nowrap font-extrabold tracking-[-0.025em] leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
