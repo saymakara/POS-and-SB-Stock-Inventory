@@ -14,7 +14,6 @@ const SIM_DRAWER_CORE_CLS =
   'relative z-10 w-full shadow-[0_24px_60px_-15px_rgba(15,23,42,0.32)] flex flex-col sm:rounded-2xl overflow-hidden transform-gpu will-change-transform origin-right';
 export const SIM_DRAWER_BASE_CLS = `${SIM_DRAWER_CORE_CLS} h-full my-0`;
 export const SIM_DRAWER_WIDTH_STD = 'sm:max-w-[560px] md:max-w-[580px]';
-export const SIM_DRAWER_WIDTH_FIT = 'sm:max-w-[610px] md:max-w-[625px]';
 export const SIM_DRAWER_WIDTH_WIDE = 'sm:max-w-2xl md:max-w-4xl lg:max-w-5xl';
 export const SIM_HEADER_CLS =
   'bg-[#155484] sm:rounded-t-2xl text-white px-5 py-4 shrink-0';
@@ -30,8 +29,6 @@ export const SIM_SUBHEADER_CLS =
   'px-5 py-2.5 bg-white dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap shrink-0';
 export const SIM_BODY_CLS =
   'flex-1 overflow-y-auto overscroll-contain custom-scrollbar bg-[#f6f8fb] dark:bg-slate-900/60 p-4 sm:p-5 space-y-3.5 min-h-0';
-export const SIM_BODY_FIT_CLS =
-  'overflow-y-auto overscroll-contain custom-scrollbar bg-[#f6f8fb] dark:bg-slate-900/60 p-4 space-y-3 min-h-0';
 export const SIM_CARD_CLS =
   'p-4 rounded-2xl bg-white dark:bg-slate-800/95 border border-slate-200/85 dark:border-slate-700/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-3';
 export const SIM_FOOTER_CLS =
@@ -127,7 +124,6 @@ export interface RightDrawerFrameProps {
   onClose: () => void;
   zClass?: string;
   wide?: boolean;
-  fitContent?: boolean;
   isLight?: boolean;
   busy?: boolean;
   role?: 'dialog';
@@ -142,7 +138,6 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
   onClose,
   zClass = 'z-50',
   wide = false,
-  fitContent = false,
   isLight = true,
   busy = false,
   role = 'dialog',
@@ -183,9 +178,7 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
 
   const drawerNode = (
     <div
-      className={`fixed inset-0 ${zClass} overflow-hidden flex justify-end overscroll-contain ${
-        fitContent ? 'items-center sm:p-4' : 'sm:p-3'
-      }`}
+      className={`fixed inset-0 ${zClass} overflow-hidden flex justify-end overscroll-contain sm:p-3`}
       style={{ animation: 'none', contain: 'layout style' }}
       role={role}
       aria-modal={ariaModal}
@@ -218,10 +211,8 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
             ? { contain: 'layout paint style', willChange: 'transform', backfaceVisibility: 'hidden' }
             : { contain: 'layout paint style' }
         }
-        className={`${SIM_DRAWER_CORE_CLS} ${
-          fitContent ? 'h-auto max-h-[calc(100vh-2rem)] my-auto' : 'h-full my-0'
-        } ${isPresent ? 'drawer-gpu-in' : 'drawer-gpu-out'} ${
-          wide ? SIM_DRAWER_WIDTH_WIDE : fitContent ? SIM_DRAWER_WIDTH_FIT : SIM_DRAWER_WIDTH_STD
+        className={`${SIM_DRAWER_BASE_CLS} ${isPresent ? 'drawer-gpu-in' : 'drawer-gpu-out'} ${
+          wide ? SIM_DRAWER_WIDTH_WIDE : SIM_DRAWER_WIDTH_STD
         } ${
           isLight
             ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100'

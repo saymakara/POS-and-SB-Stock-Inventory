@@ -16,7 +16,6 @@ import {
   SIM_HEADER_TAG_CLS,
   SIM_CLOSE_BTN_CLS,
   SIM_BODY_CLS,
-  SIM_BODY_FIT_CLS,
   SIM_FOOTER_CLS,
   SIM_BTN_CANCEL_CLS,
   SIM_BTN_PRIMARY_CLS,
@@ -1389,7 +1388,6 @@ return (
               <RightDrawerFrame
                 onClose={() => setSelectedMid(null)}
                 zClass="z-50"
-                fitContent
                 isLight={isLight}
                 ariaLabel={`Merchant 360 ${dash(selectedMerchantProfile.merchantName)}`}
               >
@@ -1460,7 +1458,7 @@ return (
                 </div>
               </div>
 
-              <div className={SIM_BODY_FIT_CLS}>
+              <div className={SIM_BODY_CLS}>
                 {/* Copyable Dossier Identifier & Pool Strip */}
                 {(() => {
                   const singleDev = selectedMerchantProfile.devices.length === 1 ? selectedMerchantProfile.devices[0] : null;
@@ -1664,23 +1662,24 @@ return (
                                   {st.short}
                                 </span>
                               </div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-x-1.5 gap-y-0.5 flex-wrap">
-                                {multiDevice && dev.tid && (
-                                  <>
-                                    <span>
-                                      TID <span className="font-mono text-slate-700 dark:text-slate-200">{dev.tid}</span>
-                                    </span>
-                                    <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
-                                  </>
-                                )}
-                                <span>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 space-y-0.5">
+                                <div>
                                   Installed by <strong className="text-slate-800 dark:text-slate-200">{installer}</strong>
-                                </span>
-                                {updatedText && updatedText !== '—' && (
-                                  <>
-                                    <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
-                                    <span>Updated {updatedText}</span>
-                                  </>
+                                </div>
+                                {((multiDevice && dev.tid) || (updatedText && updatedText !== '—')) && (
+                                  <div className="flex items-center gap-1.5 flex-wrap text-slate-400 dark:text-slate-500">
+                                    {multiDevice && dev.tid && (
+                                      <span>
+                                        TID <span className="font-mono text-slate-600 dark:text-slate-300">{dev.tid}</span>
+                                      </span>
+                                    )}
+                                    {multiDevice && dev.tid && updatedText && updatedText !== '—' && (
+                                      <span aria-hidden="true">·</span>
+                                    )}
+                                    {updatedText && updatedText !== '—' && (
+                                      <span>Updated {updatedText}</span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                               {(dev.replacedByStaff || dev.returnedByStaff) && (
@@ -1751,6 +1750,16 @@ return (
 
                 {/* Compact Merchant Kit Row */}
                 <MerchantKitCard devices={selectedMerchantProfile.devices} role={role} compact />
+              </div>
+
+              <div className={`${SIM_FOOTER_CLS} justify-end`}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMid(null)}
+                  className={SIM_BTN_CANCEL_CLS}
+                >
+                  Close
+                </button>
               </div>
               </RightDrawerFrame>
             )}

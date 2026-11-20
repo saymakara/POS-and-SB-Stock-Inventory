@@ -18,7 +18,7 @@ import {
   SIM_HEADER_CLS,
   SIM_ICON_BOX_CLS,
   SIM_CLOSE_BTN_CLS,
-  SIM_BODY_FIT_CLS,
+  SIM_BODY_CLS,
   SIM_FOOTER_CLS,
   SIM_BTN_CANCEL_CLS,
 } from './RightDrawerShell';
@@ -607,7 +607,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <RightDrawerFrame
                   onClose={() => setSelectedRecord(null)}
                   zClass="z-50"
-                  fitContent
                   isLight={isLight}
                   ariaLabel={`Merchant history ${selectedRecord.recordId}`}
                 >
@@ -646,7 +645,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 </div>
               </div>
 
-              <div className={`${SIM_BODY_FIT_CLS} text-xs`}>
+              <div className={`${SIM_BODY_CLS} text-xs`}>
                 {(() => {
                   const inst = selectedRecord.installedByStaff || selectedRecord.handledByStaff;
                   const repl = selectedRecord.replacedByStaff;
