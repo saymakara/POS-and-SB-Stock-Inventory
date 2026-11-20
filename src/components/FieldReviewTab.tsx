@@ -1753,38 +1753,7 @@ const ReviewRow = memo(function ReviewRow({
     .filter(Boolean)
     .join(' · ');
   const entry = entryOf(e);
-  const hasSwap = Boolean(e.oldSerial);
   const canApprove = !blocks && !busy && (!needsBranch || !!r.branchId);
-  const serialPrimary = (
-    <div className="flex items-center gap-1 flex-nowrap min-w-0">
-      <button
-        type="button"
-        onClick={() => onToggle(e.id)}
-        aria-expanded={isOpen}
-        className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0"
-        title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
-      >
-        <ChevronDown
-          className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
-            isOpen ? 'rotate-180 text-slate-700' : ''
-          }`}
-          aria-hidden
-        />
-        <span
-          className={`tabular-nums tracking-tight whitespace-nowrap text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white ${
-            hasSwap ? 'font-semibold' : 'font-medium'
-          }`}
-        >
-          {e.serial}
-        </span>
-      </button>
-      <InputMethodBadge
-        method={entry.serial}
-        titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
-        size={hasSwap ? 'xs' : 'sm'}
-      />
-    </div>
-  );
 
   return (
     <div
@@ -1814,29 +1783,49 @@ const ReviewRow = memo(function ReviewRow({
             </span>
           )}
         </span>
-        <span className="leading-tight min-w-0 pl-2">
+        <span className="leading-snug min-w-0 pl-2">
           <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap block" title={fmtTime(e.receivedAt)}>
             {fmtTime(e.receivedAt)}
           </span>
           {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
-        <div className="flex flex-col min-w-0 pl-2 pr-1">
-          {hasSwap ? (
-            <div className="rounded-lg bg-slate-50/90 dark:bg-slate-800/70 border border-slate-200/75 dark:border-slate-700/80 px-2 py-1.5 min-w-0 max-w-full">
-              {serialPrimary}
-              <div
-                className="mt-1 pt-1 border-t border-slate-200/65 dark:border-slate-700/70 flex items-center gap-1.5 pl-[18px] text-[10.5px] text-slate-500 dark:text-slate-400 min-w-0"
-                title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
-              >
-                <ArrowLeftRight className="w-3 h-3 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                <span className="font-mono tabular-nums truncate whitespace-nowrap text-slate-500 dark:text-slate-400">
-                  {e.oldSerial}
-                </span>
-                <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
-              </div>
+        <div className="min-w-0 leading-snug pl-2 pr-1">
+          <div className="flex items-center gap-1 flex-nowrap min-w-0">
+            <button
+              type="button"
+              onClick={() => onToggle(e.id)}
+              aria-expanded={isOpen}
+              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0"
+              title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
+                  isOpen ? 'rotate-180 text-slate-700' : ''
+                }`}
+                aria-hidden
+              />
+              <span className="tabular-nums tracking-tight whitespace-nowrap font-medium text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white">
+                {e.serial}
+              </span>
+            </button>
+            <InputMethodBadge
+              method={entry.serial}
+              titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
+            />
+          </div>
+          {e.oldSerial && (
+            <div
+              className="flex items-center gap-1 flex-nowrap min-w-0 font-mono text-[11px] font-normal text-slate-500 dark:text-slate-400"
+              title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
+            >
+              <span className="w-3.5 shrink-0 inline-flex items-center justify-center">
+                <ArrowLeftRight className="w-3 h-3 text-amber-600 dark:text-amber-400" aria-hidden />
+              </span>
+              <span className="tabular-nums tracking-tight truncate whitespace-nowrap">
+                {e.oldSerial}
+              </span>
+              <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
             </div>
-          ) : (
-            serialPrimary
           )}
         </div>
         <span className="min-w-0 leading-snug pl-2" title={merchant}>
