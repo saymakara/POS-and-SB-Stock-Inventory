@@ -229,7 +229,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               <span>KHQR</span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
-              Live merchant KHQR onboarding stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
+              Live merchant KHQR Installation stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">

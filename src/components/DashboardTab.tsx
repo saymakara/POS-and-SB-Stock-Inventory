@@ -42,6 +42,7 @@ import {
 } from '../services/kpiService';
 import { fetchCcCounts, getCachedCcCounts, type CcCounts } from '../services/ccService';
 import {
+  deriveDeviceKitMaterials,
   fetchMaterialBalances,
   fetchSerialsPage,
   fetchSerialStatusCounts,
@@ -1920,6 +1921,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     let sbLost = 0;
     let boundDevices = 0;
     const uniqueMidSet = new Set<string>();
+    const liveMidSet = new Set<string>();
     const localStages: Record<LifecycleStage, number> = {
       HQ_STOCK: 0,
       BRANCH_RESERVE: 0,
@@ -1953,6 +1955,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       if (merchantKey) {
         boundDevices++;
         uniqueMidSet.add(merchantKey);
+        if (d.stage === 'COMPLETE') {
+          liveMidSet.add(merchantKey);
+        }
       }
     }
 
@@ -1980,6 +1985,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       sbLost,
       boundDevices,
       uniqueMerchants: uniqueMidSet.size,
+      liveUniqueMerchants: liveMidSet.size,
       hq: stages.HQ_STOCK || 0,
       reserve: stages.BRANCH_RESERVE || 0,
       config: stages.CONFIGURING || 0,
@@ -2163,6 +2169,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
+    // Merge kit items derived from active hardware (Battery, Adaptors, Stands, Docks) to match POS/SB tabs
+    const derivedKits = deriveDeviceKitMaterials(activeDevices);
+    for (const item of derivedKits) {
+      if (item.code === 'SIM') continue;
+      const entry = kitByCode.get(item.code);
+      if (!entry) continue;
+      if (item.status === 'HQ_STOCK' || item.status === 'BRANCH_RESERVE') {
+        kitOnHand += 1;
+        entry.onHand += 1;
+      } else if (item.status === 'IN_TRANSIT') {
+        kitInTransit += 1;
+        entry.inTransit += 1;
+      } else if (item.status === 'AT_MERCHANT') {
+        kitAtMerchant += 1;
+        entry.atMerchant += 1;
+      }
+    }
+
     const kitSkus = MATERIALS.filter((m) => m.code !== 'SIM').map((m) => {
       const c = kitByCode.get(m.code) || { onHand: 0, inTransit: 0, atMerchant: 0 };
       const total = c.onHand + c.inTransit + c.atMerchant;
@@ -2197,7 +2221,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       kitSkus,
       activeTypesCount: MATERIALS.length,
     };
-  }, [simCounts, matBalances, branchScopedId, ppDirectoryScope]);
+  }, [simCounts, matBalances, branchScopedId, ppDirectoryScope, activeDevices]);
 
   // Requisitions & Action Queue totals
   const reqStats = useMemo(() => {
@@ -3960,63 +3984,131 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           data-stock-card="hardware"
           className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
         >
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                  isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'
-                }`}
-              >
-                <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  Hardware Readiness
-                </h3>
-                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {fmtNum(hardwareSummary.total)} units · Buffer, Setup &amp; Live
-                </p>
-              </div>
-            </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('inventory')}
-                className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
-                  isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                }`}
-              >
-                Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
+          {(() => {
+            const readyTotal = hardwareSummary.hq + hardwareSummary.reserve;
+            const readyPos = hardwareSummary.posHq + hardwareSummary.posReserve;
+            const readySb = hardwareSummary.sbHq + hardwareSummary.sbReserve;
+            const issueCount = hardwareSummary.faulty + hardwareSummary.lost;
+            const pipelineTotal = Math.max(0, readyTotal + hardwareSummary.config + hardwareSummary.installed);
+            const fmtShare = (n: number, denom: number) => {
+              if (denom <= 0 || n <= 0) return '0%';
+              const pct = (n / denom) * 100;
+              if (pct < 0.1) return '<0.1%';
+              if (pct >= 99 && pct < 100) return `${pct.toFixed(1)}%`;
+              return pct >= 10 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
+            };
+            const pipelineSegs = [
+              { key: 'BUF', label: 'Buffer', count: readyTotal, color: '#155484' },
+              { key: 'SET', label: 'Setup', count: hardwareSummary.config, color: CHANNEL_COLORS.cc },
+              { key: 'LIV', label: 'Live', count: hardwareSummary.installed, color: CHANNEL_COLORS.mv },
+            ];
+            const pillPosClass = isLight
+              ? 'bg-[#184e77]/[0.08] border border-[#184e77]/15 text-[#184e77]'
+              : 'bg-[#184e77]/30 border border-[#5cc8ff]/20 text-sky-200';
+            const pillSbClass = isLight
+              ? 'bg-[#4F518C]/[0.08] border border-[#4F518C]/15 text-[#4F518C]'
+              : 'bg-[#4F518C]/30 border border-[#a2a5e0]/20 text-indigo-200';
 
-          <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-3">
-            {(() => {
-              const readyTotal = hardwareSummary.hq + hardwareSummary.reserve;
-              const readyPos = hardwareSummary.posHq + hardwareSummary.posReserve;
-              const readySb = hardwareSummary.sbHq + hardwareSummary.sbReserve;
-              const issueCount = hardwareSummary.faulty + hardwareSummary.lost;
+            return (
+              <>
+                <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'
+                      }`}
+                    >
+                      <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        Hardware Readiness
+                      </h3>
+                      <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {fmtNum(hardwareSummary.total)} units · {fmtShare(readyTotal, pipelineTotal)} Ready · {fmtShare(hardwareSummary.installed, pipelineTotal)} Live
+                      </p>
+                    </div>
+                  </div>
+                  {onNavigateTab && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab('inventory')}
+                      className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
+                        isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                      }`}
+                    >
+                      Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
 
-              return (
-                <>
-                  <div className="flex flex-col gap-2.5 flex-1 justify-center" aria-label="Hardware readiness buckets">
+                <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-2.5">
+                  {/* Proportional 3-Stage Pipeline Readiness Track */}
+                  <div
+                    className={`${kpiCardClass} rounded-[12px] px-3 py-2 space-y-1.5`}
+                    aria-label="Pipeline readiness mix"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[10.5px]">
+                      <span className={`font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                        Pipeline Mix
+                      </span>
+                      <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-figure tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {pipelineSegs.map((seg) => (
+                          <span key={seg.key} className="inline-flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                            <span>{seg.label}</span>
+                            <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>
+                              {fmtShare(seg.count, pipelineTotal)}
+                            </strong>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className={`h-2 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${isLight ? 'bg-slate-200/75' : 'bg-slate-800'}`}>
+                      {pipelineTotal > 0 &&
+                        pipelineSegs.map(
+                          (seg) =>
+                            seg.count > 0 && (
+                              <div
+                                key={seg.key}
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.max(1.5, (seg.count / pipelineTotal) * 100)}%`,
+                                  backgroundColor: seg.color,
+                                }}
+                                title={`${seg.label}: ${fmtNum(seg.count)} (${fmtShare(seg.count, pipelineTotal)})`}
+                              />
+                            )
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 flex-1 justify-center" aria-label="Hardware readiness buckets">
                     {/* Bucket 1: Ready Stock Buffer (HQ + Branches) */}
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('inventory')}
-                      title={`Ready Stock Buffer: ${fmtNum(hardwareSummary.hq)} HQ · ${fmtNum(hardwareSummary.reserve)} Branches (${fmtNum(readyPos)} POS · ${fmtNum(readySb)} SB)`}
-                      className={`w-full text-left ${kpiCardClass} rounded-[15px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
-                        isLight ? 'hover:border-slate-300' : 'hover:border-slate-600'
+                      title={`Ready Stock Buffer: ${fmtNum(hardwareSummary.hq)} HQ · ${fmtNum(hardwareSummary.reserve)} Branches (POS ${fmtNum(readyPos)} · SB ${fmtNum(readySb)})`}
+                      className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                          1. Ready Stock Buffer
-                        </div>
-                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                          HQ <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.hq)}</strong> · Branches{' '}
-                          <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.reserve)}</strong>
+                      <div className="min-w-0 flex items-start gap-2.5">
+                        <span
+                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
+                            isLight ? 'bg-[#155484]/12 text-[#155484]' : 'bg-[#155484]/40 text-sky-200'
+                          }`}
+                        >
+                          1
+                        </span>
+                        <div className="min-w-0">
+                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
+                            Ready Stock Buffer
+                          </div>
+                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            HQ <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.hq)}</strong> · Branches{' '}
+                            <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.reserve)}</strong>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -4024,18 +4116,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           {fmtNum(readyTotal)}
                         </div>
                         <div className="flex items-center justify-end gap-1 mt-1">
-                          <span
-                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
-                              isLight ? 'bg-[#184e77]/10 text-[#184e77]' : 'bg-[#184e77]/35 text-sky-200'
-                            }`}
-                          >
+                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
                             POS {fmtNum(readyPos)}
                           </span>
-                          <span
-                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
-                              isLight ? 'bg-[#4F518C]/10 text-[#4F518C]' : 'bg-[#4F518C]/35 text-indigo-200'
-                            }`}
-                          >
+                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
                             SB {fmtNum(readySb)}
                           </span>
                         </div>
@@ -4046,24 +4132,34 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('push_configuring')}
-                      title={`Configuring / Push Setup: ${fmtNum(hardwareSummary.posConfig)} POS · ${fmtNum(hardwareSummary.sbConfig)} SB`}
-                      className={`w-full text-left ${kpiCardClass} rounded-[15px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
-                        isLight ? 'hover:border-slate-300' : 'hover:border-slate-600'
+                      title={`Configuring / Push Setup: POS ${fmtNum(hardwareSummary.posConfig)} · SB ${fmtNum(hardwareSummary.sbConfig)}`}
+                      className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div className={`text-[12px] font-bold inline-flex items-center gap-2 max-w-full ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              hardwareSummary.config > 0 ? 'bg-amber-500' : isLight ? 'bg-slate-300' : 'bg-slate-600'
-                            }`}
-                          />
-                          <span className="truncate">2. Configuring / Push</span>
-                        </div>
-                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                          {queues.pushPend > 0
-                            ? `${fmtNum(queues.pushPend)} awaiting push dispatch`
-                            : 'In transit to merchant activation'}
+                      <div className="min-w-0 flex items-start gap-2.5">
+                        <span
+                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
+                            hardwareSummary.config > 0
+                              ? isLight
+                                ? 'bg-amber-500/15 text-amber-700'
+                                : 'bg-amber-500/25 text-amber-300'
+                              : isLight
+                                ? 'bg-slate-200/80 text-slate-500'
+                                : 'bg-slate-700 text-slate-400'
+                          }`}
+                        >
+                          2
+                        </span>
+                        <div className="min-w-0">
+                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
+                            Configuring / Push
+                          </div>
+                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {queues.pushPend > 0
+                              ? `${fmtNum(queues.pushPend)} awaiting push dispatch`
+                              : 'In transit to merchant activation'}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -4083,20 +4179,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         {(hardwareSummary.posConfig > 0 || hardwareSummary.sbConfig > 0) && (
                           <div className="flex items-center justify-end gap-1 mt-1">
                             {hardwareSummary.posConfig > 0 && (
-                              <span
-                                className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
-                                  isLight ? 'bg-[#184e77]/10 text-[#184e77]' : 'bg-[#184e77]/35 text-sky-200'
-                                }`}
-                              >
+                              <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
                                 POS {fmtNum(hardwareSummary.posConfig)}
                               </span>
                             )}
                             {hardwareSummary.sbConfig > 0 && (
-                              <span
-                                className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
-                                  isLight ? 'bg-[#4F518C]/10 text-[#4F518C]' : 'bg-[#4F518C]/35 text-indigo-200'
-                                }`}
-                              >
+                              <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
                                 SB {fmtNum(hardwareSummary.sbConfig)}
                               </span>
                             )}
@@ -4109,20 +4199,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('merchants')}
-                      title={`Deployed Live: ${fmtNum(hardwareSummary.posInstalled)} POS · ${fmtNum(hardwareSummary.sbInstalled)} SB across ${fmtNum(hardwareSummary.uniqueMerchants)} MIDs`}
-                      className={`w-full text-left rounded-[15px] px-3.5 py-2.5 border flex items-center justify-between gap-3 cursor-pointer transition ${
+                      title={`Deployed Live: POS ${fmtNum(hardwareSummary.posInstalled)} · SB ${fmtNum(hardwareSummary.sbInstalled)} across ${fmtNum(hardwareSummary.liveUniqueMerchants)} active merchant MIDs`}
+                      className={`w-full text-left rounded-[14px] px-3.5 py-2.5 border flex items-center justify-between gap-3 cursor-pointer transition ${
                         isLight
-                          ? 'bg-[#2d6a4f]/[0.045] border-[#2d6a4f]/25 hover:border-[#2d6a4f]/45'
+                          ? 'bg-[#2d6a4f]/[0.05] border-[#2d6a4f]/25 hover:border-[#2d6a4f]/45'
                           : 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div className={`text-[12px] font-bold inline-flex items-center gap-2 ${isLight ? 'text-[#1b4332]' : 'text-emerald-200'}`}>
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.mv }} />
-                          <span>3. Deployed Live</span>
-                        </div>
-                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                          Bound across <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.uniqueMerchants)}</strong> active merchant MIDs
+                      <div className="min-w-0 flex items-start gap-2.5">
+                        <span
+                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
+                            isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/25 text-emerald-200'
+                          }`}
+                        >
+                          3
+                        </span>
+                        <div className="min-w-0">
+                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-[#1b4332]' : 'text-emerald-200'}`}>
+                            Deployed Live
+                          </div>
+                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                            Active at <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.liveUniqueMerchants)}</strong> merchant MIDs
+                          </div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -4130,23 +4228,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           {fmtNum(hardwareSummary.installed)}
                         </div>
                         <div className="flex items-center justify-end gap-1 mt-1">
-                          <span
-                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full border ${
-                              isLight
-                                ? 'bg-white border-slate-300/90 text-[#184e77]'
-                                : 'bg-slate-900/60 border-slate-700 text-sky-200'
-                            }`}
-                          >
-                            {fmtNum(hardwareSummary.posInstalled)} POS
+                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
+                            POS {fmtNum(hardwareSummary.posInstalled)}
                           </span>
-                          <span
-                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full border ${
-                              isLight
-                                ? 'bg-white border-slate-300/90 text-[#4F518C]'
-                                : 'bg-slate-900/60 border-slate-700 text-indigo-200'
-                            }`}
-                          >
-                            {fmtNum(hardwareSummary.sbInstalled)} SB
+                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
+                            SB {fmtNum(hardwareSummary.sbInstalled)}
                           </span>
                         </div>
                       </div>
@@ -4191,10 +4279,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       {issueCount === 0 ? 'All Units Healthy' : `${fmtNum(issueCount)} Units Flagged`}
                     </button>
                   </div>
-                </>
-              );
-            })()}
-          </div>
+                </div>
+              </>
+            );
+          })()}
         </section>
 
         {/* Card 3B: SIM Card Fleet, Kit Materials & Stock Requisitions Visualization */}
@@ -4202,88 +4290,100 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           data-stock-card="materials"
           className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
         >
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                  isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/20 text-emerald-300'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  SIM &amp; Materials Stock
-                </h3>
-                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  SIM fleet, 5 kit SKUs &amp; requisitions
-                </p>
-              </div>
-            </div>
-            {onNavigateTab && (
-              <div className="flex items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('sim_cards')}
-                  className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                    isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                  }`}
-                >
-                  SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('requisitions')}
-                  className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                    isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                  }`}
-                >
-                  Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </div>
+          {(() => {
+            const simSegs = [
+              { key: 'HQ', label: 'HQ', count: materialsSummary.simHq, color: CHANNEL_COLORS.pos },
+              { key: 'RES', label: 'Res', count: materialsSummary.simReserve, color: CHANNEL_COLORS.sb },
+              { key: 'TR', label: 'Transit', count: materialsSummary.simInTransit, color: CHANNEL_COLORS.cc },
+              { key: 'MCH', label: 'Merchant', count: materialsSummary.simAtMerchant, color: CHANNEL_COLORS.mv },
+              { key: 'BAD', label: 'Lost/Faulty', count: materialsSummary.simBad, color: '#e11d48' },
+            ];
+            const simMerchantPct =
+              materialsSummary.simTotal > 0
+                ? Math.round((materialsSummary.simAtMerchant / materialsSummary.simTotal) * 100)
+                : 0;
+            const maxKitSku = Math.max(1, ...materialsSummary.kitSkus.map((s) => s.total));
+            const reqPendingCount = reqStats.pending.length;
 
-          <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-3">
-            {(() => {
-              const simSegs = [
-                { key: 'HQ', label: 'HQ', count: materialsSummary.simHq, color: CHANNEL_COLORS.pos },
-                { key: 'RES', label: 'Res', count: materialsSummary.simReserve, color: CHANNEL_COLORS.sb },
-                { key: 'TR', label: 'Transit', count: materialsSummary.simInTransit, color: CHANNEL_COLORS.cc },
-                { key: 'MCH', label: 'Merchant', count: materialsSummary.simAtMerchant, color: CHANNEL_COLORS.mv },
-                { key: 'BAD', label: 'Lost/Faulty', count: materialsSummary.simBad, color: '#e11d48' },
-              ];
-              const simMerchantPct =
-                materialsSummary.simTotal > 0
-                  ? Math.round((materialsSummary.simAtMerchant / materialsSummary.simTotal) * 100)
-                  : 0;
-              const maxKitSku = Math.max(1, ...materialsSummary.kitSkus.map((s) => s.total));
-              const reqPendingCount = reqStats.pending.length;
+            return (
+              <>
+                <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/20 text-emerald-300'
+                      }`}
+                    >
+                      <Package className="w-3.5 h-3.5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        SIM &amp; Materials Stock
+                      </h3>
+                      <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {fmtNum(materialsSummary.simTotal)} SIMs · {fmtNum(materialsSummary.kitTotal)} kit units · {fmtNum(reqStats.total)} reqs
+                      </p>
+                    </div>
+                  </div>
+                  {onNavigateTab && (
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('sim_cards')}
+                        className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                        }`}
+                      >
+                        SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('requisitions')}
+                        className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                        }`}
+                      >
+                        Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              return (
-                <>
+                <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-2.5">
                   {/* SIM Card Fleet Stacked Distribution */}
                   <button
                     type="button"
                     onClick={() => onNavigateTab?.('sim_cards')}
-                    className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-2 transition cursor-pointer ${
-                      isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
+                    className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-1.5 transition cursor-pointer ${
+                      isLight ? 'hover:border-slate-300 hover:bg-slate-100/75' : 'hover:border-slate-600'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                         SIM Card Fleet · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.simTotal)}</strong> serials
                       </span>
-                      <span className={`font-figure font-semibold shrink-0 ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}`}>
+                      <span
+                        className={`text-[10.5px] font-figure font-bold px-2 py-[1px] rounded-full shrink-0 ${
+                          simMerchantPct > 0
+                            ? isLight
+                              ? 'bg-[#2d6a4f]/12 text-[#2d6a4f]'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                            : isLight
+                              ? 'bg-slate-200/75 text-slate-600'
+                              : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
                         {simMerchantPct}% Live
                       </span>
                     </div>
-                    {materialsSummary.simTotal > 0 && (
-                      <div
-                        data-stock-bar="sim-fleet"
-                        className="h-2 w-full flex items-center gap-[1.5px]"
-                      >
-                        {simSegs.map(
+                    <div
+                      data-stock-bar="sim-fleet"
+                      className={`h-2 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
+                        isLight ? 'bg-slate-200/75' : 'bg-slate-800'
+                      }`}
+                    >
+                      {materialsSummary.simTotal > 0 &&
+                        simSegs.map(
                           (seg) =>
                             seg.count > 0 && (
                               <div
@@ -4297,8 +4397,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               />
                             )
                         )}
-                      </div>
-                    )}
+                    </div>
                     <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] font-figure tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       {simSegs.map((seg) => (
                         <span key={seg.key} className="inline-flex items-center gap-1">
@@ -4310,11 +4409,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
                   </button>
 
-                  {/* Kit Materials Stock by SKU (5 SKUs) */}
-                  <div className="space-y-1.5" aria-label="Kit materials stock chart">
+                  {/* Kit Materials Stock by SKU (5 SKUs) inside clean hairline frame */}
+                  <div
+                    className={`${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-1.5 flex-1 flex flex-col justify-between`}
+                    aria-label="Kit materials stock chart"
+                  >
                     <div className="flex items-center justify-between gap-2 text-[10.5px]">
                       <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                        Kit Materials ({fmtNum(materialsSummary.kitTotal)} units)
+                        Kit Materials · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitTotal)}</strong> units
                       </span>
                       <span className={`inline-flex items-center gap-2 shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                         <span className="inline-flex items-center gap-1">
@@ -4329,17 +4431,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       </span>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {materialsSummary.kitSkus.map((sku) => {
                         const targetTab = sku.deviceType === 'SB' ? 'inventory_sb' : 'inventory_pos';
+                        // Power-scaled bar span (max 100%, min 8% when > 0) preserves visibility of smaller SKUs alongside Batteries while showing relative volume
+                        const spanPct =
+                          sku.total > 0
+                            ? Math.max(8, Math.min(100, Math.round(Math.pow(sku.total / maxKitSku, 0.38) * 100)))
+                            : 0;
                         return (
                           <button
                             key={sku.code}
                             type="button"
                             onClick={() => onNavigateTab?.(targetTab)}
                             title={`${sku.name} (${sku.deviceType}): ${fmtNum(sku.onHand)} stock · ${fmtNum(sku.inTransit)} transit · ${fmtNum(sku.atMerchant)} merchant`}
-                            className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition cursor-pointer ${
-                              isLight ? 'hover:bg-slate-50/90' : 'hover:bg-slate-800/45'
+                            className={`w-full text-left rounded-lg px-2 py-1 transition cursor-pointer ${
+                              isLight ? 'hover:bg-white/90' : 'hover:bg-slate-800/60'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2 text-[11px]">
@@ -4362,13 +4469,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                 </span>
                               </span>
                               <span className="inline-flex items-center gap-2 shrink-0 tabular-nums font-figure">
-                                {sku.total > 0 && (
-                                  <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                                    {fmtNum(sku.onHand)} · {fmtNum(sku.inTransit)} tr · {fmtNum(sku.atMerchant)} mch
-                                  </span>
-                                )}
+                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  {sku.total > 0
+                                    ? `${fmtNum(sku.onHand)} · ${fmtNum(sku.inTransit)} tr · ${fmtNum(sku.atMerchant)} mch`
+                                    : 'No units'}
+                                </span>
                                 <span
-                                  className={`font-bold ${
+                                  className={`min-w-[36px] text-right font-bold ${
                                     sku.total === 0
                                       ? isLight
                                         ? 'text-slate-400'
@@ -4382,51 +4489,57 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                 </span>
                               </span>
                             </div>
-                            {sku.total > 0 && (
-                              <div
-                                data-material-sku-bar={sku.code}
-                                className="mt-1 h-[5.5px] w-full flex items-center gap-[1.5px]"
-                              >
-                                {sku.onHand > 0 && (
-                                  <div
-                                    className="h-full rounded-full transition-all duration-300"
-                                    style={{
-                                      width: `${Math.max(2, (sku.onHand / maxKitSku) * 100)}%`,
-                                      backgroundColor: CHANNEL_COLORS.pos,
-                                    }}
-                                  />
-                                )}
-                                {sku.inTransit > 0 && (
-                                  <div
-                                    className="h-full rounded-full transition-all duration-300"
-                                    style={{
-                                      width: `${Math.max(2, (sku.inTransit / maxKitSku) * 100)}%`,
-                                      backgroundColor: CHANNEL_COLORS.cc,
-                                    }}
-                                  />
-                                )}
-                                {sku.atMerchant > 0 && (
-                                  <div
-                                    className="h-full rounded-full transition-all duration-300"
-                                    style={{
-                                      width: `${Math.max(2, (sku.atMerchant / maxKitSku) * 100)}%`,
-                                      backgroundColor: CHANNEL_COLORS.mv,
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            )}
+                            <div
+                              data-material-sku-bar={sku.code}
+                              className={`mt-1 h-[5.5px] w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
+                                isLight ? 'bg-slate-200/75' : 'bg-slate-800'
+                              }`}
+                            >
+                              {sku.total > 0 && (
+                                <>
+                                  {sku.onHand > 0 && (
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${Math.max(2, (sku.onHand / sku.total) * spanPct)}%`,
+                                        backgroundColor: CHANNEL_COLORS.pos,
+                                      }}
+                                    />
+                                  )}
+                                  {sku.inTransit > 0 && (
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${Math.max(2, (sku.inTransit / sku.total) * spanPct)}%`,
+                                        backgroundColor: CHANNEL_COLORS.cc,
+                                      }}
+                                    />
+                                  )}
+                                  {sku.atMerchant > 0 && (
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${Math.max(2, (sku.atMerchant / sku.total) * spanPct)}%`,
+                                        backgroundColor: CHANNEL_COLORS.mv,
+                                      }}
+                                    />
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* Stock Requisitions Pipeline Bar */}
+                  {/* Stock Requisitions Pipeline Sub-Card */}
                   <button
                     type="button"
                     onClick={() => onNavigateTab?.('requisitions')}
-                    className={`w-full text-left pt-2 border-t space-y-1.5 cursor-pointer group ${kpiFooterBorderClass}`}
+                    className={`w-full text-left ${kpiCardClass} rounded-[12px] px-3.5 py-2 space-y-1.5 cursor-pointer group transition ${
+                      isLight ? 'hover:border-slate-300 hover:bg-slate-100/75' : 'hover:border-slate-600'
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700 group-hover:text-[#004e75]' : 'text-slate-200 group-hover:text-sky-300'}`}>
@@ -4439,45 +4552,49 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <strong className={reqStats.rejected > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : ''}>{fmtNum(reqStats.rejected)}</strong> rej
                       </span>
                     </div>
-                    {reqStats.total > 0 && (
-                      <div
-                        data-stock-bar="requisitions"
-                        className="h-1.5 w-full flex items-center gap-[1.5px]"
-                      >
-                        {reqPendingCount > 0 && (
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.max(3, (reqPendingCount / reqStats.total) * 100)}%`,
-                              backgroundColor: CHANNEL_COLORS.cc,
-                            }}
-                          />
-                        )}
-                        {reqStats.received > 0 && (
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.max(3, (reqStats.received / reqStats.total) * 100)}%`,
-                              backgroundColor: CHANNEL_COLORS.mv,
-                            }}
-                          />
-                        )}
-                        {reqStats.rejected > 0 && (
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{
-                              width: `${Math.max(3, (reqStats.rejected / reqStats.total) * 100)}%`,
-                              backgroundColor: '#e11d48',
-                            }}
-                          />
-                        )}
-                      </div>
-                    )}
+                    <div
+                      data-stock-bar="requisitions"
+                      className={`h-1.5 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
+                        isLight ? 'bg-slate-200/75' : 'bg-slate-800'
+                      }`}
+                    >
+                      {reqStats.total > 0 && (
+                        <>
+                          {reqPendingCount > 0 && (
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(3, (reqPendingCount / reqStats.total) * 100)}%`,
+                                backgroundColor: CHANNEL_COLORS.cc,
+                              }}
+                            />
+                          )}
+                          {reqStats.received > 0 && (
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(3, (reqStats.received / reqStats.total) * 100)}%`,
+                                backgroundColor: CHANNEL_COLORS.mv,
+                              }}
+                            />
+                          )}
+                          {reqStats.rejected > 0 && (
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(3, (reqStats.rejected / reqStats.total) * 100)}%`,
+                                backgroundColor: '#e11d48',
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
                   </button>
-                </>
-              );
-            })()}
-          </div>
+                </div>
+              </>
+            );
+          })()}
         </section>
 
         {/* Card 3C: Platform Telemetry & Recent Activity */}

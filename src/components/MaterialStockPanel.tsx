@@ -16,7 +16,7 @@ import {
   DeviceGroup, LostItem, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
   clearMaterialsCache, kitAdd, kitReturn,
-  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance,
+  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance, deriveDeviceKitMaterials,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 import { PillMotion } from './PillMotion';
@@ -771,140 +771,7 @@ const MaterialStockPanelComponent: React.FC<{
   }, [devices]);
 
   // Devices-derived materials (POS Batteries, POS AC Adaptors, Stand Holders, Charging Docks, Sound Box AC Adaptors)
-  const deviceDerivedItems = useMemo(() => {
-    if (!devices || devices.length === 0) return [];
-    const items: MaterialSerial[] = [];
-    const nowStr = new Date().toISOString();
-
-    for (let i = 0; i < devices.length; i++) {
-      const d = devices[i];
-      if (group === 'POS' && d.type !== 'POS Terminal') continue;
-      if (group === 'SB' && d.type !== 'Sound Box') continue;
-
-      const hasMerchantBinding = Boolean((d.mid && d.mid.trim()) || (d.merchantName && d.merchantName.trim()));
-      const isInstalled = (d.stage === 'COMPLETE' || d.stage === 'CONFIGURING') && hasMerchantBinding;
-      const branchId = String(d.branchId || '100');
-
-      if (group === 'POS') {
-        // 1. Battery serial on POS Terminal
-        if (d.batterySerial && d.batterySerial.trim()) {
-          const bat = d.batterySerial.trim();
-          if (bat !== 'N/A' && bat !== '-' && bat !== '—') {
-            const st: SerialStatus =
-              isInstalled
-                ? 'AT_MERCHANT'
-                : d.stage === 'LOST'
-                ? 'LOST'
-                : d.stage === 'FAULTY'
-                ? 'FAULTY'
-                : d.stage === 'HQ_STOCK' || branchId === '100'
-                ? 'HQ_STOCK'
-                : 'BRANCH_RESERVE';
-
-            items.push({
-              code: 'BATTERY',
-              serial: bat,
-              status: st,
-              branchId,
-              deviceSerial: d.serial,
-              mid: d.mid || null,
-              merchantName: d.merchantName || null,
-              reqId: null,
-              blocked: false,
-              note: `Model: ${d.model || 'Wizar POS Q2 Pro'}`,
-              updatedAt: d.deployedDate || d.updatedAt || nowStr,
-              updatedBy: d.staff || null,
-            });
-          }
-        }
-
-        // 2. POS AC Adaptor (Quantity-controlled, 1 per installed POS Terminal at merchant)
-        if (isInstalled) {
-          items.push({
-            code: 'POS_ADAPTOR',
-            serial: `ADP-${d.serial}`,
-            status: 'AT_MERCHANT',
-            branchId,
-            deviceSerial: d.serial,
-            mid: d.mid || null,
-            merchantName: d.merchantName || null,
-            reqId: null,
-            blocked: false,
-            note: `POS Terminal AC Power Adaptor (Deployed with ${d.serial})`,
-            updatedAt: d.deployedDate || d.updatedAt || nowStr,
-            updatedBy: d.staff || d.installedByStaff || null,
-          });
-        }
-
-        // 3. POS Stand Holder (Countertop Swivel Stand)
-        const hasStand = Boolean(
-          d.customFields?.stand === 'true' ||
-          d.customFields?.hasStand === 'true' ||
-          (d.note && /stand/i.test(d.note)) ||
-          (isInstalled && i % 4 === 1)
-        );
-        if (hasStand && isInstalled) {
-          items.push({
-            code: 'STAND',
-            serial: `STND-${d.serial}`,
-            status: 'AT_MERCHANT',
-            branchId,
-            deviceSerial: d.serial,
-            mid: d.mid || null,
-            merchantName: d.merchantName || null,
-            reqId: null,
-            blocked: false,
-            note: 'POS Stand Holder (Countertop Swivel Stand)',
-            updatedAt: d.deployedDate || d.updatedAt || nowStr,
-            updatedBy: d.staff || d.installedByStaff || null,
-          });
-        }
-
-        // 4. Charging Dock (Intelligent Charging Dock Base)
-        const hasDock = Boolean(
-          d.customFields?.dock === 'true' ||
-          d.customFields?.hasDock === 'true' ||
-          (d.note && /dock/i.test(d.note)) ||
-          (isInstalled && i % 6 === 2)
-        );
-        if (hasDock && isInstalled) {
-          items.push({
-            code: 'DOCK',
-            serial: `DCK-${d.serial}`,
-            status: 'AT_MERCHANT',
-            branchId,
-            deviceSerial: d.serial,
-            mid: d.mid || null,
-            merchantName: d.merchantName || null,
-            reqId: null,
-            blocked: false,
-            note: 'Intelligent Charging Dock Base',
-            updatedAt: d.deployedDate || d.updatedAt || nowStr,
-            updatedBy: d.staff || d.installedByStaff || null,
-          });
-        }
-      } else if (group === 'SB') {
-        // Sound Box AC Adaptor (Quantity-controlled, 1 per installed Sound Box at merchant)
-        if (isInstalled) {
-          items.push({
-            code: 'SB_ADAPTOR',
-            serial: `ADP-${d.serial}`,
-            status: 'AT_MERCHANT',
-            branchId,
-            deviceSerial: d.serial,
-            mid: d.mid || null,
-            merchantName: d.merchantName || null,
-            reqId: null,
-            blocked: false,
-            note: `Sound Box 5V/2A AC Adaptor (Deployed with ${d.serial})`,
-            updatedAt: d.deployedDate || d.updatedAt || nowStr,
-            updatedBy: d.staff || d.installedByStaff || null,
-          });
-        }
-      }
-    }
-    return items;
-  }, [devices, group]);
+  const deviceDerivedItems = useMemo(() => deriveDeviceKitMaterials(devices, group), [devices, group]);
 
   // Load balances from material_balances
   const load = useCallback(async (force = false) => {

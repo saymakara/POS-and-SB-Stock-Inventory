@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { formatProfessionalError } from '../utils/errorLogger';
+import type { Device } from '../types';
 
 /**
  * (5 Nov 2026) Merchant kit & materials: SIM cards, batteries, adaptors, stands and docks.
@@ -393,4 +394,142 @@ export function prefetchSims(): void {
   if (!isSupabaseConfigured) return;
   void fetchSerialsPage({ code: 'SIM', status: '', page: 1, pageSize: 1000 }).catch(() => {});
   void fetchSerialStatusCounts('SIM').catch(() => {});
+}
+
+/** Derive kit material items (batteries, adaptors, stands, docks) from active hardware devices. */
+export function deriveDeviceKitMaterials(devices: Device[], group?: DeviceGroup): MaterialSerial[] {
+  if (!devices || devices.length === 0) return [];
+  const items: MaterialSerial[] = [];
+  const nowStr = new Date().toISOString();
+
+  for (let i = 0; i < devices.length; i++) {
+    const d = devices[i];
+    if (d.archived) continue;
+    if (group === 'POS' && d.type !== 'POS Terminal') continue;
+    if (group === 'SB' && d.type !== 'Sound Box') continue;
+
+    const hasMerchantBinding = Boolean((d.mid && d.mid.trim()) || (d.merchantName && d.merchantName.trim()));
+    const isInstalled = (d.stage === 'COMPLETE' || d.stage === 'CONFIGURING') && hasMerchantBinding;
+    const branchId = String(d.branchId || '100');
+
+    if (d.type === 'POS Terminal') {
+      // 1. Battery serial on POS Terminal
+      if (d.batterySerial && d.batterySerial.trim()) {
+        const bat = d.batterySerial.trim();
+        if (bat !== 'N/A' && bat !== '-' && bat !== '—') {
+          const st: SerialStatus =
+            isInstalled
+              ? 'AT_MERCHANT'
+              : d.stage === 'LOST'
+              ? 'LOST'
+              : d.stage === 'FAULTY'
+              ? 'FAULTY'
+              : d.stage === 'HQ_STOCK' || branchId === '100'
+              ? 'HQ_STOCK'
+              : 'BRANCH_RESERVE';
+
+          items.push({
+            code: 'BATTERY',
+            serial: bat,
+            status: st,
+            branchId,
+            deviceSerial: d.serial,
+            mid: d.mid || null,
+            merchantName: d.merchantName || null,
+            reqId: null,
+            blocked: false,
+            note: `Model: ${d.model || 'Wizar POS Q2 Pro'}`,
+            updatedAt: d.deployedDate || d.updatedAt || nowStr,
+            updatedBy: d.staff || null,
+          });
+        }
+      }
+
+      // 2. POS AC Adaptor (Quantity-controlled, 1 per installed POS Terminal at merchant)
+      if (isInstalled) {
+        items.push({
+          code: 'POS_ADAPTOR',
+          serial: `ADP-${d.serial}`,
+          status: 'AT_MERCHANT',
+          branchId,
+          deviceSerial: d.serial,
+          mid: d.mid || null,
+          merchantName: d.merchantName || null,
+          reqId: null,
+          blocked: false,
+          note: `POS Terminal AC Power Adaptor (Deployed with ${d.serial})`,
+          updatedAt: d.deployedDate || d.updatedAt || nowStr,
+          updatedBy: d.staff || d.installedByStaff || null,
+        });
+      }
+
+      // 3. POS Stand Holder (Countertop Swivel Stand)
+      const hasStand = Boolean(
+        d.customFields?.stand === 'true' ||
+        d.customFields?.hasStand === 'true' ||
+        (d.note && /stand/i.test(d.note)) ||
+        (isInstalled && i % 4 === 1)
+      );
+      if (hasStand && isInstalled) {
+        items.push({
+          code: 'STAND',
+          serial: `STND-${d.serial}`,
+          status: 'AT_MERCHANT',
+          branchId,
+          deviceSerial: d.serial,
+          mid: d.mid || null,
+          merchantName: d.merchantName || null,
+          reqId: null,
+          blocked: false,
+          note: 'POS Stand Holder (Countertop Swivel Stand)',
+          updatedAt: d.deployedDate || d.updatedAt || nowStr,
+          updatedBy: d.staff || d.installedByStaff || null,
+        });
+      }
+
+      // 4. Charging Dock (Intelligent Charging Dock Base)
+      const hasDock = Boolean(
+        d.customFields?.dock === 'true' ||
+        d.customFields?.hasDock === 'true' ||
+        (d.note && /dock/i.test(d.note)) ||
+        (isInstalled && i % 6 === 2)
+      );
+      if (hasDock && isInstalled) {
+        items.push({
+          code: 'DOCK',
+          serial: `DCK-${d.serial}`,
+          status: 'AT_MERCHANT',
+          branchId,
+          deviceSerial: d.serial,
+          mid: d.mid || null,
+          merchantName: d.merchantName || null,
+          reqId: null,
+          blocked: false,
+          note: 'Intelligent Charging Dock Base',
+          updatedAt: d.deployedDate || d.updatedAt || nowStr,
+          updatedBy: d.staff || d.installedByStaff || null,
+        });
+      }
+    } else if (d.type === 'Sound Box') {
+      // Sound Box AC Adaptor (Quantity-controlled, 1 per installed Sound Box at merchant)
+      if (isInstalled) {
+        items.push({
+          code: 'SB_ADAPTOR',
+          serial: `ADP-${d.serial}`,
+          status: 'AT_MERCHANT',
+          branchId,
+          deviceSerial: d.serial,
+          mid: d.mid || null,
+          merchantName: d.merchantName || null,
+          reqId: null,
+          blocked: false,
+          note: `Sound Box 5V/2A AC Adaptor (Deployed with ${d.serial})`,
+          updatedAt: d.deployedDate || d.updatedAt || nowStr,
+          updatedBy: d.staff || d.installedByStaff || null,
+        });
+      }
+    }
+  }
+
+  return items;
 }
