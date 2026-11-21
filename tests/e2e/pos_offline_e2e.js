@@ -17,6 +17,9 @@ const state = { devices: [dev('WP0001', 'BRANCH_RESERVE', '105', { row_version: 
   events: [{ id: 7, source_record_id: 'POS-20261121-0001', unit_no: 1, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0001', old_serial: null, mid: '200123456789012', tid: '56789012',
     terminal_name: 'Till 1', outlet_name: 'Sokha Mart', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF001', staff_name: 'Sok Dara', recorded_at: '2026-11-21T09:00:00+07:00',
     remarks: '', payload: { unit: { serial_input: 'SCAN', mid_input: 'TYPED' } }, issues: [], status: 'PENDING', received_at: '2026-11-21T02:01:00Z' },
+    { id: 10, source_record_id: 'POS-20261121-0003', unit_no: 1, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0002', old_serial: null, mid: '200100000000001', tid: '00000001',
+      terminal_name: 'Mall Till', outlet_name: 'Aeon Mall', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF001', staff_name: 'Sok Dara', recorded_at: '2026-11-21T08:00:00+07:00',
+      payload: { entry: { request_type: 'Integrated Installation' }, unit: {} }, issues: [], status: 'PENDING', received_at: '2026-11-21T01:00:00Z' },
     { id: 21, source_record_id: 'POC-20261121-0001', unit_no: 1, revision: 1, kind: 'POS_OFFLINE', device_type: 'POS Terminal', serial: '', mid: '200100000000001', tid: '00000001',
       terminal_name: 'Lucky Mart', outlet_name: 'Lucky Mart', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF002', staff_name: 'Chan Dara', recorded_at: '2026-11-21T10:00:00+07:00',
       payload: { entry: { summary: 'POS Offline Count' }, unit: { unit_no: 1 } }, issues: [], status: 'APPROVED', reviewed_at: '2026-11-21T03:00:01Z', review_note: 'Recorded automatically - no approval needed', received_at: '2026-11-21T03:00:00Z' },
@@ -136,7 +139,20 @@ async function api(route) {
   ok(/POS offline count/.test(txt), 'POS Terminal page has a "POS offline count" card');
   ok(/POS offline count\s*2 approved/.test(txt) && !/POS offline count\s*\d+ waiting/.test(txt), 'the card: 2 approved, none waiting (no approval needed)');
   ok(/Offline counts need no approval/.test(txt), 'the page says offline counts need no approval');
-  ok(/Waiting\s*\(?1\)?/.test(txt) && !/TID 00000001/.test(txt), 'Waiting lists only the installation - Offline Counts never wait');
+  ok(/Waiting\s*\(?2\)?/.test(txt) && !/TID 00000001/.test(txt), 'Waiting lists only the 2 installations - Offline Counts never wait');
+  // (21 Nov 2026) Integrated installation: a filter option under Installation (no card of its own)
+  const sel = p.locator('select[aria-label="Filter by record type"]');
+  const optText = (await sel.locator('option').allTextContents()).map((s) => s.replace(/\u00a0/g, ' ').trim());
+  ok(optText.some((o) => /^Integrated installation \(1\)$/.test(o)) && optText.indexOf(optText.find((o) => /^Installation/.test(o))) + 1 === optText.findIndex((o) => /^Integrated installation/.test(o)),
+    'type filter: "Integrated installation (1)" right under Installation - ' + optText.join(' | '));
+  ok(!/Integrated installation\s*\d+ (waiting|approved)/i.test(txt), 'no new card for it (Installation card only)');
+  await sel.selectOption('INSTALL_INTEG'); await sleep(900);
+  let rows = (await p.locator('section[aria-label="Records"] button[aria-expanded]').allTextContents()).join(' | ');
+  ok(/WP0002/.test(rows) && !/WP0001/.test(rows), 'choosing it lists only the Integrated Installation (WP0002), not the New Installation (WP0001) - ' + rows.slice(0, 120));
+  await sel.selectOption('INSTALL'); await sleep(900);
+  rows = (await p.locator('section[aria-label="Records"] button[aria-expanded]').allTextContents()).join(' | ');
+  ok(/WP0002/.test(rows) && /WP0001/.test(rows), '"Installation" still lists both (integrated ones are installations)');
+  await sel.selectOption('ALL'); await sleep(600);
   await p.getByRole('button', { name: /^Approved/ }).first().click(); await sleep(1200);
   txt = (await p.textContent('body')).replace(/\s+/g, ' ');
   ok(/TID 00000001/.test(txt) && /TID 54110722/.test(txt), 'Approved lists both Offline Counts, each showing its TID where the serial would be');
