@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
+          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/10"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -231,10 +231,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   : 'flex-1 min-w-0 opacity-0 -translate-x-1 pointer-events-none'
               }`}
             >
-              <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
+              <div className="text-[13px] font-bold tracking-tight text-white truncate">
                 {appSettings?.customLogoTitle || 'In-Store Management Portal'}
               </div>
-              <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
+              <div className="text-[11px] font-normal text-slate-400 tracking-tight mt-0.5 truncate">
                 {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
               </div>
             </div>
@@ -245,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onCloseMobile}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
               title="Close Navigation"
             >
               <X className="w-5 h-5" />
@@ -258,7 +258,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
               <div
-                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                className={`px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                   isMobileView || !collapsed
                     ? 'h-5 pb-1 opacity-100 translate-x-0'
                     : 'h-0 pb-0 opacity-0 -translate-x-1 overflow-hidden pointer-events-none'
@@ -286,50 +286,42 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
+                      className={`group relative w-full px-3 justify-between py-2 rounded-xl flex items-center gap-2.5 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 border ${
                         isActive
-                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                          ? 'sidebar-pill-cobalt font-bold text-white'
+                          : 'font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] border-transparent'
                       }`}
                     >
-                      {/* the left line grows in place (no sliding) */}
-                      {isActive && (
-                        <span
-                          aria-hidden
-                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs pointer-events-none"
-                        />
-                      )}
-
                       <div className="relative flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
+                        <span
+                          className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
-                              ? 'bg-white/20 text-white shadow-xs border border-white/20'
-                              : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
+                              ? 'text-white'
+                              : 'text-slate-400 group-hover:text-sky-300'
                           }`}
                         >
-                          <Icon className="w-3.5 h-3.5" />
-                        </div>
+                          <Icon className="w-4 h-4" />
+                        </span>
                         <span
                           className={`truncate whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none'
-                          } ${isActive ? 'text-white font-medium' : ''}`}
+                          } ${isActive ? 'text-white font-bold' : ''}`}
                         >
                           {item.label}
                         </span>
                       </div>
 
-                      {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
+                      {/* Subtle Counter Badge */}
                       {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
                           className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
                           } ${
                             isActive
-                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                              ? 'bg-white/20 text-white font-bold'
                               : item.highlight
-                              ? 'bg-white/15 text-white border border-white/20 font-medium'
-                              : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
+                              ? 'bg-sky-500/20 text-sky-300 font-bold'
+                              : 'bg-white/10 text-slate-300 font-semibold group-hover:text-white'
                           }`}
                         >
                           {fmtNum(item.count)}
@@ -337,7 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       )}
                     </motion.button>
                     {showChildren && (
-                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
+                      <div className="relative ml-[21px] pl-2.5 flex flex-col gap-0.5 border-l border-slate-800 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = navTab === c.id;
@@ -356,22 +348,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
                                 if (c.id === 'sim_cards') import('./SimCardTab');
                               }}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
+                              className={`group w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on
-                                  ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
-                                  : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border-transparent'
+                                  ? 'sidebar-pill-cobalt font-bold text-white'
+                                  : 'font-normal text-slate-400 hover:text-white hover:bg-white/[0.06] border-transparent'
                               }`}
                             >
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${c.iconColor || (on ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-100')}`} />
-                                <span className={`truncate ${on ? 'text-white font-medium' : 'text-zinc-300 group-hover:text-white font-normal'}`}>{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${on ? 'text-white' : (c.iconColor || 'text-slate-400 group-hover:text-white')}`} />
+                                <span className={`truncate ${on ? 'text-white font-bold' : 'text-slate-400 group-hover:text-white font-normal'}`}>{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors duration-150 ${
+                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors duration-150 font-bold ${
                                     on
-                                      ? 'bg-white text-zinc-900 font-bold shadow-2xs'
-                                      : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white font-normal'
+                                      ? 'bg-white/20 text-white'
+                                      : 'bg-sky-500/20 text-sky-300 group-hover:bg-sky-500/30'
                                   }`}
                                   title="Records waiting for review"
                                 >
@@ -395,16 +387,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       {/* Bottom Collapse Control (Desktop Only) */}
       {!isMobileView && (
-        <div className="relative z-10 p-3 border-t border-white/10 bg-black/10">
+        <div className="relative z-10 p-3 border-t border-white/10">
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-start gap-2.5 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs overflow-hidden"
+            className="w-full py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] active:bg-white/[0.15] text-slate-300 hover:text-white flex items-center justify-start gap-2.5 text-xs font-semibold cursor-pointer border border-white/10 transition-colors shadow-xs overflow-hidden"
           >
             <ChevronLeft
-              className={`w-4 h-4 text-white shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`w-4 h-4 text-slate-300 group-hover:text-white shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 collapsed ? 'rotate-180' : ''
               }`}
             />
