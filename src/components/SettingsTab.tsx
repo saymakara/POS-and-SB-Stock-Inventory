@@ -13,6 +13,7 @@ import {
 import { LogoPageTab } from './LogoPageTab';
 import { KpiRulesAdminSection } from './KpiRulesAdminSection';
 import { KpiTeamLeadsSection } from './KpiTeamLeadsSection';
+import { KhqrRetentionSection } from './KhqrRetentionSection';
 import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
 import SystemHealthPanel from './SystemHealthPanel';
 import {
@@ -1957,6 +1958,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         {/* SUBTAB 4: Data Backup, Export & Reset */}
         {activeSubTab === 'data' && (
           <div className="space-y-6">
+            {isAdminLike && <KhqrRetentionSection isSuperAdmin={role === 'SUPER_ADMIN'} toast={(msg) => onToast?.(msg)} />}   {/* (21 Nov 2026) KHQR data kept */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
               <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
