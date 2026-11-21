@@ -363,7 +363,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
         {/* Dual Concentric Activity Rings + Right-Side Ledger */}
         <div className="w-full flex flex-col @[425px]:flex-row items-center @[425px]:justify-between gap-4 @[425px]:gap-3 @[490px]:gap-5 @[570px]:gap-6">
-          <div className="relative w-[224px] h-[224px] @[425px]:w-[230px] @[425px]:h-[230px] @[490px]:w-[266px] @[490px]:h-[266px] @[570px]:w-[306px] @[570px]:h-[306px] @[640px]:w-[322px] @[640px]:h-[322px] shrink-0">
+          <div className="relative w-[216px] h-[216px] @[425px]:w-[222px] @[425px]:h-[222px] @[425px]:ml-1.5 @[490px]:w-[248px] @[490px]:h-[248px] @[490px]:ml-3 @[570px]:w-[272px] @[570px]:h-[272px] @[570px]:ml-7 @[640px]:w-[282px] @[640px]:h-[282px] @[640px]:ml-10 shrink-0">
             <svg
               viewBox="0 0 240 240"
               className="w-full h-full"
@@ -461,7 +461,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           </div>
 
           {/* Right Side Ledger Stack */}
-          <div className="w-full @[425px]:w-auto @[425px]:ml-auto @[490px]:pr-1 min-w-0 shrink-0 flex flex-col gap-3.5 @[490px]:gap-4.5 @[570px]:gap-5">
+          <div className="w-full @[425px]:w-auto @[425px]:ml-auto @[490px]:pr-2 @[570px]:pr-3 min-w-0 shrink-0 flex flex-col gap-3.5 @[490px]:gap-4.5 @[570px]:gap-5">
             <button
               type="button"
               data-kpi-comparison-row="actual"

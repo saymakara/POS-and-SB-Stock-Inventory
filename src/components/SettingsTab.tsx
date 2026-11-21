@@ -206,6 +206,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     });
   };
 
+  const handleRuleDeleted = (code: string) => {
+    setKpiRules((prev) => prev.filter((r) => r.code !== code));
+  };
+
   const handleTargetsSaved = (updated: KpiTargets) => {
     setKpiTargets(updated);
   };
@@ -677,6 +681,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 rules={kpiRules}
                 targets={kpiTargets}
                 onRuleSaved={handleRuleSaved}
+                onRuleDeleted={handleRuleDeleted}
                 onTargetsSaved={handleTargetsSaved}
                 toast={(msg) => onToast?.(msg)}
                 branches={branches}

@@ -569,6 +569,38 @@ export function patchCachedKpiRule(rule: KpiPointRule): void {
   });
 }
 
+export function removeCachedKpiRule(code: string): void {
+  if (cachedSettings) {
+    cachedSettings = {
+      ...cachedSettings,
+      rules: cachedSettings.rules.filter((r) => r.code !== code),
+    };
+  }
+  summaryCache.forEach((v, k) => {
+    summaryCache.set(k, {
+      ...v,
+      rules: v.rules.filter((r) => r.code !== code),
+    });
+  });
+  kpiBorn.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const storageKey = sessionStorage.key(i);
+      if (storageKey && storageKey.startsWith(SESSION_CACHE_PREFIX)) {
+        const raw = sessionStorage.getItem(storageKey);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as { rules?: KpiPointRule[]; targets?: KpiTargets; staff?: KpiStaffRaw[] };
+        if (Array.isArray(parsed.rules)) {
+          sessionStorage.setItem(
+            storageKey,
+            JSON.stringify({ ...parsed, rules: parsed.rules.filter((r) => r.code !== code) })
+          );
+        }
+      }
+    }
+  } catch { /* ignore storage errors */ }
+}
+
 export function patchCachedKpiTargets(targets: KpiTargets): void {
   if (cachedSettings) {
     cachedSettings = { ...cachedSettings, targets };
@@ -882,6 +914,12 @@ export async function saveKpiRuleOnServer(rule: {
   const mapped = mapRule(data);
   patchCachedKpiRule(mapped);
   return mapped;
+}
+
+export async function deleteKpiRuleOnServer(code: string): Promise<void> {
+  const { error } = await supabase.rpc('kpi_delete_rule', { p_code: code });
+  if (error) throw new Error(error.message);
+  removeCachedKpiRule(code);
 }
 
 export async function saveKpiTargetsOnServer(targets: {

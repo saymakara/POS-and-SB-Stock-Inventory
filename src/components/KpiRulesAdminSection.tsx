@@ -18,12 +18,15 @@ import {
   Search,
   Users,
   ClipboardList,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import {
   KpiPointRule,
   KpiTargets,
   KpiCategory,
   saveKpiRuleOnServer,
+  deleteKpiRuleOnServer,
   saveKpiTargetsOnServer,
 } from '../services/kpiService';
 import { Branch } from '../types';
@@ -57,6 +60,7 @@ export interface KpiRulesAdminSectionProps {
   rules: KpiPointRule[];
   targets: KpiTargets;
   onRuleSaved: (r: KpiPointRule) => void;
+  onRuleDeleted?: (code: string) => void;
   onTargetsSaved: (t: KpiTargets) => void;
   toast: (m: string) => void;
   branches?: Branch[];
@@ -67,7 +71,9 @@ interface KpiRuleRowProps {
   index: number;
   isAdmin: boolean;
   onSaveRule: (r: KpiPointRule, nextPoints?: number, nextActive?: boolean) => Promise<void>;
+  onRequestDelete: (r: KpiPointRule) => void;
   savingCode: string | null;
+  deletingCode: string | null;
 }
 
 const KpiRuleRow = memo(function KpiRuleRow({
@@ -75,7 +81,9 @@ const KpiRuleRow = memo(function KpiRuleRow({
   index,
   isAdmin,
   onSaveRule,
+  onRequestDelete,
   savingCode,
+  deletingCode,
 }: KpiRuleRowProps) {
   const [draft, setDraft] = useState(String(rule.points));
   useEffect(() => {
@@ -85,7 +93,7 @@ const KpiRuleRow = memo(function KpiRuleRow({
   const catStyle = CAT_COLORS[rule.category] || CAT_COLORS.Other;
   const CatIcon = catStyle.Icon;
   const changed = Number(draft) !== rule.points && !isNaN(Number(draft));
-  const busy = savingCode === rule.code;
+  const busy = savingCode === rule.code || deletingCode === rule.code;
 
   return (
     <tr className={`hover:bg-slate-50/70 transition-colors ${!rule.active ? 'opacity-60' : ''}`}>
@@ -146,16 +154,29 @@ const KpiRuleRow = memo(function KpiRuleRow({
       </td>
       {isAdmin && (
         <td className="py-2.5 px-3.5 text-right">
-          <button
-            type="button"
-            disabled={busy || !changed}
-            onClick={() => onSaveRule(rule, Math.max(0, Number(draft) || 0))}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
-              changed ? 'bg-[#003857] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
-            }`}
-          >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
-          </button>
+          <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <button
+              type="button"
+              disabled={busy || !changed}
+              onClick={() => onSaveRule(rule, Math.max(0, Number(draft) || 0))}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
+                changed ? 'bg-[#003857] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
+              }`}
+            >
+              {savingCode === rule.code ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onRequestDelete(rule)}
+              data-kpi-delete-rule={rule.code}
+              aria-label={`Delete ${rule.subCategory}`}
+              title={`Delete ${rule.subCategory} (${rule.code})`}
+              className="inline-flex items-center justify-center p-1.5 rounded-lg border border-rose-200/75 bg-rose-50/40 text-rose-600 hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 cursor-pointer transition"
+            >
+              {deletingCode === rule.code ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </td>
       )}
     </tr>
@@ -167,12 +188,15 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   rules,
   targets,
   onRuleSaved,
+  onRuleDeleted,
   onTargetsSaved,
   toast,
   branches = [],
 }: KpiRulesAdminSectionProps) {
   const [catFilter, setCatFilter] = useState<'ALL' | KpiCategory>('ALL');
   const [savingCode, setSavingCode] = useState<string | null>(null);
+  const [deletingCode, setDeletingCode] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<KpiPointRule | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newCat, setNewCat] = useState<KpiCategory>('POS Terminal');
@@ -338,6 +362,36 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       toast(`Could not save KPI rule: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSavingCode(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deletingCode) setDeleteTarget(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [deleteTarget, deletingCode]);
+
+  const handleConfirmDeleteRule = async () => {
+    if (!deleteTarget || deletingCode) return;
+    const target = deleteTarget;
+    setDeletingCode(target.code);
+    try {
+      await deleteKpiRuleOnServer(target.code);
+      onRuleDeleted?.(target.code);
+      setDeleteTarget(null);
+      toast(`Deleted KPI type "${target.subCategory}" (${target.code}).`);
+    } catch (e) {
+      toast(`Could not delete KPI type: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDeletingCode(null);
     }
   };
 
@@ -1023,13 +1077,97 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   index={i}
                   isAdmin={isAdmin}
                   onSaveRule={saveRule}
+                  onRequestDelete={setDeleteTarget}
                   savingCode={savingCode}
+                  deletingCode={deletingCode}
                 />
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-kpi-rule-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deletingCode) setDeleteTarget(null);
+          }}
+        >
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 id="delete-kpi-rule-title" className="text-sm font-bold text-slate-900">
+                    Delete KPI Type
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Permanent rule removal</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !deletingCode && setDeleteTarget(null)}
+                disabled={Boolean(deletingCode)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+                aria-label="Close delete dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3.5">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 text-xs space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-900 text-sm">{deleteTarget.subCategory}</span>
+                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border shrink-0 ${(CAT_COLORS[deleteTarget.category] || CAT_COLORS.Other).badge}`}>
+                    {deleteTarget.category}
+                  </span>
+                </div>
+                <div className="text-slate-600">
+                  Code: <span className="font-mono font-semibold text-slate-800">{deleteTarget.code}</span>
+                  {' · '}
+                  Weight: <span className="font-semibold text-slate-800 tabular-nums">{fmtPts(deleteTarget.points)} pts</span>{' '}
+                  <span className="text-slate-500">({deleteTarget.unit})</span>
+                </div>
+                {deleteTarget.description && (
+                  <div className="text-[11px] text-slate-500 leading-snug">{deleteTarget.description}</div>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This permanently removes <span className="font-semibold text-slate-800">{deleteTarget.subCategory}</span> from KPI Points &amp; Rules and stops counting it toward KPI points and tasks. Underlying activity submissions and the Audit Trail are preserved.
+              </p>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={Boolean(deletingCode)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-kpi-confirm-delete={deleteTarget.code}
+                onClick={handleConfirmDeleteRule}
+                disabled={Boolean(deletingCode)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                {deletingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deletingCode ? 'Deleting...' : 'Delete KPI Type'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 });
