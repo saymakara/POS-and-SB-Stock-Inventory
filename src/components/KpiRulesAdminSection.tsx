@@ -20,6 +20,7 @@ import {
   ClipboardList,
   AlertTriangle,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import {
   KpiPointRule,
@@ -28,6 +29,8 @@ import {
   saveKpiRuleOnServer,
   deleteKpiRuleOnServer,
   saveKpiTargetsOnServer,
+  syncKpiFromMerchantVisit,
+  type KpiSyncResult,
 } from '../services/kpiService';
 import { Branch } from '../types';
 import {
@@ -82,6 +85,8 @@ interface KpiRuleRowProps {
   onRequestDelete: (r: KpiPointRule) => void;
   savingCode: string | null;
   deletingCode: string | null;
+  /** Added by "Sync from Merchant Visit" in this session: highlighted until the points are set. */
+  isNew?: boolean;
 }
 
 const KpiRuleRow = memo(function KpiRuleRow({
@@ -92,6 +97,7 @@ const KpiRuleRow = memo(function KpiRuleRow({
   onRequestDelete,
   savingCode,
   deletingCode,
+  isNew,
 }: KpiRuleRowProps) {
   const [draft, setDraft] = useState(String(rule.points));
   useEffect(() => {
@@ -104,7 +110,7 @@ const KpiRuleRow = memo(function KpiRuleRow({
   const busy = savingCode === rule.code || deletingCode === rule.code;
 
   return (
-    <tr className={`hover:bg-slate-50/70 transition-colors ${!rule.active ? 'opacity-60' : ''}`}>
+    <tr className={`hover:bg-slate-50/70 transition-colors ${isNew ? 'bg-sky-50/70' : !rule.active ? 'opacity-60' : ''}`}>
       <td className="py-2.5 px-3.5 text-right tabular-nums text-slate-500">{index + 1}</td>
       <td className="py-2.5 px-3.5">
         <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-lg border ${catStyle.badge}`}>
@@ -112,7 +118,10 @@ const KpiRuleRow = memo(function KpiRuleRow({
         </span>
       </td>
       <td className="py-2.5 px-3.5 leading-tight">
-        <div className="text-slate-900" title={rule.code}>{rule.subCategory}</div>
+        <div className="text-slate-900" title={rule.code}>
+          {rule.subCategory}
+          {isNew && <span className="ml-1.5 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-700 border border-sky-200">New · set points</span>}
+        </div>
       </td>
       <td className="py-2.5 px-3.5 text-xs text-slate-600">
         <span className="inline-flex items-center gap-1.5">
@@ -205,6 +214,11 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const [savingCode, setSavingCode] = useState<string | null>(null);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KpiPointRule | null>(null);
+  // (22 Nov 2026) Sync from Merchant Visit: the preview, the "also bring back deleted" choice, and the tasks just added
+  const [syncPreview, setSyncPreview] = useState<KpiSyncResult | null>(null);
+  const [syncBusy, setSyncBusy] = useState<'' | 'check' | 'apply'>('');
+  const [syncIncludeDeleted, setSyncIncludeDeleted] = useState(false);
+  const [newlySynced, setNewlySynced] = useState<Set<string>>(new Set());
   const [showAdd, setShowAdd] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newCat, setNewCat] = useState<KpiCategory>('POS Terminal');
@@ -365,6 +379,14 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
         sortOrder: r.sortOrder,
       });
       onRuleSaved(saved);
+      if (saved.active && saved.points > 0) {
+        setNewlySynced((prev) => {
+          if (!prev.has(saved.code)) return prev;
+          const next = new Set(prev);
+          next.delete(saved.code);
+          return next;
+        });
+      }
       toast(`Saved ${saved.subCategory}: ${saved.points} pts (${saved.active ? 'Active' : 'Inactive'})`);
     } catch (e) {
       toast(`Could not save KPI rule: ${e instanceof Error ? e.message : String(e)}`);
@@ -400,6 +422,49 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       toast(`Could not delete KPI type: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDeletingCode(null);
+    }
+  };
+
+  const handleSyncCheck = async () => {
+    if (syncBusy) return;
+    setSyncBusy('check');
+    try {
+      const r = await syncKpiFromMerchantVisit(false);
+      if (!r.candidates.length && !r.deletedSkipped.length) {
+        toast(`Up to date: all ${r.activitiesChecked} Merchant Visit tasks already have a KPI task.`);
+      } else {
+        setSyncIncludeDeleted(false);
+        setSyncPreview(r);
+      }
+    } catch (e) {
+      toast(`Could not check Merchant Visit tasks: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncBusy('');
+    }
+  };
+
+  const handleSyncApply = async () => {
+    if (syncBusy || !syncPreview) return;
+    setSyncBusy('apply');
+    try {
+      const r = await syncKpiFromMerchantVisit(true, syncIncludeDeleted);
+      r.rules.forEach((rule) => onRuleSaved(rule));
+      setNewlySynced((prev) => {
+        const next = new Set(prev);
+        r.rules.filter((rule) => !rule.active || rule.points === 0).forEach((rule) => next.add(rule.code));
+        return next;
+      });
+      setSyncPreview(null);
+      if (r.rules.length) setCatFilter('ALL');
+      toast(
+        r.added
+          ? `Added ${r.added} KPI task(s) from Merchant Visit. New tasks start at 0 pts and Inactive: set the points, Save, then switch them to Active.`
+          : 'Nothing to add: the KPI tasks are already up to date.'
+      );
+    } catch (e) {
+      toast(`Could not sync KPI tasks: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncBusy('');
     }
   };
 
@@ -533,6 +598,18 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               );
             })}
           </div>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleSyncCheck}
+              disabled={Boolean(syncBusy)}
+              data-kpi-sync
+              title="Find Merchant Visit app tasks that have no KPI task yet and add them"
+              className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check' ? 'animate-spin' : ''}`} /> Sync from Merchant Visit
+            </button>
+          )}
           {isAdmin && (
             <button
               type="button"
@@ -1123,12 +1200,92 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   onRequestDelete={setDeleteTarget}
                   savingCode={savingCode}
                   deletingCode={deletingCode}
+                  isNew={newlySynced.has(r.code)}
                 />
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {syncPreview && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kpi-sync-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !syncBusy) setSyncPreview(null);
+          }}
+        >
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-700 shrink-0">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 id="kpi-sync-title" className="text-sm font-bold text-slate-900">Sync KPI tasks from Merchant Visit</h3>
+                  <p className="text-[11px] text-slate-500">
+                    {syncPreview.activitiesChecked} task type(s) in the app · {syncPreview.alreadyHaveRule} already have a KPI task
+                  </p>
+                </div>
+              </div>
+              <button type="button" aria-label="Close" disabled={Boolean(syncBusy)} onClick={() => setSyncPreview(null)}
+                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer disabled:opacity-50">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3 text-xs">
+              {syncPreview.candidates.length > 0 ? (
+                <>
+                  <p className="text-slate-600">
+                    These Merchant Visit tasks have <span className="font-semibold">no KPI task yet</span>, so they give no points today.
+                    They will be added at <span className="font-semibold">0 pts and Inactive</span>: no KPI total changes until you set the points and switch them on.
+                  </p>
+                  <ul className="rounded-xl border border-slate-200 divide-y divide-slate-100" data-kpi-sync-list>
+                    {syncPreview.candidates.map((c) => (
+                      <li key={c.code} className="px-3 py-2 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 truncate">{c.subCategory}</div>
+                          <div className="text-[11px] text-slate-500 font-mono truncate">{c.code} · {c.category}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-semibold text-slate-800 tabular-nums">{c.visits.toLocaleString('en-US')} visit(s)</div>
+                          {c.lastSeen && <div className="text-[11px] text-slate-500">last {new Date(c.lastSeen).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-slate-600">Every Merchant Visit task already has a KPI task, except the ones you deleted.</p>
+              )}
+              {syncPreview.deletedSkipped.length > 0 && (
+                <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2.5 cursor-pointer">
+                  <input type="checkbox" checked={syncIncludeDeleted} onChange={(e) => setSyncIncludeDeleted(e.target.checked)} className="mt-0.5" data-kpi-sync-include-deleted />
+                  <span className="text-amber-900">
+                    Also bring back {syncPreview.deletedSkipped.length} task(s) you deleted, with their old points and setting:{' '}
+                    <span className="font-semibold">{syncPreview.deletedSkipped.map((d) => d.subCategory).join(', ')}</span>
+                  </span>
+                </label>
+              )}
+            </div>
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setSyncPreview(null)} disabled={Boolean(syncBusy)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50 cursor-pointer">
+                Cancel
+              </button>
+              <button type="button" onClick={handleSyncApply} data-kpi-sync-apply
+                disabled={Boolean(syncBusy) || (!syncPreview.candidates.length && !syncIncludeDeleted)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#003857] hover:bg-[#002b44] disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer">
+                {syncBusy === 'apply' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                Add {syncPreview.candidates.length + (syncIncludeDeleted ? syncPreview.deletedSkipped.length : 0)} KPI task(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteTarget && (
         <div
@@ -1184,7 +1341,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                This permanently removes <span className="font-semibold text-slate-800">{deleteTarget.subCategory}</span> from KPI Points &amp; Rules and stops counting it toward KPI points and tasks. Underlying activity submissions and the Audit Trail are preserved.
+                This permanently removes <span className="font-semibold text-slate-800">{deleteTarget.subCategory}</span> from KPI Points &amp; Rules and stops counting it toward KPI points and tasks. Underlying activity submissions and the Audit Trail are preserved. &quot;Sync from Merchant Visit&quot; will not add it back unless you choose to.
               </p>
             </div>
 

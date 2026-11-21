@@ -928,6 +928,66 @@ export async function deleteKpiRuleOnServer(code: string): Promise<void> {
   emitPortalSync(['kpi'], { broadcast: true, skipInvalidate: true });
 }
 
+/** (22 Nov 2026) A Merchant Visit activity that has no KPI task yet (found by Sync). */
+export interface KpiSyncCandidate {
+  code: string;
+  activity: string;
+  subCategory: string;
+  category: KpiCategory;
+  visits: number;
+  lastSeen: string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+}
+export interface KpiSyncResult {
+  applied: boolean;
+  added: number;
+  candidates: KpiSyncCandidate[];
+  deletedSkipped: KpiSyncCandidate[];
+  activitiesChecked: number;
+  alreadyHaveRule: number;
+  rules: KpiPointRule[];
+}
+
+/**
+ * (22 Nov 2026) Sync KPI tasks from the Merchant Visit app (migration 20261122_02, Super Admin). `apply` false only lists the
+ * activities the app has sent that have no KPI task yet; `apply` true adds them (0 pts, inactive - a task deleted before comes
+ * back as it was when `includeDeleted`). Tasks you deleted are left out unless `includeDeleted`.
+ */
+export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = false): Promise<KpiSyncResult> {
+  const { data, error } = await supabase.rpc('kpi_sync_from_mv', { p: { apply, include_deleted: includeDeleted } });
+  if (error) {
+    if (/PGRST202|42883|does not exist|Could not find the function/i.test(error.message)) {
+      throw new Error('the server is not updated yet (run SQL 20261122_02)');
+    }
+    throw new Error(error.message);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = (data || {}) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cand = (e: any): KpiSyncCandidate => ({
+    code: String(e.code || ''),
+    activity: String(e.activity || ''),
+    subCategory: String(e.sub_category || e.activity || ''),
+    category: (e.category || 'Merchant Visit') as KpiCategory,
+    visits: Number(e.visits) || 0,
+    lastSeen: e.last_seen || null,
+    deletedAt: e.deleted_at || null,
+    deletedBy: e.deleted_by || null,
+  });
+  const rules = (Array.isArray(d.rules) ? d.rules : []).map(mapRule);
+  rules.forEach(patchCachedKpiRule);
+  return {
+    applied: !!d.applied,
+    added: Number(d.added) || 0,
+    candidates: (Array.isArray(d.new) ? d.new : []).map(cand),
+    deletedSkipped: (Array.isArray(d.deleted_skipped) ? d.deleted_skipped : []).map(cand),
+    activitiesChecked: Number(d.activities_checked) || 0,
+    alreadyHaveRule: Number(d.already_have_rule) || 0,
+    rules,
+  };
+}
+
 export async function saveKpiTargetsOnServer(targets: {
   branchDailyTarget: number;
   branchWeeklyTarget: number;
