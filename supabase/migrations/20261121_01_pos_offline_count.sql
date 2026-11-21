@@ -4,13 +4,15 @@
 -- Until now the phone app sent POS Offline Count (POC-) entries to Merchant Visits only (no stock moves), so they never
 -- appeared on the POS Terminal page with the other POS tasks. This file adds a 7th POS record type, POS_OFFLINE:
 --   * the phone app (Merchant Visit 4.10.2) sends each POS of an Offline Count entry here, like Operational Support;
---   * an Offline Count has no serial number (the form asks Terminal Name, MID, TID only), so the serial checks are skipped;
---     the review shows a warning only when the TID is not on an installed POS terminal in the inventory, or its MID
---     differs (same rules as the other POS visits - the reviewer confirms and approves). Checked 21 Nov: the 23 existing
---     Offline Count terminals are not in the inventory yet (older terminals), so they show that warning;
---   * Approve moves NO stock: it marks the record reviewed and adds a line to that terminal's history (found by its TID);
---   * KPI: unchanged (no KPI rule uses Offline Count; the KPI does not read this new type).
---   * The 23 Offline Count entries already in Merchant Visits are copied here as Waiting (they also stay in Merchant
+--   * NO APPROVAL NEEDED (owner, 21 Nov 2026): an Offline Count is a record only - it is saved as Approved the moment it
+--     arrives ("Recorded automatically - no approval needed"), never waits in Waiting, and moves NO stock;
+--   * an edit in the phone app replaces its line (the earlier one becomes Superseded); a deletion in the phone app takes it
+--     off the page (Cancelled) - as for the other types;
+--   * no serial number (the form asks Terminal Name, MID, TID only), so the serial checks are skipped; a note shows when
+--     the TID is not on an installed POS terminal in the inventory, or its MID differs (for information only). Checked
+--     21 Nov: the 23 existing Offline Count terminals are not in the inventory yet (older terminals);
+--   * KPI: unchanged (no KPI rule uses Offline Count; the KPI does not read this new type);
+--   * the 23 Offline Count entries already in Merchant Visits are copied here, as Approved (they also stay in Merchant
 --     Visits - nothing is deleted).
 -- Safe to run twice. Run it BEFORE installing Merchant Visit 4.10.2 (otherwise new Offline Count entries wait in the app's
 -- send queue until this is run - nothing is lost).
@@ -33,7 +35,7 @@ begin
     select * into d from public.devices where tid = p_tid and type = 'POS Terminal' and stage = 'COMPLETE'
      order by (coalesce(mid, '') = coalesce(p_mid, '')) desc limit 1;
     if not found then
-      v := v || jsonb_build_object('code', 'TID_UNKNOWN', 'level', 'warn', 'text', 'TID ' || p_tid || ' is not on an installed POS terminal in the inventory (approving still works - it just cannot add a line to the terminal''s history).');
+      v := v || jsonb_build_object('code', 'TID_UNKNOWN', 'level', 'warn', 'text', 'TID ' || p_tid || ' is not on an installed POS terminal in the inventory (for information - nothing to do).');
     elsif coalesce(p_mid, '') <> '' and coalesce(d.mid, '') <> '' and d.mid <> p_mid then
       v := v || jsonb_build_object('code', 'MID_MISMATCH', 'level', 'warn', 'text', 'The inventory has MID ' || d.mid || ' for TID ' || p_tid || ', not ' || p_mid || '.');
     end if;
@@ -88,7 +90,60 @@ E'  elsif e.kind = ''POS_OFFLINE'' then                                      -- 
   end if;
 end $mig$;
 
--- 4. The Offline Count entries already in Merchant Visits: copied here as Waiting (one line per POS of the entry) ----------
+-- 3d. A deletion in the phone app (or a POS removed from the entry) also takes an automatic Offline Count off the page
+do $mig2$
+declare d text; n text;
+begin
+  d := pg_get_functiondef('public.field_sync_record(jsonb)'::regprocedure);
+  if position('reviewed_by is null' in d) = 0 then
+    n := replace(d, $a$where source_record_id = v_rec and status = 'PENDING';$a$,
+      $a$where source_record_id = v_rec and (status = 'PENDING' or (kind = 'POS_OFFLINE' and status = 'APPROVED' and reviewed_by is null));$a$);
+    n := replace(n, $a$where source_record_id = v_rec and status = 'PENDING' and not (unit_no = any(v_units));$a$,
+      $a$where source_record_id = v_rec and (status = 'PENDING' or (kind = 'POS_OFFLINE' and status = 'APPROVED' and reviewed_by is null)) and not (unit_no = any(v_units));$a$);
+    if (length(n) - length(replace(n, 'reviewed_by is null', ''))) / length('reviewed_by is null') <> 2 then   -- both found
+      raise exception 'field_sync_record: the two "cancel" steps were not found as expected - not changed';
+    end if;
+    execute n;
+  end if;
+end $mig2$;
+
+-- 3e. No approval needed: an Offline Count is saved as Approved the moment it arrives (no stock move). An automatic approval
+--     has no reviewer (reviewed_by is null); an admin's approval always has one.
+create or replace function app.field_offline_auto() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.kind = 'POS_OFFLINE' and new.status = 'PENDING' then
+    new.status := 'APPROVED';
+    new.reviewed_by := null; new.reviewed_by_name := null; new.reviewed_at := now();
+    new.review_note := 'Recorded automatically - no approval needed';
+    new.applied := jsonb_build_object('offline_count', to_char(new.recorded_at at time zone 'Asia/Phnom_Penh', 'YYYY-MM-DD'));
+    new.issues := (select coalesce(jsonb_agg(i), '[]'::jsonb) from jsonb_array_elements(coalesce(new.issues, '[]'::jsonb)) i
+                    where i->>'code' <> 'EDITED_AFTER_REVIEW');      -- (an edit from the phone app is normal here)
+  end if;
+  return new;
+end $$;
+revoke all on function app.field_offline_auto() from public, anon, authenticated;
+create or replace function app.field_offline_superseded() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.kind = 'POS_OFFLINE' then                                   -- an edit from the phone app: the earlier line is replaced
+    update public.field_events set status = 'SUPERSEDED', updated_at = now()
+     where source_record_id = new.source_record_id and unit_no = new.unit_no and revision < new.revision
+       and (status = 'PENDING' or (status = 'APPROVED' and reviewed_by is null));
+  end if;
+  return null;
+end $$;
+revoke all on function app.field_offline_superseded() from public, anon, authenticated;
+drop trigger if exists field_offline_auto on public.field_events;       -- (runs after block_deleted_record: triggers go by name)
+create trigger field_offline_auto before insert on public.field_events for each row execute function app.field_offline_auto();
+drop trigger if exists field_offline_superseded on public.field_events;
+create trigger field_offline_superseded after insert on public.field_events for each row execute function app.field_offline_superseded();
+-- (an Offline Count still waiting from before this file - none expected - is approved now)
+update public.field_events set status = 'APPROVED', reviewed_at = now(), review_note = 'Recorded automatically - no approval needed',
+       applied = jsonb_build_object('offline_count', to_char(recorded_at at time zone 'Asia/Phnom_Penh', 'YYYY-MM-DD'))
+ where kind = 'POS_OFFLINE' and status = 'PENDING';
+
+-- 4. The Offline Count entries already in Merchant Visits: copied here (saved as Approved - 3e; one line per POS) --------
 with v as (
   select * from public.mv_visits m
    where m.activity = 'POS Offline Count'

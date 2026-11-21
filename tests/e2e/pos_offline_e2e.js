@@ -19,11 +19,11 @@ const state = { devices: [dev('WP0001', 'BRANCH_RESERVE', '105', { row_version: 
     remarks: '', payload: { unit: { serial_input: 'SCAN', mid_input: 'TYPED' } }, issues: [], status: 'PENDING', received_at: '2026-11-21T02:01:00Z' },
     { id: 21, source_record_id: 'POC-20261121-0001', unit_no: 1, revision: 1, kind: 'POS_OFFLINE', device_type: 'POS Terminal', serial: '', mid: '200100000000001', tid: '00000001',
       terminal_name: 'Lucky Mart', outlet_name: 'Lucky Mart', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF002', staff_name: 'Chan Dara', recorded_at: '2026-11-21T10:00:00+07:00',
-      payload: { entry: { summary: 'POS Offline Count' }, unit: { unit_no: 1 } }, issues: [], status: 'PENDING', received_at: '2026-11-21T03:00:00Z' },
+      payload: { entry: { summary: 'POS Offline Count' }, unit: { unit_no: 1 } }, issues: [], status: 'APPROVED', reviewed_at: '2026-11-21T03:00:01Z', review_note: 'Recorded automatically - no approval needed', received_at: '2026-11-21T03:00:00Z' },
     { id: 22, source_record_id: 'POC-20261121-0002', unit_no: 1, revision: 1, kind: 'POS_OFFLINE', device_type: 'POS Terminal', serial: '', mid: '222031054110722', tid: '54110722',
       terminal_name: 'Old Cafe', outlet_name: 'Old Cafe', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF002', staff_name: 'Chan Dara', recorded_at: '2026-11-21T11:00:00+07:00',
       payload: { entry: { summary: 'POS Offline Count' }, unit: { unit_no: 1 } },
-      issues: [{ code: 'TID_UNKNOWN', level: 'warn', text: 'TID 54110722 is not on an installed POS terminal in the inventory (approving still works - it just cannot add a line to the terminal\'s history).' }], status: 'PENDING', received_at: '2026-11-21T04:00:00Z' }],
+      issues: [{ code: 'TID_UNKNOWN', level: 'warn', text: 'TID 54110722 is not on an installed POS terminal in the inventory (for information - nothing to do).' }], status: 'APPROVED', reviewed_at: '2026-11-21T04:00:01Z', review_note: 'Recorded automatically - no approval needed', received_at: '2026-11-21T04:00:00Z' }],
   calls: [], saved: [], audit: [] };
 
 // PostgREST-like reading: order by the key, "key=gt.X", offset/limit, at most MAX_ROWS rows, count=exact
@@ -132,31 +132,21 @@ async function api(route) {
   await p.goto('http://127.0.0.1:8500/index.html'); await sleep(1500);
   await p.fill('#empId', '8986'); await p.fill('#pw', 'Secret123'); await p.click('button[type=submit]'); await sleep(3000);
   await p.click('text=Merchant App Review'); await sleep(1800);
-  const txt = await p.textContent('body');
+  let txt = (await p.textContent('body')).replace(/\s+/g, ' ');
   ok(/POS offline count/.test(txt), 'POS Terminal page has a "POS offline count" card');
-  ok(/POS offline count\s*2 waiting/.test(txt.replace(/\s+/g, ' ')), 'the card counts the 2 waiting Offline Counts');
-  ok(/Waiting \(3\)|Waiting\s*3/.test(txt), 'Waiting lists the installation and both Offline Counts');
-  ok(/TID 00000001/.test(txt) && /TID 54110722/.test(txt), 'an Offline Count line shows its TID where the serial would be (no serial in this form)');
-  ok(await p.locator('button[aria-label="Select TID 00000001"]').count() === 1, 'selecting it is named by its TID (not an empty serial)');
-  // the type filter offers it
-  const opts = await p.evaluate(() => [...document.querySelectorAll('select option, [role=option]')].map((o) => o.textContent).join('|'));
-  ok(/POS offline count/i.test(opts) || /POS offline count/.test(txt), 'the record type filter / labels include POS offline count');
-  // approve the one without warnings: no "stock updated", stock not touched
-  const before = JSON.stringify(state.devices);
+  ok(/POS offline count\s*2 approved/.test(txt) && !/POS offline count\s*\d+ waiting/.test(txt), 'the card: 2 approved, none waiting (no approval needed)');
+  ok(/Offline counts need no approval/.test(txt), 'the page says offline counts need no approval');
+  ok(/Waiting\s*\(?1\)?/.test(txt) && !/TID 00000001/.test(txt), 'Waiting lists only the installation - Offline Counts never wait');
+  await p.getByRole('button', { name: /^Approved/ }).first().click(); await sleep(1200);
+  txt = (await p.textContent('body')).replace(/\s+/g, ' ');
+  ok(/TID 00000001/.test(txt) && /TID 54110722/.test(txt), 'Approved lists both Offline Counts, each showing its TID where the serial would be');
+  ok(await p.locator('button[aria-label="Select TID 00000001"]').count() <= 1, 'a line is named by its TID (not an empty serial)');
   const card = (t) => p.locator('div.border-b', { hasText: t }).last();
-  await card('TID 00000001').getByRole('button', { name: 'Manage', exact: true }).click(); await sleep(400);
-  await card('TID 00000001').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(1500);
-  ok(state.approve && state.approve.p_id === 21, 'Approve sends the Offline Count to the database (field_approve ' + JSON.stringify(state.approve) + ')');
-  const msg = await p.textContent('[role=status]').catch(() => '');
-  ok(/Approved · TID 00000001/.test(msg) && !/stock updated/.test(msg), 'message: "Approved · TID 00000001" (an offline count moves no stock) [' + msg + ']');
-  ok(JSON.stringify(state.devices) === before, 'no stock change in the portal after approving an Offline Count');
-  // the one with a warning needs the confirm tick, like the other POS records
-  await card('TID 54110722').getByRole('button', { name: 'Manage', exact: true }).click(); await sleep(400);
-  ok(/is not on an installed POS terminal in the inventory/.test(await card('TID 54110722').first().textContent()), 'its warning is shown in the details');
-  await card('TID 54110722').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(600);
-  ok(/checked the warnings/.test(await p.textContent('body')), 'with a warning: approval needs the "I checked the warnings" box');
-  await card('TID 54110722').getByLabel('I checked the warnings').check(); await card('TID 54110722').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(1500);
-  ok(state.approve.p_id === 22 && state.approve.p_opt.acknowledge === true && state.events[2].status === 'APPROVED', 'approved after confirming the warning ' + JSON.stringify(state.approve));
+  await card('TID 54110722').locator('button[aria-expanded]').first().click(); await sleep(700);
+  const det = (await card('TID 54110722').textContent()).replace(/\s+/g, ' ');
+  ok(/Recorded automatically - no approval needed/.test(det), 'its details: "Approved · … · Recorded automatically - no approval needed"');
+  ok(/for information - nothing to do/.test(det), 'the TID note is for information only');
+  ok(!state.approve, 'nothing was sent to approve (no approval step)');
   ok(!errs.length, 'no page errors ' + errs.join(' | '));
   await b.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);
