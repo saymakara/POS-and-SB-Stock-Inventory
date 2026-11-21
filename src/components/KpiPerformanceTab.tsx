@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  Bar, Cell, Line, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
+  Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -2686,7 +2686,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns + Emerald Active Staff Overlay */}
+            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns */}
             <div
               data-testid="kpi-velocity-chart-card"
               className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
@@ -2695,12 +2695,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="text-[13px] font-semibold text-slate-900">
-                      {isTaskMode ? 'KPI Task Velocity & Active Staff' : 'KPI Point Velocity & Active Staff'}
+                      {isTaskMode ? 'KPI Task Velocity' : 'KPI Point Velocity'}
                     </h3>
                     <p className="text-[11px] text-slate-500">
                       {granularity === 'daily'
-                        ? (isTaskMode ? 'Daily task bars with smooth active-staff overlay' : 'Daily point bars with smooth active-staff overlay')
-                        : (isTaskMode ? 'Task bars with smooth active-staff overlay across period' : 'Point bars with smooth active-staff overlay across period')}
+                        ? (isTaskMode ? 'Daily task volume output' : 'Daily point velocity output')
+                        : (isTaskMode ? 'Task volume output across period' : 'Point velocity output across period')}
                     </p>
                   </div>
 
@@ -2776,13 +2776,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <span className="w-2.5 h-2.5 rounded-[3px] bg-[#155484] inline-block" aria-hidden />
                       <span>{isTaskMode ? 'Total Tasks (bars)' : 'Total Points (bars)'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-gray-700">
-                      <svg className="w-5 h-2.5 shrink-0" viewBox="0 0 20 10" aria-hidden>
-                        <line x1="1" y1="5" x2="19" y2="5" stroke="#374151" strokeWidth="2.2" strokeDasharray="4 3" strokeLinecap="round" />
-                        <circle cx="10" cy="5" r="2.3" fill="#ffffff" stroke="#374151" strokeWidth="1.6" />
-                      </svg>
-                      <span>Active Staff (line)</span>
-                    </span>
                     {velocitySummary.peakLabel && (
                       <span className="inline-flex items-center gap-1.5 text-teal-700">
                         <span className="w-2.5 h-2.5 rounded-[3px] bg-teal-600 inline-block" aria-hidden />
@@ -2799,7 +2792,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </div>
                   ) : (
                     <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 24, right: 6, left: -12, bottom: 0 }}>
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 24, right: 4, left: -14, bottom: 0 }}>
                         <defs>
                           <linearGradient id="kpiVelocityBarGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#155484" />
@@ -2815,7 +2808,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           dataKey="label"
                           axisLine={{ stroke: '#cbd5e1' }}
                           tickLine={false}
-                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tick={{ fontSize: 10, fill: '#64748b' }}
                           dy={4}
                           interval={granularity === 'daily' ? 0 : Math.max(0, Math.ceil(chronologicalTimeSeries.length / 15) - 1)}
                         />
@@ -2825,14 +2818,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tickLine={false}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
-                        />
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 11, fill: '#4b5563' }}
-                          width={32}
                         />
                         <Tooltip
                           content={<CustomTrendTooltip metricMode={metricMode} />}
@@ -2890,35 +2875,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             return <Cell key={`bar-${row.period}`} fill={fill} />;
                           })}
                         </Bar>
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="activeStaff"
-                          name="Active Staff"
-                          stroke="#374151"
-                          strokeWidth={2.2}
-                          strokeDasharray="6 4"
-                          strokeLinecap="round"
-                          dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
-                            const val = Number(dotProps.value || 0);
-                            if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
-                              return <g key={`st-empty-${dotProps.index}`} />;
-                            }
-                            return (
-                              <circle
-                                key={`st-dot-${dotProps.index}`}
-                                cx={dotProps.cx}
-                                cy={dotProps.cy}
-                                r={3}
-                                fill="#ffffff"
-                                stroke="#374151"
-                                strokeWidth={1.8}
-                              />
-                            );
-                          }}
-                          activeDot={{ r: 5.2, fill: '#374151', stroke: '#ffffff', strokeWidth: 2.2 }}
-                          isAnimationActive={false}
-                        />
                       </ComposedChart>
                     )}</MeasuredChart>
                   )}
