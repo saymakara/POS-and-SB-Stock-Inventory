@@ -38,6 +38,14 @@ import {
 } from '../utils/kpiManagementUtils';
 import { getCachedStaff } from '../services/staffCache';
 import { RAW_BRANCHES } from '../data/initialData';
+import {
+  PillMotion,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+} from './PillMotion';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
 
 export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
@@ -498,19 +506,32 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-[11px] gap-0.5">
-            {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit'] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCatFilter(c)}
-                className={`px-2.5 py-1 rounded-lg cursor-pointer transition ${
-                  catFilter === c ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {c === 'ALL' ? 'All categories' : c}
-              </button>
-            ))}
+          <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-[11px] flex-wrap`} role="tablist" aria-label="KPI category filter">
+            {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit'] as const).map((c) => {
+              const active = catFilter === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setCatFilter(c)}
+                  className={`relative px-2.5 py-1 rounded-full cursor-pointer transition-colors whitespace-nowrap ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                  }`}
+                >
+                  {active && (
+                    <PillMotion
+                      layoutId="kpi-rules-cat-pill"
+                      aria-hidden
+                      transition={SPRING_TAB_PILL}
+                      className={CAPSULE_PILL_CLS}
+                    />
+                  )}
+                  <span className="relative z-10">{c === 'ALL' ? 'All categories' : c}</span>
+                </button>
+              );
+            })}
           </div>
           {isAdmin && (
             <button
@@ -646,28 +667,36 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   <span>Work Days in Month</span>
                 </label>
                 {isAdmin && (
-                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px] gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleScheduleModeChange('mon_fri')}
-                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'mon_fri' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Mon–Fri (22d)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleScheduleModeChange('mon_sat')}
-                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'mon_sat' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Mon–Sat (26d)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleScheduleModeChange('custom')}
-                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'custom' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Custom
-                    </button>
+                  <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-[10.5px] shrink-0`} role="tablist" aria-label="Working days mode">
+                    {([
+                      { id: 'mon_fri' as const, label: 'Mon–Fri (22d)' },
+                      { id: 'mon_sat' as const, label: 'Mon–Sat (26d)' },
+                      { id: 'custom' as const, label: 'Custom' },
+                    ]).map(({ id, label }) => {
+                      const active = tForm.workingDaysMode === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => handleScheduleModeChange(id)}
+                          className={`relative px-2 py-0.5 rounded-full cursor-pointer transition-colors whitespace-nowrap ${
+                            active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                          }`}
+                        >
+                          {active && (
+                            <PillMotion
+                              layoutId="kpi-rules-workdays-pill"
+                              aria-hidden
+                              transition={SPRING_TAB_PILL}
+                              className={CAPSULE_PILL_CLS}
+                            />
+                          )}
+                          <span className="relative z-10">{label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -696,21 +725,35 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[11px] font-semibold text-slate-700">Public Holidays</label>
                 {isAdmin ? (
-                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px] gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: true }))}
-                      className={`px-2 py-0.5 rounded cursor-pointer transition ${tForm.excludeHolidays ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Exclude Holidays
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: false }))}
-                      className={`px-2 py-0.5 rounded cursor-pointer transition ${!tForm.excludeHolidays ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      Include Holidays
-                    </button>
+                  <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-[10.5px] shrink-0`} role="tablist" aria-label="Public holidays mode">
+                    {([
+                      { id: true, label: 'Exclude Holidays' },
+                      { id: false, label: 'Include Holidays' },
+                    ] as const).map(({ id, label }) => {
+                      const active = tForm.excludeHolidays === id;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: id }))}
+                          className={`relative px-2 py-0.5 rounded-full cursor-pointer transition-colors whitespace-nowrap ${
+                            active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                          }`}
+                        >
+                          {active && (
+                            <PillMotion
+                              layoutId="kpi-rules-holidays-pill"
+                              aria-hidden
+                              transition={SPRING_TAB_PILL}
+                              className={CAPSULE_PILL_CLS}
+                            />
+                          )}
+                          <span className="relative z-10">{label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">

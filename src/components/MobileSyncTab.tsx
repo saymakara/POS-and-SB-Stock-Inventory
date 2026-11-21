@@ -1405,37 +1405,40 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <RefreshCw className="w-3 h-3 text-amber-500" />
                         <span>Physical Hardware Return Destination</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          type="button"
-                          onClick={() => setMobileTerminateDestination('BRANCH_RESERVE')}
-                          className={`px-2 py-1.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                            mobileTerminateDestination === 'BRANCH_RESERVE'
-                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                              : isLight
-                              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                              : 'bg-black/40 hover:bg-black/60 text-slate-300 border-white/10'
-                          }`}
-                        >
-                          <Building2 className="w-3.5 h-3.5" />
-                          <span>Branch Reserve</span>
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          type="button"
-                          onClick={() => setMobileTerminateDestination('HQ_STOCK')}
-                          className={`px-2 py-1.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                            mobileTerminateDestination === 'HQ_STOCK'
-                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                              : isLight
-                              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                              : 'bg-black/40 hover:bg-black/60 text-slate-300 border-white/10'
-                          }`}
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Admin HQ Stock</span>
-                        </motion.button>
+                      <div
+                        className="relative grid grid-cols-2 p-0.5 rounded-full bg-slate-200/75 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-0.5 select-none"
+                        role="tablist"
+                        aria-label="Physical hardware return destination"
+                      >
+                        {([
+                          { id: 'BRANCH_RESERVE' as const, label: 'Branch Reserve', Icon: Building2 },
+                          { id: 'HQ_STOCK' as const, label: 'Admin HQ Stock', Icon: RotateCcw },
+                        ]).map(({ id, label, Icon }) => {
+                          const active = mobileTerminateDestination === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              role="tab"
+                              aria-selected={active}
+                              onClick={() => setMobileTerminateDestination(id)}
+                              className={`relative px-2 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                              }`}
+                            >
+                              {active && (
+                                <PillMotion
+                                  layoutId="mobile-terminate-dest-pill"
+                                  aria-hidden
+                                  transition={SPRING_TAB_PILL}
+                                  className={CAPSULE_PILL_CLS}
+                                />
+                              )}
+                              <Icon className="relative z-10 w-3.5 h-3.5 shrink-0" aria-hidden />
+                              <span className="relative z-10">{label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                       <div className="text-[10px] mt-1.5 opacity-80">
                         Device will decouple from {merchantName || 'merchant'} and return to{' '}
