@@ -8,7 +8,7 @@ import {
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, Copy, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw, WifiOff } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, Copy, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw, WifiOff, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -47,11 +47,16 @@ import { todayPP } from '../utils/time';
  * in the background, and new records from the phone app appear live.
  */
 
-const KIND_LABEL: Record<FieldEvent['kind'], string> = {
+/** (21 Nov 2026, owner) The record type as shown: SB Maintenance (phone app form "SB Maintenance", Record ID SBM-) has its own
+ *  card, apart from SB Operational Support (SBO-). Both are SB_MAINT in the database (same review, same approval). */
+type ViewKind = FieldEvent['kind'] | 'SB_MAINTENANCE';
+const viewKind = (e: FieldEvent): ViewKind => (e.kind === 'SB_MAINT' && /^SBM-/i.test(String(e.sourceRecordId || '')) ? 'SB_MAINTENANCE' : e.kind);
+const KIND_LABEL: Record<ViewKind, string> = {
   INSTALL: 'Installation',
   REPLACE: 'Replacement',
   BATTERY: 'Battery replacement',
-  SB_MAINT: 'Sound Box operational support',
+  SB_MAINT: 'SB operational support',
+  SB_MAINTENANCE: 'SB maintenance',
   SB_RETURN: 'Sound Box returned',
   POS_MAINT: 'POS operational support',
   POS_INACTIVE: 'POS in-active maintenance',
@@ -74,6 +79,7 @@ const KIND_CARD_META: Record<
   POS_OFFLINE: { icon: WifiOff, iconCls: 'bg-slate-100 text-slate-600 border-slate-200/80' },   // (21 Nov 2026) no stock move
   SB_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
   SB_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
+  SB_MAINTENANCE: { icon: Settings2, iconCls: 'bg-teal-50 text-teal-600 border-teal-200/80' },
 };
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 const formatKindSummarySub = (stat?: { total: number; pending: number; approved: number; rejected: number }) => {
@@ -93,11 +99,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
-type RecordTypeFilter = 'ALL' | FieldEvent['kind'] | 'INSTALL_INTEG';
+type RecordTypeFilter = 'ALL' | ViewKind | 'INSTALL_INTEG';
 /** (21 Nov 2026) Integrated Installation: an Installation the phone app marked "Integrated Installation" (payload.entry.request_type,
  *  Merchant Visit 4.10.2; older ones tagged once by the app). Only a filter - it is still an Installation everywhere else. */
 const isIntegrated = (e: FieldEvent) => e.kind === 'INSTALL' && /^integrated/i.test(String(e.payload?.entry?.request_type || ''));
-const kindMatches = (e: FieldEvent, f: RecordTypeFilter) => f === 'ALL' || (f === 'INSTALL_INTEG' ? isIntegrated(e) : e.kind === f);
+const kindMatches = (e: FieldEvent, f: RecordTypeFilter) => f === 'ALL' || (f === 'INSTALL_INTEG' ? isIntegrated(e) : viewKind(e) === f);
 const DOT = { 'POS Terminal': 'bg-[#184e77]', 'Sound Box': 'bg-[#4F518C]' } as const;
 /** POS Terminal unless the record says Sound Box (the same rule as the row label) */
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => normalizeFieldDeviceType(e.deviceType);
@@ -638,7 +644,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       if (effectiveType && devType(e) !== effectiveType) return;
       if (e.status !== 'APPROVED' && e.status !== 'PENDING' && e.status !== 'REJECTED') return;
       total++;
-      const bucket = byKind[e.kind] || (byKind[e.kind] = { total: 0, pending: 0, approved: 0, rejected: 0 });
+      const vk = viewKind(e), bucket = byKind[vk] || (byKind[vk] = { total: 0, pending: 0, approved: 0, rejected: 0 });
       bucket.total++;
       if (e.status === 'PENDING') bucket.pending++;
       else if (e.status === 'APPROVED') bucket.approved++;
@@ -666,16 +672,16 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [events, pendingReady, regionsReady, pendingByType, onPendingCountChange]);
 
   const availableKinds = useMemo(() => {
-    const defaultKinds: FieldEvent['kind'][] =
+    const defaultKinds: ViewKind[] =
       deviceType === 'POS Terminal'
         ? ['INSTALL', 'REPLACE', 'BATTERY', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'POS_OFFLINE']
         : deviceType === 'Sound Box'
-        ? ['INSTALL', 'REPLACE', 'SB_MAINT', 'SB_RETURN']
-        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'POS_OFFLINE'];
-    const dynamicKinds = new Set<FieldEvent['kind']>(defaultKinds);
+        ? ['INSTALL', 'REPLACE', 'SB_RETURN', 'SB_MAINT', 'SB_MAINTENANCE']
+        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_MAINTENANCE', 'SB_RETURN', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'POS_OFFLINE'];
+    const dynamicKinds = new Set<ViewKind>(defaultKinds);
     (scoped || []).forEach((e) => {
       if (deviceType && devType(e) !== deviceType) return;
-      if (e.kind) dynamicKinds.add(e.kind);
+      if (e.kind) dynamicKinds.add(viewKind(e));
     });
     return Array.from(dynamicKinds);
   }, [scoped, deviceType]);
@@ -699,8 +705,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       if (filter !== 'ALL' && e.status !== filter) continue;
       if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
       c.ALL++;
-      if (c[e.kind] !== undefined) c[e.kind]++;
-      else c[e.kind] = 1;
+      const vk = viewKind(e);
+      if (c[vk] !== undefined) c[vk]++;
+      else c[vk] = 1;
       if (isIntegrated(e)) c.INSTALL_INTEG = (c.INSTALL_INTEG || 0) + 1;
     }
     return c;
@@ -755,7 +762,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType,
-    kind: (e) => KIND_LABEL[e.kind],
+    kind: (e) => KIND_LABEL[viewKind(e)],
     serial: (e) => e.serial,
     merchant: (e) => e.terminalName || e.outletName,
     branch: (e) => e.branchText,
@@ -793,7 +800,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       ['Record ID', 'Device No', 'Revision', 'Date Sent', 'Recorded At', 'Device Type', 'Record Type', 'Serial', 'Old Serial', 'Old Battery', 'New Battery',
         'MID', 'TID', 'Terminal Name', 'Outlet Name', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Latitude', 'Longitude', 'Warnings',
         'Status', 'Reviewed By', 'Reviewed At', 'Review Note', 'Remarks'],
-      list.map((e) => [e.sourceRecordId, e.unitNo, e.revision, csvTime(e.receivedAt), csvTime(e.recordedAt), devType(e), KIND_LABEL[e.kind] || e.kind,
+      list.map((e) => [e.sourceRecordId, e.unitNo, e.revision, csvTime(e.receivedAt), csvTime(e.recordedAt), devType(e), KIND_LABEL[viewKind(e)] || e.kind,
         e.serial, e.oldSerial, e.oldBattery, e.newBattery, e.mid, e.tid, e.terminalName, e.outletName, e.staffId, e.staffName, e.branchText, e.branchId,
         e.latitude, e.longitude, (e.issues || []).map((i) => i.text).join(' | '), STATUS_LABEL[e.status] || e.status, e.reviewedByName,
         csvTime(e.reviewedAt), e.reviewNote, e.remarks]));
@@ -1686,7 +1693,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           source="FIELD"
           rowId={editing.id}
           title={`Edit ${editing.sourceRecordId}${editing.unitNo > 1 ? ' · device ' + editing.unitNo : ''}`}
-          sub={`${editing.deviceType} · ${KIND_LABEL_EDIT[editing.kind] || editing.kind} · ${editing.status === 'APPROVED' ? 'Approved' : editing.status === 'PENDING' ? 'Pending' : editing.status.charAt(0) + editing.status.slice(1).toLowerCase()}`}
+          sub={`${editing.deviceType} · ${KIND_LABEL_EDIT[viewKind(editing)] || editing.kind} · ${editing.status === 'APPROVED' ? 'Approved' : editing.status === 'PENDING' ? 'Pending' : editing.status.charAt(0) + editing.status.slice(1).toLowerCase()}`}
           fields={fieldEditFields(editing)}
           note="Saved in the portal at once, and written to the same row of the Merchant Visit Google Sheet within a few minutes."
           onClose={() => setEditing(null)}
@@ -1698,7 +1705,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   );
 };
 const KIND_LABEL_EDIT: Record<string, string> = { INSTALL: 'New Installation', REPLACE: 'Replacement', BATTERY: 'Battery Replacement', SB_MAINT: 'Sound Box Operational Support',
-  SB_RETURN: 'Return', POS_MAINT: 'POS Operational Support', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate', POS_OFFLINE: 'POS Offline Count' };
+  SB_RETURN: 'Return', POS_MAINT: 'POS Operational Support', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate', POS_OFFLINE: 'POS Offline Count', SB_MAINTENANCE: 'SB Maintenance' };
 
 const SortBtn: React.FC<{
   k: string;
@@ -1824,8 +1831,8 @@ const ReviewRow = memo(function ReviewRow({
           )}
           <span>{type}</span>
         </span>
-        <span className="whitespace-nowrap leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
-          {KIND_LABEL[e.kind]}
+        <span className="whitespace-nowrap leading-snug font-normal text-slate-700" title={KIND_LABEL[viewKind(e)]}>
+          {KIND_LABEL[viewKind(e)]}
           {units > 1 && (
             <span className="block text-[11px] font-normal text-slate-500">
               Device {e.unitNo} of {units}
