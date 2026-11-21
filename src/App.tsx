@@ -82,7 +82,7 @@ import {
   SIM_BTN_PRIMARY_CLS,
 } from './components/RightDrawerShell';
 import { isSupabaseConfigured } from './lib/supabase';
-import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence } from './services/supabaseService';
+import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence, commitStockBatch, type StockBatchRowError, type BatchCommitResult } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
@@ -3400,25 +3400,33 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
   // Batch Stock Upload Handler (from classic BatchUploadModal). Supports both:
   // 1. Reallocating available HQ Stock to Branch Reserve under assigned receiving staff.
   // 2. Registering brand new serials into inventory.
-  const handleCommitBatch = (newBatchItems: Partial<Device>[]) => {
-    if (role === 'BRANCH') { triggerToast('Only HQ can register or allocate stock.'); return; }
+  // (22 Nov 2026) All or nothing: the whole file goes to the server in one step (commitStockBatch), which checks every row
+  // again and saves every row, or none and returns the problems by row. The list and the "Registered" message change only
+  // after the server has saved; the change watcher does not save these units a second time.
+  const handleCommitBatch = async (
+    newBatchItems: Partial<Device>[],
+    onProgress?: (sent: number, total: number) => void
+  ): Promise<BatchCommitResult> => {
+    if (role === 'BRANCH') { triggerToast('Only HQ can register or allocate stock.'); return { ok: false, message: 'Only HQ can register or allocate stock.' }; }
     const today = todayPP();
     const nowTime = stampSecPP();
     const existingMap = new Map(devices.map((d) => [d.serial.toUpperCase(), d]));
     const seen = new Set<string>();
-    const problems: string[] = [];
+    const problems: StockBatchRowError[] = [];
     const created: Device[] = [];
     const updated: Device[] = [];
+    const ordered: { op: 'create' | 'move'; device: Device }[] = [];
 
-    newBatchItems.forEach((item) => {
+    newBatchItems.forEach((item, idx) => {
+      const pos = idx + 1;
       const sn = String(item.serial || '').trim().toUpperCase();
-      if (!sn) { problems.push('a row without a serial'); return; }
-      if (seen.has(sn)) { problems.push(`${sn} (duplicate in batch)`); return; }
+      if (!sn) { problems.push({ row: pos, column: 'Serial_SN', message: 'Row without a serial.' }); return; }
+      if (seen.has(sn)) { problems.push({ row: pos, column: 'Serial_SN', message: `Serial "${sn}" is twice in the file.` }); return; }
       seen.add(sn);
 
       const bCode = item.branchId || '100';
       const branchObj = branches.find((b) => b.code === bCode || b.id === bCode);
-      if (!branchObj && bCode !== '100') { problems.push(`${sn} (unknown branch ${bCode})`); return; }
+      if (!branchObj && bCode !== '100') { problems.push({ row: pos, column: 'Branch_Code', message: `Branch code "${bCode}" does not exist.` }); return; }
 
       const existingDev = existingMap.get(sn);
       if (existingDev) {
@@ -3442,9 +3450,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             ],
           };
           updated.push(nextDev);
+          ordered.push({ op: 'move', device: nextDev });
           return;
         } else {
-          problems.push(`${sn} (already in ${STAGE_META[existingDev.stage]?.short || existingDev.stage})`);
+          problems.push({ row: pos, column: 'Serial_SN', message: `Serial "${sn}" is already in ${STAGE_META[existingDev.stage]?.short || existingDev.stage}.` });
           return;
         }
       }
@@ -3453,7 +3462,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
       const hasMerchantInfo = Boolean((item.mid && item.mid.trim()) || (item.merchantName && item.merchantName.trim()));
       const rawStage: LifecycleStage = item.stage || (bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK');
       const stg: LifecycleStage = (rawStage === 'HQ_STOCK' || rawStage === 'BRANCH_RESERVE') && hasMerchantInfo ? 'CONFIGURING' : rawStage;
-      created.push({
+      const newDev: Device = {
         serial: sn,
         batterySerial: item.batterySerial || '',
         batteryInstalledDate: item.batteryInstalledDate || '',
@@ -3479,38 +3488,39 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         note: item.note || '',
         history: [`${nowTime} | Stock Intake | Registered into ${stg === 'HQ_STOCK' ? 'HQ stock' : 'Branch Code ' + bCode + ' reserve'} — Received by Staff: ${item.staff || operatorLabel || 'HQ'}`],
         archived: false,
-      });
+      };
+      created.push(newDev);
+      ordered.push({ op: 'create', device: newDev });
     });
 
-    if (!created.length && !updated.length) {
-      triggerToast(`Nothing processed: ${problems.slice(0, 5).join(', ')}${problems.length > 5 ? '…' : ''}.`);
-      return;
+    if (problems.length) return { ok: false, errors: problems, errorCount: problems.length };
+    if (!ordered.length) return { ok: false, message: 'Nothing to upload.' };
+
+    const res = await commitStockBatch(ordered, onProgress);
+    if (!res.ok) {
+      if (res.error) addAuditLog('Batch Stock Operation Failed', `Not saved: ${res.error}`);
+      return { ok: false, message: res.error, errors: res.errors, errorCount: res.errorCount };
     }
 
-    if (updated.length > 0 && created.length > 0) {
-      const updatedMap = new Map(updated.map((u) => [u.serial, u]));
-      setDevices((prev) => [...created, ...prev.map((d) => updatedMap.get(d.serial) || d)]);
-      triggerOptimisticSync(
-        [...created.map((c) => c.serial), ...updated.map((u) => u.serial)],
-        `Batch processed ${created.length + updated.length} unit(s)`,
-        [...created, ...updated]
-      );
-    } else if (updated.length > 0) {
-      const updatedMap = new Map(updated.map((u) => [u.serial, u]));
-      setDevices((prev) => prev.map((d) => updatedMap.get(d.serial) || d));
-      triggerOptimisticSync(updated.map((u) => u.serial), `Allocated ${updated.length} unit(s) to Branch Reserve`, updated);
-    } else if (created.length > 0) {
-      setDevices((prev) => [...created, ...prev]);
-      triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
-    }
+    // saved: show the server's copies (with their versions) without sending them again
+    const versions = res.versions || new Map<string, number>();
+    const adopt = (d: Device): Device => {
+      const v = versions.get(d.serial);
+      const saved = v !== undefined ? { ...d, rowVersion: v } : d;
+      serverCopies.current.add(saved);
+      syncedDevices.current.set(saved.serial, saved);
+      return saved;
+    };
+    const savedCreated = created.map(adopt);
+    const updatedMap = new Map(updated.map((u) => [u.serial, adopt(u)]));
+    setDevices((prev) => [...savedCreated, ...(updatedMap.size ? prev.map((d) => updatedMap.get(d.serial) || d) : prev)]);
 
     const summaryParts: string[] = [];
     if (updated.length > 0) summaryParts.push(`Allocated ${updated.length} unit(s) from HQ Stock to Branch Reserve`);
     if (created.length > 0) summaryParts.push(`Registered ${created.length} new serial(s)`);
-    if (problems.length > 0) summaryParts.push(`${problems.length} skipped (${problems.slice(0, 3).join(', ')}${problems.length > 3 ? '…' : ''})`);
-
     addAuditLog('Batch Stock Operation', summaryParts.join('; '));
-    triggerToast(summaryParts.join(' · ') + '.');
+    triggerToast(`Saved: ${summaryParts.join(' · ')}.`);
+    return { ok: true };
   };
 
   // Every Request Must Alert Notification (from classic RequestStockModal)
