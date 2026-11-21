@@ -14,6 +14,7 @@
 --   * KPI: unchanged (no KPI rule uses Offline Count; the KPI does not read this new type);
 --   * the 23 Offline Count entries already in Merchant Visits are copied here, as Approved (they also stay in Merchant
 --     Visits - nothing is deleted).
+-- Also (section 5): the label behind the POS Terminal page's "Integrated installation" filter.
 -- Safe to run twice. Run it BEFORE installing Merchant Visit 4.10.2 (otherwise new Offline Count entries wait in the app's
 -- send queue until this is run - nothing is lost).
 -- ============================================================================================================================
@@ -171,5 +172,28 @@ select x.record_id, x.unit_no, 1, 'POS_OFFLINE', 'POS Terminal', '', x.u_mid, x.
        'copied:' || md5(x.record_id || ':' || x.unit_no), app.field_issues('POS_OFFLINE', 'POS Terminal', null, null, x.u_mid, x.u_tid, x.branch_id, x.record_id)
   from units x
 on conflict do nothing;
+
+-- 5. Integrated Installation filter (POS Terminal page): which Installations were "Integrated Installation" ------------------
+--    New entries carry it (Merchant Visit 4.10.2 sends request_type with every installation / replacement). The ones sent
+--    before are tagged ONCE by the app (its nightly check, or Sheet menu "check & resend missing entries"): it lists their
+--    Record IDs and this function writes the label into those Installation lines only. Nothing else changes (status, stock,
+--    the record's check value) - a label for the filter. Only the phone app's server key may call it.
+create or replace function public.field_tag_request_type(p jsonb) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_type text := left(btrim(coalesce(p->>'request_type', '')), 60); v_ids text[]; n int;
+begin
+  if v_type = '' then raise exception 'request_type is required' using errcode = '22023'; end if;
+  select coalesce(array_agg(left(btrim(x), 60)), '{}') into v_ids from jsonb_array_elements_text(coalesce(p->'ids', '[]'::jsonb)) x
+   where btrim(x) <> '';
+  if cardinality(v_ids) > 2000 then raise exception 'at most 2000 Record IDs at a time' using errcode = '22023'; end if;
+  update public.field_events
+     set payload = jsonb_set(coalesce(payload, '{}'::jsonb), '{entry}', coalesce(payload->'entry', '{}'::jsonb) || jsonb_build_object('request_type', v_type))
+   where source_record_id = any(v_ids) and kind = 'INSTALL'
+     and coalesce(payload->'entry'->>'request_type', '') = '';
+  get diagnostics n = row_count;
+  return jsonb_build_object('tagged', n);
+end $$;
+revoke all on function public.field_tag_request_type(jsonb) from public, anon, authenticated;
+grant execute on function public.field_tag_request_type(jsonb) to service_role;
 
 notify pgrst, 'reload schema';

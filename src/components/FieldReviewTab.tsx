@@ -93,7 +93,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
-type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
+type RecordTypeFilter = 'ALL' | FieldEvent['kind'] | 'INSTALL_INTEG';
+/** (21 Nov 2026) Integrated Installation: an Installation the phone app marked "Integrated Installation" (payload.entry.request_type,
+ *  Merchant Visit 4.10.2; older ones tagged once by the app). Only a filter - it is still an Installation everywhere else. */
+const isIntegrated = (e: FieldEvent) => e.kind === 'INSTALL' && /^integrated/i.test(String(e.payload?.entry?.request_type || ''));
+const kindMatches = (e: FieldEvent, f: RecordTypeFilter) => f === 'ALL' || (f === 'INSTALL_INTEG' ? isIntegrated(e) : e.kind === f);
 const DOT = { 'POS Terminal': 'bg-[#184e77]', 'Sound Box': 'bg-[#4F518C]' } as const;
 /** POS Terminal unless the record says Sound Box (the same rule as the row label) */
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => normalizeFieldDeviceType(e.deviceType);
@@ -697,6 +701,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       c.ALL++;
       if (c[e.kind] !== undefined) c[e.kind]++;
       else c[e.kind] = 1;
+      if (isIntegrated(e)) c.INSTALL_INTEG = (c.INSTALL_INTEG || 0) + 1;
     }
     return c;
   }, [dateScoped, filter, typeFilter]);
@@ -707,7 +712,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     for (let i = 0; i < len; i++) {
       const e = dateScoped[i];
       if (filter !== 'ALL' && e.status !== filter) continue;
-      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
+      if (!kindMatches(e, recordTypeFilter)) continue;
       if (e.deviceType === 'Sound Box') c.sb++;
       else c.pos++;
     }
@@ -722,7 +727,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     for (let i = 0; i < len; i++) {
       const e = dateScoped[i];
       if (filter !== 'ALL' && e.status !== filter) continue;
-      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
+      if (!kindMatches(e, recordTypeFilter)) continue;
       if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
       if (hasQ) {
         const match =
@@ -779,7 +784,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         if (effRange.to && ymd > effRange.to) return false;
         return true;
       })
-      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
+      .filter((e) => kindMatches(e, recordTypeFilter))
       .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
       .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
         .some((v) => String(v || '').toLowerCase().includes(q)));
@@ -1063,7 +1068,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               !events || totalN === 0 || hero.maxKind === 0
                 ? 0
                 : Math.max(3, Math.round((totalN / hero.maxKind) * 100));
-            const isActive = recordTypeFilter === k;
+            const isActive = recordTypeFilter === k || (recordTypeFilter === 'INSTALL_INTEG' && k === 'INSTALL');   // (integrated: a part of Installation)
             const dimmed = recordTypeFilter !== 'ALL' && !isActive;
 
   return (
@@ -1225,11 +1230,14 @@ export const FieldReviewTab: React.FC<Props> = ({
               }`}
             >
               <option value="ALL">All Types ({kindCounts.ALL || 0})</option>
-              {availableKinds.map((k) => (
+              {availableKinds.flatMap((k) => [
                 <option key={k} value={k}>
                   {KIND_LABEL[k] || k} ({kindCounts[k] || 0})
-                </option>
-              ))}
+                </option>,
+                ...(k === 'INSTALL' && deviceType !== 'Sound Box'
+                  ? [<option key="INSTALL_INTEG" value="INSTALL_INTEG">{'\u00a0\u00a0'}Integrated installation ({kindCounts.INSTALL_INTEG || 0})</option>]
+                  : []),
+              ])}
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
           </div>
