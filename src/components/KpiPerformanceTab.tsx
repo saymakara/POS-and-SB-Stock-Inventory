@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  Area, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
+  Bar, Cell, Line, ReferenceArea, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -41,7 +41,6 @@ import {
 } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
-import { buildAnnularArcPath } from './Charts';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -62,6 +61,19 @@ const KPI_BRANCH_GRID =
 
 const KPI_STAFF_GRID =
   'grid items-center gap-x-2 grid-cols-[28px_minmax(180px,1.28fr)_minmax(168px,1.15fr)_minmax(46px,0.42fr)_minmax(42px,0.38fr)_minmax(52px,0.48fr)_minmax(42px,0.38fr)_minmax(42px,0.38fr)_minmax(48px,0.44fr)_minmax(84px,0.72fr)_minmax(110px,0.92fr)_minmax(150px,0.92fr)_16px]';
+
+// Balanced proportional column widths for Top 10 Leaderboard tables (100% total prevents oversized text-column voids)
+const TOP10_STAFF_COL_WIDTHS = [
+  '3.2%', '11.0%', '6.2%', '16.2%', '8.0%',
+  '6.7%', '5.7%', '7.1%', '5.7%', '5.8%',
+  '8.5%', '7.4%', '8.5%',
+] as const;
+
+const TOP10_BRANCH_COL_WIDTHS = [
+  '3.2%', '17.6%', '8.0%', '8.2%',
+  '6.7%', '5.7%', '7.1%', '5.7%', '5.8%',
+  '8.5%', '7.5%', '7.5%', '8.5%',
+] as const;
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
@@ -260,15 +272,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 440;
-const KT_VB_H = 356;
-const KT_CX = KT_VB_W / 2;
-const KT_CY = KT_VB_H / 2 + 2;
-const KT_R_OUTER = 118;
-const KT_R_INNER = 94;
-const KT_R_HUB = KT_R_INNER - 5;
-const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
-const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
+const KT_RING_CX = 90;
+const KT_RING_CY = 90;
+const KT_OUTER_R = 72;
+const KT_INNER_R = 52;
+const KT_OUTER_C = 2 * Math.PI * KT_OUTER_R;
+const KT_INNER_C = 2 * Math.PI * KT_INNER_R;
 
 const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   periodLabel,
@@ -281,7 +290,6 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   totalWorkDays,
 }) => {
   const [hoveredKey, setHoveredKey] = useState<'actual' | 'remaining' | 'pace' | 'target' | null>(null);
-  const ktShadowId = useId();
   const safeTarget = Math.max(0, targetPoints);
   const safeActual = Math.max(0, actualPoints);
   const gapPts = Math.max(0, safeTarget - safeActual);
@@ -299,132 +307,60 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
     : 0;
   const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
 
-  const statusBadge = isMet
-    ? { label: 'Target Met', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80', dot: '#2d6a4f' }
-    : isAheadOfPace
-      ? { label: 'Ahead of Pace', cls: 'bg-sky-50 text-[#1e6091] border-sky-200/80', dot: '#1e6091' }
-      : { label: 'Behind Pace', cls: 'bg-amber-50 text-amber-700 border-amber-200/80', dot: '#f59e0b' };
+  const actualColor = isMet ? '#2d6a4f' : '#155484';
+  const paceRingColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
+  const outerDash = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) * KT_OUTER_C : 0;
+  const innerDash = safeTarget > 0 ? Math.min(1, effectivePaceRatio) * KT_INNER_C : 0;
 
-  const actualColor = isMet ? '#2d6a4f' : '#1e6091';
-  const denom = Math.max(safeTarget, safeActual);
-  const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / Math.max(safeTarget, safeActual)) : 0;
-  const gapFrac = safeTarget > 0 && gapPts > 0 ? gapPts / denom : 0;
-
-  const startAngle = -Math.PI / 2;
-  const fullCircle = Math.PI * 2;
-  const hasGapSlice = !isMet && gapFrac > 0.002 && actualFrac > 0.002;
-  const gapTrim = hasGapSlice ? Math.min(0.026, actualFrac * fullCircle * 0.2, gapFrac * fullCircle * 0.2) : 0;
-
-  const actualEndAngle = startAngle + actualFrac * fullCircle;
-  const remainingStartAngle = actualEndAngle;
-  const remainingEndAngle = startAngle + fullCircle;
-
-  const pacingTickAngle = startAngle + effectivePaceRatio * fullCircle;
-  const hasPacingTick = showPacing && safeTarget > 0 && effectivePaceRatio > 0 && effectivePaceRatio < 1;
+  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
+  const paceHeaderBadge = safeTarget <= 0
+    ? { text: 'No Target', cls: 'bg-slate-100 text-slate-600 border-slate-200' }
+    : isMet
+      ? { text: `+${fmtPts(surplusPts)} Surplus`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80' }
+      : !showPacing
+        ? { text: `${fmtPts(gapPts)} Left`, cls: 'bg-slate-100 text-slate-700 border-slate-200' }
+        : isAheadOfPace
+          ? { text: `Pace +${fmtPts(paceDeltaPts)}`, cls: 'bg-sky-50 text-[#155484] border-sky-200/80' }
+          : { text: `Pace Gap -${fmtPts(Math.abs(paceDeltaPts))}`, cls: 'bg-amber-50 text-amber-800 border-amber-200/90' };
 
   const centerReadout = (() => {
     if (hoveredKey === 'actual') {
       return {
-        dot: actualColor,
-        top: 'Actual',
         pct: `${achievementPct}%`,
-        ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
-        pill: { text: `${fmtPts(safeActual)} pts`, color: actualColor, bg: `${actualColor}18` },
-      };
-    }
-    if (hoveredKey === 'remaining') {
-      return {
-        dot: '#94a3b8',
-        top: 'Remaining',
-        pct: `${gapPct}%`,
-        ratio: `${fmtPts(gapPts)} of ${fmtPts(safeTarget)} pts`,
-        pill: { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' },
+        top: 'ACTUAL',
+        sub: `${fmtPts(safeActual)} pts`,
+        subColor: actualColor,
       };
     }
     if (hoveredKey === 'pace') {
-      const paceCol = isAheadOfPace ? '#1e6091' : '#d97706';
       return {
-        dot: '#0f172a',
-        top: 'Pace Rate',
-        pct: `${paceAttainmentPct}%`,
-        ratio: `${fmtPts(safeActual)} vs ${fmtPts(expectedPacePts)} pts`,
-        pill: {
-          text: `${paceDeltaPts >= 0 ? '+' : '-'}${fmtPts(Math.abs(paceDeltaPts))} pts`,
-          color: paceCol,
-          bg: isAheadOfPace ? 'rgba(30, 96, 145, 0.12)' : 'rgba(245, 158, 11, 0.14)',
-        },
+        pct: `${expectedPacePct}%`,
+        top: showPacing ? `PACE · DAY ${elapsedWorkDays}/${totalWorkDays}` : 'TARGET PACE',
+        sub: `${fmtPts(expectedPacePts)} pts`,
+        subColor: '#b45309',
       };
     }
-    if (hoveredKey === 'target') {
+    if (hoveredKey === 'remaining' || hoveredKey === 'target') {
       return {
-        dot: '#475569',
-        top: targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel,
-        pct: '100%',
-        ratio: `${fmtPts(safeTarget)} pts goal`,
-        pill: { text: `${fmtPts(safeTarget)} pts`, color: '#334155', bg: 'rgba(15, 23, 42, 0.08)' },
+        pct: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
+        top: isMet ? 'SURPLUS' : 'REMAINING',
+        sub: `${fmtPts(gapPts)} left`,
+        subColor: '#475569',
       };
     }
     return {
-      dot: statusBadge.dot,
-      top: 'Achievement',
       pct: `${achievementPct}%`,
-      ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
-      pill: isMet
-        ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
-        : { text: `${fmtPts(gapPts)} left`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' },
+      top: 'OF TARGET',
+      sub: showPacing ? `Pace ${expectedPacePct}%` : `${fmtPts(safeTarget)} pts`,
+      subColor: isMet ? '#047857' : isAheadOfPace ? '#0284c7' : '#b45309',
     };
   })();
 
-  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
-  const paceLabel = showPacing ? `Expected Pace · Day ${elapsedWorkDays}/${totalWorkDays}` : 'Expected Pace';
-
-  // Dashboard Style 1 curved Bezier leader coordinates framing the slim donut cleanly
-  const targetAnchorAngle = -Math.PI * 0.7;
-  const targetStart = {
-    x: KT_CX + (KT_R_OUTER + 5) * Math.cos(targetAnchorAngle),
-    y: KT_CY + (KT_R_OUTER + 5) * Math.sin(targetAnchorAngle),
-  };
-  const targetEnd = { x: 142, y: 38 };
-  const targetControl = { x: Math.max(targetEnd.x + 12, targetStart.x), y: targetEnd.y };
-
-  const actualRawMid = startAngle + actualFrac * fullCircle * 0.5;
-  const actualAnchorAngle =
-    isMet || actualFrac >= 0.56
-      ? -Math.PI * 0.28
-      : actualFrac > 0.01
-        ? Math.max(startAngle + 0.18, Math.min(-Math.PI * 0.28, actualRawMid))
-        : startAngle + 0.18;
-  const actualStart = {
-    x: KT_CX + (KT_R_OUTER + 5) * Math.cos(actualAnchorAngle),
-    y: KT_CY + (KT_R_OUTER + 5) * Math.sin(actualAnchorAngle),
-  };
-  const actualEnd = { x: KT_VB_W - 142, y: 38 };
-  const actualControl = { x: Math.min(actualEnd.x - 12, actualStart.x), y: actualEnd.y };
-
-  const paceAnchorAngle = hasPacingTick ? pacingTickAngle : Math.PI * 0.72;
-  const paceSide: 'left' | 'right' = Math.cos(paceAnchorAngle) > 0.12 ? 'right' : 'left';
-  const paceStartR = hasPacingTick ? KT_R_OUTER + 6 : KT_R_OUTER + 5;
-  const paceStart = {
-    x: KT_CX + paceStartR * Math.cos(paceAnchorAngle),
-    y: KT_CY + paceStartR * Math.sin(paceAnchorAngle),
-  };
-  const paceEnd = {
-    x:
-      paceSide === 'left'
-        ? Math.min(138, Math.max(106, paceStart.x - 14))
-        : Math.max(KT_VB_W - 138, Math.min(KT_VB_W - 106, paceStart.x + 14)),
-    y: KT_VB_H - 38,
-  };
-  const paceControl =
-    Math.sin(paceAnchorAngle) < 0
-      ? {
-          x: paceSide === 'right' ? Math.max(KT_CX + KT_R_OUTER + 46, paceStart.x + 28) : Math.min(KT_CX - KT_R_OUTER - 46, paceStart.x - 28),
-          y: (paceStart.y + paceEnd.y) * 0.5,
-        }
-      : {
-          x: paceSide === 'left' ? Math.max(paceEnd.x + 10, (paceStart.x + paceEnd.x) * 0.5) : Math.min(paceEnd.x - 10, (paceStart.x + paceEnd.x) * 0.5),
-          y: paceEnd.y,
-        };
+  const paceRateCls = paceAttainmentPct >= 100
+    ? 'text-emerald-700'
+    : paceAttainmentPct >= 75
+      ? 'text-amber-700'
+      : 'text-rose-700';
 
   return (
     <div
@@ -438,314 +374,198 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             <span className="text-slate-400 font-normal">· {periodLabel}</span>
           </h3>
           <p className="text-[11px] text-slate-500 truncate">
-            Target attainment, achievement percentage &amp; expected pace
+            Concentric attainment &amp; pace rings
           </p>
         </div>
+        <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border whitespace-nowrap shrink-0 tabular-nums ${paceHeaderBadge.cls}`}>
+          {paceHeaderBadge.text}
+        </span>
       </div>
 
-      <div className="px-2 sm:px-3 py-1.5 flex-1 flex items-center justify-center">
-        {/* Dashboard Style 1: Slim Sculpted Donut + Curved Bezier Leaders + Floating Pill Callouts */}
-        <div className="relative w-full max-w-[460px] aspect-[440/356] flex items-center justify-center">
-          <svg
-            viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
-            className="w-full h-full overflow-visible"
-            role="img"
-            aria-label={`${targetTitle} vs Actual Achievement Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
-            data-testid="kpi-target-donut-svg"
-          >
-            <defs>
-              <filter id={ktShadowId} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#1e6091" floodOpacity="0.16" />
-              </filter>
-            </defs>
+      <div className="px-4 sm:px-5 py-4 flex-1 flex flex-col justify-between gap-4">
+        {/* Dual Concentric Activity Rings + Interactive Side Ledger */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-6 flex-1 my-auto">
+          <div className="relative w-[166px] h-[166px] sm:w-[174px] sm:h-[174px] shrink-0">
+            <svg
+              viewBox="0 0 180 180"
+              className="w-full h-full"
+              role="img"
+              aria-label={`${targetTitle} vs Actual Achievement Concentric Rings: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
+              data-testid="kpi-target-donut-svg"
+            >
+              {/* Outer Ring Track & Progress (Actual Achievement) */}
+              <circle
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_OUTER_R}
+                fill="none"
+                stroke="#e2e8f0"
+                strokeWidth={14}
+              />
+              <circle
+                data-kpi-target-slice="actual"
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_OUTER_R}
+                fill="none"
+                stroke={actualColor}
+                strokeWidth={hoveredKey === 'actual' ? 16 : 14}
+                strokeLinecap="round"
+                strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
+                strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
+                transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
+                className="cursor-pointer transition-all duration-200"
+                onMouseEnter={() => setHoveredKey('actual')}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+              </circle>
 
-            {/* Recessed Donut Track (100% Target Ring) */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_TRACK}
-              fill="none"
-              stroke="rgba(15, 23, 42, 0.045)"
-              strokeWidth={KT_TRACK_W}
-            />
-
-            {/* Sculpted Annular Arcs with Soft Drop Shadow */}
-            <g filter={`url(#${ktShadowId})`}>
-              {/* Full Ring when Target Met (>= 100%) */}
-              {safeTarget > 0 && isMet && (
+              {/* Inner Ring Track & Progress (Expected Pace) */}
+              <circle
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_INNER_R}
+                fill="none"
+                stroke="#f1f5f9"
+                strokeWidth={11}
+              />
+              {showPacing && (
                 <circle
-                  data-kpi-target-slice="actual"
-                  cx={KT_CX}
-                  cy={KT_CY}
-                  r={KT_R_TRACK}
+                  data-kpi-target-slice="pace"
+                  cx={KT_RING_CX}
+                  cy={KT_RING_CY}
+                  r={KT_INNER_R}
                   fill="none"
-                  stroke={actualColor}
-                  strokeWidth={hoveredKey === 'actual' ? KT_TRACK_W + 5 : KT_TRACK_W}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredKey('actual')}
+                  stroke={paceRingColor}
+                  strokeWidth={hoveredKey === 'pace' ? 13 : 11}
+                  strokeLinecap="round"
+                  strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
+                  strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
+                  transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
+                  className="cursor-pointer transition-all duration-200"
+                  onMouseEnter={() => setHoveredKey('pace')}
                   onMouseLeave={() => setHoveredKey(null)}
                 >
-                  <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+                  <title>{`Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
                 </circle>
               )}
 
-              {/* Split Actual Achievement vs Remaining Target Arcs */}
-              {safeTarget > 0 && !isMet && (
-                <>
-                  {gapFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="remaining"
-                      d={buildAnnularArcPath(
-                        KT_CX,
-                        KT_CY,
-                        hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_INNER - 2 : KT_R_INNER,
-                        hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_OUTER + 4 : KT_R_OUTER,
-                        remainingStartAngle + gapTrim / 2,
-                        remainingEndAngle - gapTrim / 2
-                      )}
-                      fill="#e2e8f0"
-                      opacity={hoveredKey !== null && hoveredKey !== 'remaining' && hoveredKey !== 'target' ? 0.42 : 1}
-                      style={{ transition: 'opacity 150ms ease' }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('remaining')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Remaining to Target: ${fmtPts(gapPts)} pts (${gapPct}%)`}</title>
-                    </path>
-                  )}
-
-                  {actualFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="actual"
-                      d={buildAnnularArcPath(
-                        KT_CX,
-                        KT_CY,
-                        hoveredKey === 'actual' ? KT_R_INNER - 3 : KT_R_INNER,
-                        hoveredKey === 'actual' ? KT_R_OUTER + 4 : KT_R_OUTER,
-                        startAngle + gapTrim / 2,
-                        actualEndAngle - gapTrim / 2
-                      )}
-                      fill={actualColor}
-                      opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.35 : 1}
-                      style={{
-                        filter: hoveredKey === 'actual' ? `drop-shadow(0 4px 10px ${actualColor}55)` : undefined,
-                        transition: 'opacity 150ms ease, filter 150ms ease',
-                      }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('actual')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
-                    </path>
-                  )}
-                </>
-              )}
-            </g>
-
-            {/* Expected Pace Benchmark Needle Marker on Ring */}
-            {hasPacingTick && (
-              <g
-                className="cursor-pointer"
-                onMouseEnter={() => setHoveredKey('pace')}
-                onMouseLeave={() => setHoveredKey(null)}
+              {/* Ring Center Metric */}
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY - 6}
+                textAnchor="middle"
+                className="fill-slate-900 font-figure"
+                style={{ fontSize: '21px', fontWeight: 800, letterSpacing: '-0.02em' }}
               >
-                <line
-                  x1={KT_CX + (KT_R_INNER - 3) * Math.cos(pacingTickAngle)}
-                  y1={KT_CY + (KT_R_INNER - 3) * Math.sin(pacingTickAngle)}
-                  x2={KT_CX + (KT_R_OUTER + 5) * Math.cos(pacingTickAngle)}
-                  y2={KT_CY + (KT_R_OUTER + 5) * Math.sin(pacingTickAngle)}
-                  stroke="#0f172a"
-                  strokeWidth={hoveredKey === 'pace' ? 3 : 2.25}
-                  strokeLinecap="round"
-                />
-                <title>{`${paceLabel}: ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
-              </g>
-            )}
-
-            {/* Smooth Curved Bezier Leader Lines Anchored at Rim (Matching Dashboard Style 1) */}
-            <g opacity={hoveredKey !== null && hoveredKey !== 'target' ? 0.24 : hoveredKey === 'target' ? 1 : 0.72} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${targetStart.x.toFixed(1)} ${targetStart.y.toFixed(1)} Q ${targetControl.x.toFixed(1)} ${targetControl.y.toFixed(1)} ${targetEnd.x.toFixed(1)} ${targetEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke="#64748b"
-                strokeWidth={hoveredKey === 'target' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={targetStart.x} cy={targetStart.y} r={hoveredKey === 'target' ? 3.2 : 2.5} fill="#64748b" />
-            </g>
-
-            <g opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.24 : hoveredKey === 'actual' ? 1 : 0.78} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${actualStart.x.toFixed(1)} ${actualStart.y.toFixed(1)} Q ${actualControl.x.toFixed(1)} ${actualControl.y.toFixed(1)} ${actualEnd.x.toFixed(1)} ${actualEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={actualStart.x} cy={actualStart.y} r={hoveredKey === 'actual' ? 3.2 : 2.5} fill={actualColor} />
-            </g>
-
-            <g opacity={hoveredKey !== null && hoveredKey !== 'pace' ? 0.24 : hoveredKey === 'pace' ? 1 : 0.72} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${paceStart.x.toFixed(1)} ${paceStart.y.toFixed(1)} Q ${paceControl.x.toFixed(1)} ${paceControl.y.toFixed(1)} ${paceEnd.x.toFixed(1)} ${paceEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke="#0f172a"
-                strokeDasharray={hasPacingTick ? undefined : '2.5 2.5'}
-                strokeWidth={hoveredKey === 'pace' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={paceStart.x} cy={paceStart.y} r={hoveredKey === 'pace' ? 3.2 : 2.5} fill="#0f172a" />
-            </g>
-
-            {/* Elevated Center Hub (must remain the last <circle> inside SVG) */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_HUB}
-              fill="#ffffff"
-              stroke="rgba(15, 23, 42, 0.08)"
-              strokeWidth="1"
-            />
-          </svg>
-
-          {/* Center Readout: Achievement % + Actual / Target pts + Left/Surplus */}
-          <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
-            style={{
-              left: `${(KT_CX / KT_VB_W) * 100}%`,
-              top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${((KT_R_HUB * 1.72) / KT_VB_W) * 100}%`,
-            }}
-          >
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase text-slate-500 max-w-full whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerReadout.dot }} />
-              <span>{centerReadout.top}</span>
-            </span>
-            <span className="text-[28px] sm:text-[32px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
-              {centerReadout.pct}
-            </span>
-            <span className="text-[10.5px] font-figure font-semibold text-slate-500 mt-1 tabular-nums whitespace-nowrap max-w-full">
-              {centerReadout.ratio}
-            </span>
-            <span
-              className="text-[9.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap max-w-full"
-              style={{ color: centerReadout.pill.color, backgroundColor: centerReadout.pill.bg }}
-            >
-              {centerReadout.pill.text}
-            </span>
+                {centerReadout.pct}
+              </text>
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY + 10}
+                textAnchor="middle"
+                className="fill-slate-500"
+                style={{ fontSize: '8.2px', fontWeight: 700, letterSpacing: '0.06em' }}
+              >
+                {centerReadout.top}
+              </text>
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY + 23}
+                textAnchor="middle"
+                fill={centerReadout.subColor}
+                style={{ fontSize: '8.5px', fontWeight: 700 }}
+              >
+                {centerReadout.sub}
+              </text>
+            </svg>
           </div>
 
-          {/* 1. Monthly Target Floating Pill Callout (Upper-Left) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="target"
-            onMouseEnter={() => setHoveredKey('target')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('target')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              right: `${((KT_VB_W - targetEnd.x) / KT_VB_W) * 100}%`,
-              top: `${(targetEnd.y / KT_VB_H) * 100}%`,
-              transform: 'translateY(-50%)',
-              ...(hoveredKey === 'target' ? { borderColor: '#64748b', backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-end text-right leading-tight ${
-              hoveredKey === 'target'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'target' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              <span>{targetTitle}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(safeTarget)} pts
-            </span>
-            <span className="text-[9px] sm:text-[9.5px] font-figure font-semibold text-slate-500 tabular-nums whitespace-nowrap">
-              100% · {isMet ? `+${fmtPts(surplusPts)} surplus` : `${fmtPts(gapPts)} left`}
-            </span>
-          </button>
+          {/* Right Side Ledger Stack */}
+          <div className="flex-1 w-full min-w-[175px] max-w-[240px] flex flex-col gap-3">
+            <button
+              type="button"
+              data-kpi-comparison-row="actual"
+              onMouseEnter={() => setHoveredKey('actual')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('actual')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+                isMet ? 'border-emerald-700' : 'border-[#155484]'
+              } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Actual Achievement
+              </div>
+              <div className="font-figure text-[15px] font-extrabold text-slate-900 tabular-nums mt-0.5">
+                {fmtPts(safeActual)} <span className="text-[11px] font-semibold text-slate-500">pts</span>
+              </div>
+            </button>
 
-          {/* 2. Actual Achievement Floating Pill Callout (Upper-Right) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="actual"
-            onMouseEnter={() => setHoveredKey('actual')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('actual')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              left: `${(actualEnd.x / KT_VB_W) * 100}%`,
-              top: `${(actualEnd.y / KT_VB_H) * 100}%`,
-              transform: 'translateY(-50%)',
-              ...(hoveredKey === 'actual' ? { borderColor: actualColor, backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
-              hoveredKey === 'actual'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'actual' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: actualColor }} />
-              <span>Actual Achievement</span>
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(safeActual)} pts
-            </span>
-            <span className="text-[9px] sm:text-[9.5px] font-figure font-bold tabular-nums whitespace-nowrap" style={{ color: actualColor }}>
-              {achievementPct}% of target
-            </span>
-          </button>
+            <button
+              type="button"
+              data-kpi-comparison-row="pace"
+              onMouseEnter={() => setHoveredKey('pace')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('pace')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+                isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
+              } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
+              </div>
+              <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${
+                isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
+              }`}>
+                {fmtPts(expectedPacePts)} <span className="text-[11px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
+              </div>
+            </button>
 
-          {/* 3. Pace Floating Pill Callout (Lower-Left or Lower-Right following Pace Needle) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="pace"
-            onMouseEnter={() => setHoveredKey('pace')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('pace')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              ...(paceSide === 'left'
-                ? {
-                    right: `${((KT_VB_W - paceEnd.x) / KT_VB_W) * 100}%`,
-                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }
-                : {
-                    left: `${(paceEnd.x / KT_VB_W) * 100}%`,
-                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }),
-              ...(hoveredKey === 'pace' ? { borderColor: '#0f172a', backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col leading-tight ${
-              paceSide === 'left' ? 'items-end text-right' : 'items-start text-left'
-            } ${
-              hoveredKey === 'pace'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'pace' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              {paceSide === 'right' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
-              <span>{showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Expected Pace'}</span>
-              {paceSide === 'left' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(expectedPacePts)} pts{' '}
-              <span className="text-[9.5px] font-semibold text-slate-500">· {expectedPacePct}%</span>
-            </span>
-            <span
-              className={`text-[9px] sm:text-[9.5px] font-figure font-bold tabular-nums whitespace-nowrap ${
-                isAheadOfPace ? 'text-emerald-700' : 'text-amber-700'
+            <button
+              type="button"
+              data-kpi-comparison-row="target"
+              onMouseEnter={() => setHoveredKey('target')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('target')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] border-slate-300 pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+                hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
               }`}
             >
-              {paceAttainmentPct}% pace ({paceDeltaPts >= 0 ? `+${fmtPts(paceDeltaPts)}` : `-${fmtPts(Math.abs(paceDeltaPts))}`})
-            </span>
-          </button>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
+              </div>
+              <div className="font-figure text-[14px] font-extrabold text-slate-700 tabular-nums mt-0.5">
+                {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
+                <span className="text-[11px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom 3-Card Summary Strip */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
+            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Outer Ring</div>
+            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${isMet ? 'text-emerald-700' : 'text-[#155484]'}`}>
+              {achievementPct}%
+            </div>
+          </div>
+          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
+            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Target Pace</div>
+            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'}`}>
+              {expectedPacePct}%
+            </div>
+          </div>
+          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
+            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Pace Rate</div>
+            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${paceRateCls}`}>
+              {paceAttainmentPct}%
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2910,21 +2730,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Style 1 — Twin Smooth Area Spline + Active Staff Ribbon */}
+            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns + Emerald Active Staff Overlay */}
             <div
               data-testid="kpi-velocity-chart-card"
               className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
             >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-[13px] font-semibold text-slate-900">
                       {isTaskMode ? 'KPI Task Velocity & Active Staff' : 'KPI Point Velocity & Active Staff'}
                     </h3>
-                    <p className="text-[11px] text-slate-500">Executive velocity across selected granularity</p>
+                    <p className="text-[11px] text-slate-500">
+                      {granularity === 'daily'
+                        ? (isTaskMode ? 'Daily task bars with smooth active-staff overlay · shaded weekends' : 'Daily point bars with smooth active-staff overlay · shaded weekends')
+                        : (isTaskMode ? 'Task bars with smooth active-staff overlay across period' : 'Point bars with smooth active-staff overlay across period')}
+                    </p>
                   </div>
 
-                  <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="Chart granularity">
+                  <div className={`${CAPSULE_TRACK_CLS} shrink-0`} role="tablist" aria-label="Chart granularity">
                     {([
                       { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
                       { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
@@ -2991,15 +2815,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
               <div className="px-4 sm:px-5 pt-3 pb-4">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-2.5 text-[11px] font-semibold text-slate-600">
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-                    <span className="inline-flex items-center gap-1.5 text-[#1e6091]">
-                      <span className="w-4 border-t-[2.5px] border-[#1e6091] inline-block rounded-full" aria-hidden />
-                      <span>{isTaskMode ? 'Total Tasks (left)' : 'Total Points (left)'}</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 text-[#155484]">
+                      <span className="w-2.5 h-2.5 rounded-[3px] bg-[#155484] inline-block" aria-hidden />
+                      <span>{isTaskMode ? 'Total Tasks (bars)' : 'Total Points (bars)'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-[#334155]">
-                      <span className="w-4 border-t-2 border-dashed border-[#334155] inline-block" aria-hidden />
-                      <span>Active staff (right)</span>
+                    <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                      <span className="w-4 border-t-[2.5px] border-emerald-500 inline-block rounded-full" aria-hidden />
+                      <span>Active Staff (line)</span>
                     </span>
+                    {velocitySummary.peakLabel && (
+                      <span className="inline-flex items-center gap-1.5 text-teal-700">
+                        <span className="w-2.5 h-2.5 rounded-[3px] bg-teal-600 inline-block" aria-hidden />
+                        <span>Peak ({velocitySummary.peakLabel})</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -3010,18 +2840,35 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </div>
                   ) : (
                     <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 12, right: 6, left: -12, bottom: 0 }}>
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 24, right: 6, left: -12, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="kpiSplineAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1e6091" stopOpacity={0.34} />
-                            <stop offset="65%" stopColor="#1e6091" stopOpacity={0.1} />
-                            <stop offset="100%" stopColor="#1e6091" stopOpacity={0.01} />
+                          <linearGradient id="kpiVelocityBarGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#155484" />
+                            <stop offset="100%" stopColor="#5da9d9" />
                           </linearGradient>
-                          <linearGradient id="kpiStaffRibbonGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#334155" stopOpacity={0.08} />
-                            <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                          <linearGradient id="kpiVelocityPeakGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0d9488" />
+                            <stop offset="100%" stopColor="#14b8a6" />
                           </linearGradient>
                         </defs>
+                        {granularity === 'daily' &&
+                          reversedTimeSeries.map((row) => {
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(row.period)) return null;
+                            const day = new Date(`${row.period}T00:00:00Z`).getUTCDay();
+                            if (day !== 0 && day !== 6) return null;
+                            return (
+                              <ReferenceArea
+                                key={`wknd-${row.period}`}
+                                yAxisId="left"
+                                x1={row.label}
+                                x2={row.label}
+                                fill="#f1f5f9"
+                                fillOpacity={0.85}
+                                strokeOpacity={0}
+                                ifOverflow="extendDomain"
+                              />
+                            );
+                          })}
                         <CartesianGrid strokeDasharray="3 4" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
                         <XAxis
                           dataKey="label"
@@ -3043,52 +2890,72 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           orientation="right"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 11, fill: '#334155' }}
+                          tick={{ fontSize: 11, fill: '#059669' }}
                           width={32}
                         />
                         <Tooltip
                           content={<CustomTrendTooltip metricMode={metricMode} />}
-                          cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3', strokeWidth: 1.25 }}
+                          cursor={{ fill: 'rgba(21, 84, 132, 0.05)' }}
                           isAnimationActive={false}
                         />
-                        <Area
+                        <Bar
                           yAxisId="left"
-                          type="monotone"
                           dataKey={isTaskMode ? 'totalTasks' : 'totalPoints'}
                           name={isTaskMode ? 'Total Tasks' : 'Total Points'}
-                          stroke="#1e6091"
-                          strokeWidth={2.5}
-                          fill="url(#kpiSplineAreaGrad)"
-                          dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
-                            const val = Number(dotProps.value || 0);
-                            if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
-                              return <g key={`pt-empty-${dotProps.index}`} />;
-                            }
+                          barSize={granularity === 'daily' ? 18 : 26}
+                          radius={[4, 4, 2, 2]}
+                          isAnimationActive={false}
+                          label={(lblProps) => {
+                            const val = Number(lblProps.value || 0);
                             const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
+                            if (!isPeak || !velocitySummary.peakLabel) return <g key={`pk-none-${lblProps.index}`} />;
+                            const rawX = Number(lblProps.x || 0) + Number(lblProps.width || 0) / 2;
+                            const pillX = Math.max(46, Math.min(chartW - 46, rawX));
+                            const pillY = Math.max(2, Number(lblProps.y || 0) - 20);
+                            const pillText = `${velocitySummary.peakLabel} Peak`;
+                            const pillW = Math.max(62, pillText.length * 5.6 + 14);
                             return (
-                              <circle
-                                key={`pt-dot-${dotProps.index}`}
-                                cx={dotProps.cx}
-                                cy={dotProps.cy}
-                                r={isPeak ? 4.2 : 3}
-                                fill={isPeak ? '#1e6091' : '#ffffff'}
-                                stroke={isPeak ? '#ffffff' : '#1e6091'}
-                                strokeWidth={2}
-                              />
+                              <g key={`pk-lbl-${lblProps.index}`}>
+                                <rect
+                                  x={pillX - pillW / 2}
+                                  y={pillY}
+                                  width={pillW}
+                                  height={15}
+                                  rx={7.5}
+                                  fill="#0d9488"
+                                />
+                                <text
+                                  x={pillX}
+                                  y={pillY + 10.5}
+                                  textAnchor="middle"
+                                  fill="#ffffff"
+                                  fontSize="8.5"
+                                  fontWeight="700"
+                                >
+                                  {pillText}
+                                </text>
+                              </g>
                             );
                           }}
-                          activeDot={{ r: 5.5, fill: '#1e6091', stroke: '#ffffff', strokeWidth: 2.5 }}
-                          isAnimationActive={false}
-                        />
-                        <Area
+                        >
+                          {reversedTimeSeries.map((row) => {
+                            const val = isTaskMode ? row.totalTasks : row.totalPoints;
+                            const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
+                            const fill = val <= 0
+                              ? '#cbd5e1'
+                              : isPeak
+                                ? 'url(#kpiVelocityPeakGrad)'
+                                : 'url(#kpiVelocityBarGrad)';
+                            return <Cell key={`bar-${row.period}`} fill={fill} />;
+                          })}
+                        </Bar>
+                        <Line
                           yAxisId="right"
                           type="monotone"
                           dataKey="activeStaff"
                           name="Active Staff"
-                          stroke="#334155"
-                          strokeWidth={2}
-                          strokeDasharray="5 4"
-                          fill="url(#kpiStaffRibbonGrad)"
+                          stroke="#10b981"
+                          strokeWidth={2.5}
                           dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
                             const val = Number(dotProps.value || 0);
                             if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
@@ -3099,14 +2966,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 key={`st-dot-${dotProps.index}`}
                                 cx={dotProps.cx}
                                 cy={dotProps.cy}
-                                r={3}
+                                r={2.8}
                                 fill="#ffffff"
-                                stroke="#334155"
+                                stroke="#10b981"
                                 strokeWidth={1.8}
                               />
                             );
                           }}
-                          activeDot={{ r: 5.2, fill: '#334155', stroke: '#ffffff', strokeWidth: 2.2 }}
+                          activeDot={{ r: 5.2, fill: '#10b981', stroke: '#ffffff', strokeWidth: 2.2 }}
                           isAnimationActive={false}
                         />
                       </ComposedChart>
@@ -3763,172 +3630,134 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
 
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-              <table className="w-full text-left border-separate border-spacing-0 text-[13px]">
-                {leaderboardMode === 'staff' ? (
-                  <>
+              {(() => {
+                const top10ChannelCols = [
+                  { key: 'pos', Icon: Cpu, iconCls: 'text-[#5cc8ff]', taskLabel: 'POS Tasks', ptsLabel: 'POS Pts' },
+                  { key: 'sb', Icon: Volume2, iconCls: 'text-[#a2a5e0]', taskLabel: 'SB Tasks', ptsLabel: 'SB Pts' },
+                  { key: 'khqr', Icon: QrCode, iconCls: 'text-[#74b9ff]', taskLabel: 'KHQR Tasks', ptsLabel: 'KHQR Pts' },
+                  { key: 'cc', Icon: CreditCard, iconCls: 'text-amber-300', taskLabel: 'CC Tasks', ptsLabel: 'CC Pts' },
+                  { key: 'mv', Icon: ClipboardList, iconCls: 'text-[#52b788]', taskLabel: 'MV Tasks', ptsLabel: 'MV Pts' },
+                ] as const;
+
+                const renderMetricCell = (key: string, tasks: number, pts: number) => (
+                  <td key={key} className="py-2.5 px-1.5 text-right tabular-nums text-slate-700 font-medium whitespace-nowrap">
+                    {isTaskMode
+                      ? <>{fmtInt(tasks)} <span className="text-[11px] text-slate-400">tasks</span></>
+                      : <>{fmtPts(pts)} <span className="text-[11px] text-slate-400">pts</span></>}
+                  </td>
+                );
+
+                const colWidths = leaderboardMode === 'staff' ? TOP10_STAFF_COL_WIDTHS : TOP10_BRANCH_COL_WIDTHS;
+
+                return (
+                  <table className="top10-table w-full min-w-[1060px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
+                    <colgroup>
+                      {colWidths.map((w, idx) => (
+                        <col key={idx} style={{ width: w }} />
+                      ))}
+                    </colgroup>
                     <thead>
-                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
-                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Staff Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Staff ID</th>
-                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Branch Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#5cc8ff]" />
-                            <span>{isTaskMode ? 'POS Tasks' : 'POS Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#a2a5e0]" />
-                            <span>{isTaskMode ? 'SB Tasks' : 'SB Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <QrCode className="w-3.5 h-3.5 text-[#74b9ff]" />
-                            <span>{isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
-                            <span>{isTaskMode ? 'CC Tasks' : 'CC Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <ClipboardList className="w-3.5 h-3.5 text-[#52b788]" />
-                            <span>{isTaskMode ? 'MV Tasks' : 'MV Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
-                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
+                      <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wide select-none">
+                        <th className="text-center border-b border-white/20">No.</th>
+                        {leaderboardMode === 'staff' ? (
+                          <>
+                            <th className="text-left border-b border-white/20">Staff Name</th>
+                            <th className="text-center border-b border-white/20">Staff ID</th>
+                            <th className="text-left border-b border-white/20">Branch Name</th>
+                            <th className="text-center border-b border-white/20">Branch Code</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="text-left border-b border-white/20">Branch Name</th>
+                            <th className="text-center border-b border-white/20">Branch Code</th>
+                            <th className="text-center border-b border-white/20">Active Staff</th>
+                          </>
+                        )}
+                        {top10ChannelCols.map(({ key, Icon, iconCls, taskLabel, ptsLabel }) => (
+                          <th key={key} className="text-right border-b border-white/20">
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <Icon className={`w-3.5 h-3.5 ${iconCls} shrink-0`} aria-hidden />
+                              <span>{isTaskMode ? taskLabel : ptsLabel}</span>
+                            </span>
+                          </th>
+                        ))}
+                        <th className="text-center border-b border-white/20">Category Mix</th>
+                        {leaderboardMode === 'branch' && (
+                          <th className="text-right border-b border-white/20">{isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'}</th>
+                        )}
+                        <th className="text-right border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
+                        <th className="text-right border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      {top10Data.staff.length === 0 ? (
-                        <tr>
-                          <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
-                            No staff records in this period.
-                          </td>
-                        </tr>
-                      ) : (
-                        top10Data.staff.map((s, i) => (
-                          <tr key={s.staffId} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3 text-center">
-                              <div className="flex justify-center items-center">
-                                <RankBadge rank={i + 1} />
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-4">
-                              <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
-                                {s.staffName}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums">
-                                {s.staffId || '—'}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-4">
-                              <span className="text-[13px] text-slate-800 font-medium truncate block" title={cleanBranchName(s.branchName)}>
-                                {cleanBranchName(s.branchName)}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
-                                title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}
-                              >
-                                {fmtBranchCode(s.branchId)}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.posTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.posPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.sbTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.sbPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.khqrTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.ccTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.ccPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.mvTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.mvPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <div className="flex justify-center items-center">
-                                {isTaskMode ? (
-                                  <MiniMixBar pos={s.posTasks} sb={s.sbTasks} khqr={s.khqrTasks} cc={s.ccTasks} mv={s.mvTasks} total={s.totalTasks} />
-                                ) : (
-                                  <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} mv={s.mvPoints} total={s.totalPoints} />
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
-                              {isTaskMode ? <>{fmtPts(s.totalPoints)} pts</> : fmtInt(s.totalTasks)}
-                            </td>
-                            <td className="py-2.5 px-4 text-right tabular-nums">
-                              <span className="font-bold text-[#003857] text-[13.5px]">
-                                {isTaskMode ? <>{fmtInt(s.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
-                              </span>
+                      {leaderboardMode === 'staff' ? (
+                        top10Data.staff.length === 0 ? (
+                          <tr>
+                            <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
+                              No staff records in this period.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </>
-                ) : (
-                  <>
-                    <thead>
-                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
-                        <th className="py-2.5 px-4 text-left min-w-[220px] border-b border-white/20">Branch Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Active Staff</th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#5cc8ff]" />
-                            <span>{isTaskMode ? 'POS Tasks' : 'POS Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#a2a5e0]" />
-                            <span>{isTaskMode ? 'SB Tasks' : 'SB Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <QrCode className="w-3.5 h-3.5 text-[#74b9ff]" />
-                            <span>{isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
-                            <span>{isTaskMode ? 'CC Tasks' : 'CC Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <ClipboardList className="w-3.5 h-3.5 text-[#52b788]" />
-                            <span>{isTaskMode ? 'MV Tasks' : 'MV Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'}</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
-                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      {top10Data.branches.length === 0 ? (
+                        ) : (
+                          top10Data.staff.map((s, i) => (
+                            <tr key={s.staffId} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2.5 px-1.5 text-center">
+                                <div className="flex justify-center items-center">
+                                  <RankBadge rank={i + 1} />
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-1.5">
+                                <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
+                                  {s.staffName}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-center">
+                                <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap">
+                                  {s.staffId || '—'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5">
+                                <span className="text-[13px] text-slate-800 font-medium truncate block" title={cleanBranchName(s.branchName)}>
+                                  {cleanBranchName(s.branchName)}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-center">
+                                <span
+                                  className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap"
+                                  title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}
+                                >
+                                  {fmtBranchCode(s.branchId)}
+                                </span>
+                              </td>
+                              {renderMetricCell('pos', s.posTasks, s.posPoints)}
+                              {renderMetricCell('sb', s.sbTasks, s.sbPoints)}
+                              {renderMetricCell('khqr', s.khqrTasks, s.khqrPoints)}
+                              {renderMetricCell('cc', s.ccTasks, s.ccPoints)}
+                              {renderMetricCell('mv', s.mvTasks, s.mvPoints)}
+                              <td className="py-2.5 px-1.5">
+                                <div className="flex justify-center items-center">
+                                  <MiniMixBar
+                                    pos={isTaskMode ? s.posTasks : s.posPoints}
+                                    sb={isTaskMode ? s.sbTasks : s.sbPoints}
+                                    khqr={isTaskMode ? s.khqrTasks : s.khqrPoints}
+                                    cc={isTaskMode ? s.ccTasks : s.ccPoints}
+                                    mv={isTaskMode ? s.mvTasks : s.mvPoints}
+                                    total={isTaskMode ? s.totalTasks : s.totalPoints}
+                                  />
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
+                                {isTaskMode ? <>{fmtPts(s.totalPoints)} pts</> : fmtInt(s.totalTasks)}
+                              </td>
+                              <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
+                                <span className="font-bold text-[#003857] text-[13.5px]">
+                                  {isTaskMode ? <>{fmtInt(s.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )
+                      ) : top10Data.branches.length === 0 ? (
                         <tr>
                           <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
                             No branch records in this period.
@@ -3937,60 +3766,53 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       ) : (
                         top10Data.branches.map((b, i) => (
                           <tr key={b.branchId} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <div className="flex justify-center items-center">
                                 <RankBadge rank={i + 1} />
                               </div>
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-1.5">
                               <span className="font-semibold text-slate-900 text-[13px] block truncate" title={cleanBranchName(b.branchName)}>
                                 {cleanBranchName(b.branchName)}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
+                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap"
                                 title={b.branchId === 'UNASSIGNED' ? 'Unassigned' : b.branchId}
                               >
                                 {fmtBranchCode(b.branchId)}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-200/80 tabular-nums whitespace-nowrap">
                                 {b.staffCount} staff
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.posTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.posPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.sbTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.sbPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.khqrTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.ccTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.ccPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.mvTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.mvPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3">
+                            {renderMetricCell('pos', b.posTasks, b.posPoints)}
+                            {renderMetricCell('sb', b.sbTasks, b.sbPoints)}
+                            {renderMetricCell('khqr', b.khqrTasks, b.khqrPoints)}
+                            {renderMetricCell('cc', b.ccTasks, b.ccPoints)}
+                            {renderMetricCell('mv', b.mvTasks, b.mvPoints)}
+                            <td className="py-2.5 px-1.5">
                               <div className="flex justify-center items-center">
-                                {isTaskMode ? (
-                                  <MiniMixBar pos={b.posTasks} sb={b.sbTasks} khqr={b.khqrTasks} cc={b.ccTasks} mv={b.mvTasks} total={b.totalTasks} />
-                                ) : (
-                                  <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} mv={b.mvPoints} total={b.totalPoints} />
-                                )}
+                                <MiniMixBar
+                                  pos={isTaskMode ? b.posTasks : b.posPoints}
+                                  sb={isTaskMode ? b.sbTasks : b.sbPoints}
+                                  khqr={isTaskMode ? b.khqrTasks : b.khqrPoints}
+                                  cc={isTaskMode ? b.ccTasks : b.ccPoints}
+                                  mv={isTaskMode ? b.mvTasks : b.mvPoints}
+                                  total={isTaskMode ? b.totalTasks : b.totalPoints}
+                                />
                               </div>
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-700 font-medium whitespace-nowrap">
                               {isTaskMode ? <>{fmtPts(b.tasksPerStaff)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.ptsPerStaff)} <span className="text-[11px] text-slate-400">pts</span></>}
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
                               {isTaskMode ? <>{fmtPts(b.totalPoints)} pts</> : fmtInt(b.totalTasks)}
                             </td>
-                            <td className="py-2.5 px-4 text-right tabular-nums">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                               <span className="font-bold text-[#003857] text-[13.5px]">
                                 {isTaskMode ? <>{fmtInt(b.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(b.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
                               </span>
@@ -3999,9 +3821,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         ))
                       )}
                     </tbody>
-                  </>
-                )}
-              </table>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         </section>

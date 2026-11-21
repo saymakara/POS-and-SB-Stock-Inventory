@@ -865,6 +865,48 @@ table thead th.col-no { width: 52px; text-align: center; }
   box-sizing: border-box !important;
 }
 
+/* Proportional balanced padding & crisp header tracking for Top 10 Leaderboard tables */
+.top10-table thead th {
+  padding: 9px 7px !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.035em !important;
+  box-sizing: border-box !important;
+}
+.top10-table thead th:first-child,
+.top10-table tbody td:first-child {
+  padding-left: 10px !important;
+}
+.top10-table thead th:last-child,
+.top10-table tbody td:last-child {
+  padding-right: 12px !important;
+}
+
+/* Balanced compact spacing & single-line fit for Branch Codes Inventory Table */
+.branches-table thead th {
+  padding: 9px 7px !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.03em !important;
+  box-sizing: border-box !important;
+}
+.branches-table thead th.text-center {
+  text-align: center !important;
+}
+.branches-table thead th.text-right {
+  text-align: right !important;
+}
+.branches-table tbody td {
+  padding: 10px 7px !important;
+  box-sizing: border-box !important;
+}
+.branches-table thead th:first-child,
+.branches-table tbody td:first-child {
+  padding-left: 10px !important;
+}
+.branches-table thead th:last-child,
+.branches-table tbody td:last-child {
+  padding-right: 14px !important;
+}
+
 /* "transition-all" strictly constrained to composite & paint properties for 60fps performance */
 .transition-all {
   transition-property: background-color, border-color, color, opacity, transform, box-shadow !important;

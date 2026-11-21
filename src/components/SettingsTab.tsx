@@ -550,25 +550,25 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   return (
     <div className="flex flex-col gap-5 apple-tab-panel">
-      {/* Hero Header (System Signature Backdrop Style) */}
+      {/* Hero Header (fixed vertical footprint across subtabs so the toggle bar never jumps position) */}
       <section
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900"
+        className="relative overflow-hidden rounded-3xl px-6 py-5 sm:px-8 sm:py-6 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900"
         aria-label="System Settings"
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              {headerInfo.icon}
-              <span>
-                {headerInfo.title}
-                {headerInfo.subtitle ? (
-                  <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
-                    {' '}· {headerInfo.subtitle}
-                  </span>
-                ) : null}
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:min-h-[84px]">
+          <div className="space-y-1.5 max-w-4xl min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight flex flex-wrap lg:flex-nowrap items-center gap-x-2.5 gap-y-1 text-slate-900 leading-tight">
+              <span className="inline-flex items-center gap-2.5 shrink-0">
+                {headerInfo.icon}
+                <span>{headerInfo.title}</span>
               </span>
+              {headerInfo.subtitle ? (
+                <span className="text-slate-500 font-semibold text-sm sm:text-base lg:text-[17px] truncate">
+                  · {headerInfo.subtitle}
+                </span>
+              ) : null}
             </h1>
-            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+            <p className="text-sm leading-snug text-slate-600 lg:min-h-[40px] flex items-center">
               {headerInfo.desc}
             </p>
           </div>

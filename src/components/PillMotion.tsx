@@ -43,8 +43,8 @@ function measureInTrack(el: HTMLElement, track: Element): PillBox {
   const tr = track.getBoundingClientRect();
   return {
     track,
-    x: er.left - tr.left,
-    y: er.top - tr.top,
+    x: er.left - tr.left + track.scrollLeft,
+    y: er.top - tr.top + track.scrollTop,
     w: er.width,
     h: er.height,
   };

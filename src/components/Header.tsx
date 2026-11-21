@@ -103,7 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       icon: React.ElementType;
       count?: number;
       highlight?: boolean;
-      nonClickable?: boolean;
       children?: Array<{ id: string; label: string; icon: React.ElementType; iconColor?: string; count?: number }>;
     }>;
   }> = [
@@ -150,10 +149,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: RotateCcw,
         },
         {
-          id: 'inventory',
+          id: 'inventory_pos',
           label: 'Stock Inventory',
           icon: Boxes,
-          nonClickable: true,
           children: [
             // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
             { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pushPos || undefined },
@@ -273,7 +271,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   const showChildren = !!item.children && (isMobileView || !collapsed);
                   const isActive = showChildren ? false : (navTab === item.id || childActive);
                   const showLabels = isMobileView || !collapsed;
-                  const isStaticParent = Boolean(item.nonClickable && showChildren);
 
                   const rowInner = (
                     <>
@@ -290,8 +287,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
                               ? 'bg-white/20 text-white shadow-xs border border-white/20'
-                              : isStaticParent
-                              ? 'bg-white/[0.05] text-zinc-400 border border-transparent'
                               : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
                         >
@@ -327,19 +322,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
                   return (
                     <React.Fragment key={item.id}>
-                    {isStaticParent ? (
-                      <div
-                        className="relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] font-normal text-zinc-300 border border-transparent cursor-default select-none z-10"
-                      >
-                        {rowInner}
-                      </div>
-                    ) : (
                     <motion.button
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                       type="button"
                       onClick={() => {
-                        onSelectTab(item.nonClickable ? 'inventory_pos' : item.id);
+                        onSelectTab(item.id);
                         if (isMobileView) onCloseMobile?.();
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
@@ -352,7 +340,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     >
                       {rowInner}
                     </motion.button>
-                    )}
                     {showChildren && (
                       <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
