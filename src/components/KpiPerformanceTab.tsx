@@ -272,10 +272,10 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_RING_CX = 90;
-const KT_RING_CY = 90;
-const KT_OUTER_R = 72;
-const KT_INNER_R = 52;
+const KT_RING_CX = 120;
+const KT_RING_CY = 120;
+const KT_OUTER_R = 98;
+const KT_INNER_R = 72;
 const KT_OUTER_C = 2 * Math.PI * KT_OUTER_R;
 const KT_INNER_C = 2 * Math.PI * KT_INNER_R;
 
@@ -301,10 +301,6 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   const effectivePaceRatio = showPacing ? Math.min(1, Math.max(0.01, pacingRatio)) : 1;
   const expectedPacePct = Math.round(effectivePaceRatio * 1000) / 10;
   const expectedPacePts = Math.round(safeTarget * effectivePaceRatio * 10) / 10;
-  const paceDeltaPts = Math.round((safeActual - expectedPacePts) * 10) / 10;
-  const paceAttainmentPct = expectedPacePts > 0
-    ? Math.min(999, Math.round((safeActual / expectedPacePts) * 1000) / 10)
-    : 0;
   const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
 
   const actualColor = isMet ? '#2d6a4f' : '#155484';
@@ -313,15 +309,6 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   const innerDash = safeTarget > 0 ? Math.min(1, effectivePaceRatio) * KT_INNER_C : 0;
 
   const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
-  const paceHeaderBadge = safeTarget <= 0
-    ? { text: 'No Target', cls: 'bg-slate-100 text-slate-600 border-slate-200' }
-    : isMet
-      ? { text: `+${fmtPts(surplusPts)} Surplus`, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80' }
-      : !showPacing
-        ? { text: `${fmtPts(gapPts)} Left`, cls: 'bg-slate-100 text-slate-700 border-slate-200' }
-        : isAheadOfPace
-          ? { text: `Pace +${fmtPts(paceDeltaPts)}`, cls: 'bg-sky-50 text-[#155484] border-sky-200/80' }
-          : { text: `Pace Gap -${fmtPts(Math.abs(paceDeltaPts))}`, cls: 'bg-amber-50 text-amber-800 border-amber-200/90' };
 
   const centerReadout = (() => {
     if (hoveredKey === 'actual') {
@@ -356,18 +343,12 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
     };
   })();
 
-  const paceRateCls = paceAttainmentPct >= 100
-    ? 'text-emerald-700'
-    : paceAttainmentPct >= 75
-      ? 'text-amber-700'
-      : 'text-rose-700';
-
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+      className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col"
     >
-      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold text-slate-900 truncate">
             {targetTitle} vs Actual Achievement{' '}
@@ -377,17 +358,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             Concentric attainment &amp; pace rings
           </p>
         </div>
-        <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border whitespace-nowrap shrink-0 tabular-nums ${paceHeaderBadge.cls}`}>
-          {paceHeaderBadge.text}
-        </span>
       </div>
 
-      <div className="px-4 sm:px-5 py-4 flex-1 flex flex-col justify-between gap-4">
+      <div className="px-4 sm:px-5 py-5 flex-1 flex items-center justify-center">
         {/* Dual Concentric Activity Rings + Interactive Side Ledger */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-6 flex-1 my-auto">
-          <div className="relative w-[166px] h-[166px] sm:w-[174px] sm:h-[174px] shrink-0">
+        <div className="w-full flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-center gap-5 2xl:gap-7">
+          <div className="relative w-[212px] h-[212px] sm:w-[228px] sm:h-[228px] xl:w-[220px] xl:h-[220px] 2xl:w-[244px] 2xl:h-[244px] shrink-0">
             <svg
-              viewBox="0 0 180 180"
+              viewBox="0 0 240 240"
               className="w-full h-full"
               role="img"
               aria-label={`${targetTitle} vs Actual Achievement Concentric Rings: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
@@ -400,7 +378,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke="#e2e8f0"
-                strokeWidth={14}
+                strokeWidth={18}
               />
               <circle
                 data-kpi-target-slice="actual"
@@ -409,7 +387,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 16 : 14}
+                strokeWidth={hoveredKey === 'actual' ? 20 : 18}
                 strokeLinecap="round"
                 strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
                 strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
@@ -428,7 +406,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_INNER_R}
                 fill="none"
                 stroke="#f1f5f9"
-                strokeWidth={11}
+                strokeWidth={14}
               />
               {showPacing && (
                 <circle
@@ -438,7 +416,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                   r={KT_INNER_R}
                   fill="none"
                   stroke={paceRingColor}
-                  strokeWidth={hoveredKey === 'pace' ? 13 : 11}
+                  strokeWidth={hoveredKey === 'pace' ? 16 : 14}
                   strokeLinecap="round"
                   strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
                   strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
@@ -454,28 +432,28 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               {/* Ring Center Metric */}
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY - 6}
+                y={KT_RING_CY - 8}
                 textAnchor="middle"
                 className="fill-slate-900 font-figure"
-                style={{ fontSize: '21px', fontWeight: 800, letterSpacing: '-0.02em' }}
+                style={{ fontSize: '29px', fontWeight: 800, letterSpacing: '-0.025em' }}
               >
                 {centerReadout.pct}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 10}
+                y={KT_RING_CY + 13}
                 textAnchor="middle"
                 className="fill-slate-500"
-                style={{ fontSize: '8.2px', fontWeight: 700, letterSpacing: '0.06em' }}
+                style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.07em' }}
               >
                 {centerReadout.top}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 23}
+                y={KT_RING_CY + 30}
                 textAnchor="middle"
                 fill={centerReadout.subColor}
-                style={{ fontSize: '8.5px', fontWeight: 700 }}
+                style={{ fontSize: '11px', fontWeight: 700 }}
               >
                 {centerReadout.sub}
               </text>
@@ -483,7 +461,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           </div>
 
           {/* Right Side Ledger Stack */}
-          <div className="flex-1 w-full min-w-[175px] max-w-[240px] flex flex-col gap-3">
+          <div className="flex-1 w-full min-w-0 max-w-[235px] flex flex-col gap-4">
             <button
               type="button"
               data-kpi-comparison-row="actual"
@@ -491,15 +469,15 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('actual')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-3 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-700' : 'border-[#155484]'
               } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
                 Actual Achievement
               </div>
-              <div className="font-figure text-[15px] font-extrabold text-slate-900 tabular-nums mt-0.5">
-                {fmtPts(safeActual)} <span className="text-[11px] font-semibold text-slate-500">pts</span>
+              <div className="font-figure text-[16px] font-extrabold text-slate-900 tabular-nums mt-0.5">
+                {fmtPts(safeActual)} <span className="text-[11.5px] font-semibold text-slate-500">pts</span>
               </div>
             </button>
 
@@ -510,17 +488,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('pace')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-3 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
               } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
                 {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
               </div>
-              <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${
+              <div className={`font-figure text-[15px] font-extrabold tabular-nums mt-0.5 ${
                 isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
               }`}>
-                {fmtPts(expectedPacePts)} <span className="text-[11px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
+                {fmtPts(expectedPacePts)} <span className="text-[11.5px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
               </div>
             </button>
 
@@ -531,40 +509,18 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('target')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] border-slate-300 pl-2.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] border-slate-300 pl-3 py-0.5 transition-opacity cursor-pointer ${
                 hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
               }`}
             >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
                 {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
               </div>
-              <div className="font-figure text-[14px] font-extrabold text-slate-700 tabular-nums mt-0.5">
+              <div className="font-figure text-[15px] font-extrabold text-slate-700 tabular-nums mt-0.5">
                 {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
-                <span className="text-[11px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
+                <span className="text-[11.5px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
               </div>
             </button>
-          </div>
-        </div>
-
-        {/* Bottom 3-Card Summary Strip */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
-            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Outer Ring</div>
-            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${isMet ? 'text-emerald-700' : 'text-[#155484]'}`}>
-              {achievementPct}%
-            </div>
-          </div>
-          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
-            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Target Pace</div>
-            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'}`}>
-              {expectedPacePct}%
-            </div>
-          </div>
-          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-2.5 py-2">
-            <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Pace Rate</div>
-            <div className={`font-figure text-[14px] font-extrabold tabular-nums mt-0.5 ${paceRateCls}`}>
-              {paceAttainmentPct}%
-            </div>
           </div>
         </div>
       </div>
@@ -2820,8 +2776,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <span className="w-2.5 h-2.5 rounded-[3px] bg-[#155484] inline-block" aria-hidden />
                       <span>{isTaskMode ? 'Total Tasks (bars)' : 'Total Points (bars)'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-emerald-700">
-                      <span className="w-4 border-t-[2.5px] border-emerald-500 inline-block rounded-full" aria-hidden />
+                    <span className="inline-flex items-center gap-1.5 text-amber-700">
+                      <svg className="w-5 h-2.5 shrink-0" viewBox="0 0 20 10" aria-hidden>
+                        <line x1="1" y1="5" x2="19" y2="5" stroke="#d97706" strokeWidth="2.2" strokeDasharray="4 3" strokeLinecap="round" />
+                        <circle cx="10" cy="5" r="2.3" fill="#ffffff" stroke="#d97706" strokeWidth="1.6" />
+                      </svg>
                       <span>Active Staff (line)</span>
                     </span>
                     {velocitySummary.peakLabel && (
@@ -2890,7 +2849,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           orientation="right"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 11, fill: '#059669' }}
+                          tick={{ fontSize: 11, fill: '#b45309' }}
                           width={32}
                         />
                         <Tooltip
@@ -2954,8 +2913,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           type="monotone"
                           dataKey="activeStaff"
                           name="Active Staff"
-                          stroke="#10b981"
-                          strokeWidth={2.5}
+                          stroke="#d97706"
+                          strokeWidth={2.2}
+                          strokeDasharray="6 4"
+                          strokeLinecap="round"
                           dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
                             const val = Number(dotProps.value || 0);
                             if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
@@ -2966,14 +2927,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 key={`st-dot-${dotProps.index}`}
                                 cx={dotProps.cx}
                                 cy={dotProps.cy}
-                                r={2.8}
+                                r={3}
                                 fill="#ffffff"
-                                stroke="#10b981"
+                                stroke="#d97706"
                                 strokeWidth={1.8}
                               />
                             );
                           }}
-                          activeDot={{ r: 5.2, fill: '#10b981', stroke: '#ffffff', strokeWidth: 2.2 }}
+                          activeDot={{ r: 5.2, fill: '#d97706', stroke: '#ffffff', strokeWidth: 2.2 }}
                           isAnimationActive={false}
                         />
                       </ComposedChart>
