@@ -8,7 +8,7 @@ import {
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, Copy, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, Copy, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -56,6 +56,7 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   POS_MAINT: 'POS operational support',
   POS_INACTIVE: 'POS in-active maintenance',
   POS_RETURN: 'POS returned & terminated',
+  POS_OFFLINE: 'POS offline count',
 };
 const KIND_CARD_META: Record<
   string,
@@ -70,6 +71,7 @@ const KIND_CARD_META: Record<
   POS_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
   POS_INACTIVE: { icon: PauseCircle, iconCls: 'bg-orange-50 text-orange-600 border-orange-200/80' },
   POS_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
+  POS_OFFLINE: { icon: WifiOff, iconCls: 'bg-slate-100 text-slate-600 border-slate-200/80' },   // (21 Nov 2026) no stock move
   SB_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
   SB_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
 };
@@ -208,6 +210,8 @@ const howOf = (v: unknown): How => {
 /** Maintenance / In-Active / Return forms: when the phone app scans the MID only and fills the
  *  serial, TID and terminal name from it, it may omit serial_input. A scanned MID means the unit was scanned. */
 const MID_LOOKUP_KINDS = new Set(['POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'SB_MAINT', 'SB_RETURN']);
+/** (21 Nov 2026) The name of a record in messages: its serial, or (POS Offline Count: no serial) its TID / terminal / record. */
+const recName = (e: FieldEvent) => e.serial || (e.tid ? `TID ${e.tid}` : '') || e.terminalName || e.sourceRecordId;
 const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How; oldBattery: How; newBattery: How; serialFromMid: boolean } => {
   const u = (e.payload && (e.payload.unit || e.payload)) || {};
   const serialReported = howOf(u.serial_input || u.serialInput || u.scan_type || u.scanType || e.payload?.serial_input);
@@ -297,7 +301,7 @@ export function fieldEditFields(e: FieldEvent): EditField[] {
     { key: 'terminal_name', label: 'Terminal Name', value: e.terminalName, section: sec },
     { key: 'mid', label: 'MID', value: e.mid, locked: lock, numeric: true, section: sec },
     ...(noTid ? [] : [{ key: 'tid', label: 'TID', value: e.tid, locked: lock, numeric: true, hint: lock ? undefined : '8 digits', section: sec }]),
-    { key: 'serial', label: serialLabel, value: e.serial, locked: lock, section: sec },
+    ...(e.kind === 'POS_OFFLINE' ? [] : [{ key: 'serial', label: serialLabel, value: e.serial, locked: lock, section: sec }]),   // (21 Nov 2026) Offline Count: no serial
   ];
   const dev = out[0].section;
   if (e.kind === 'REPLACE') out.push({ key: 'old_serial', label: sb ? 'Old Sound Box SN' : 'Old Terminal Serial', value: e.oldSerial, locked: lock, section: dev });
@@ -660,10 +664,10 @@ export const FieldReviewTab: React.FC<Props> = ({
   const availableKinds = useMemo(() => {
     const defaultKinds: FieldEvent['kind'][] =
       deviceType === 'POS Terminal'
-        ? ['INSTALL', 'REPLACE', 'BATTERY', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN']
+        ? ['INSTALL', 'REPLACE', 'BATTERY', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'POS_OFFLINE']
         : deviceType === 'Sound Box'
         ? ['INSTALL', 'REPLACE', 'SB_MAINT', 'SB_RETURN']
-        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN'];
+        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN', 'POS_OFFLINE'];
     const dynamicKinds = new Set<FieldEvent['kind']>(defaultKinds);
     (scoped || []).forEach((e) => {
       if (deviceType && devType(e) !== deviceType) return;
@@ -683,6 +687,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       POS_MAINT: 0,
       POS_INACTIVE: 0,
       POS_RETURN: 0,
+      POS_OFFLINE: 0,
     };
     const len = dateScoped.length;
     for (let i = 0; i < len; i++) {
@@ -890,7 +895,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         setRowErr((p) => ({ ...p, [e.id]: cap(err) }));
         setOpen(e.id);
       } else {
-        triggerToast(`Approved · ${e.serial} · stock updated`);
+        triggerToast(e.kind === 'POS_OFFLINE' ? `Approved · ${recName(e)}` : `Approved · ${recName(e)} · stock updated`);
         onApplied();
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -911,7 +916,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       const err = await rejectOne(e, note);
       setBusy(e.id, false);
       if (err) setRowErr((p) => ({ ...p, [e.id]: cap(err) }));
-      else triggerToast(`Rejected · ${e.serial}`);
+      else triggerToast(`Rejected · ${recName(e)}`);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [triggerToast]
@@ -931,7 +936,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     const problems: string[] = [];
     for (const e of list) {
       const err = mode === 'approve' ? await approveOne(e, bulkAck) : await rejectOne(e, bulkNote);
-      if (err) problems.push(`${e.serial}: ${err}`);
+      if (err) problems.push(`${recName(e)}: ${err}`);
       else ok += 1;
     }
     setBulkBusy('');
@@ -1027,7 +1032,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {deviceType === 'Sound Box'
                 ? 'Sound Box records from the Merchant Visit app: installations, replacements, maintenance and returns. Approve to update the stock, or reject with a reason.'
-                : 'POS Terminal records from the Merchant Visit app: installations, replacements, battery changes, maintenance and returns. Approve to update the stock, or reject with a reason.'}
+                : 'POS Terminal records from the Merchant Visit app: installations, replacements, battery changes, maintenance, returns and offline counts. Approve to update the stock, or reject with a reason. Offline counts need no approval: they are recorded automatically and move no stock.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
@@ -1685,7 +1690,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   );
 };
 const KIND_LABEL_EDIT: Record<string, string> = { INSTALL: 'New Installation', REPLACE: 'Replacement', BATTERY: 'Battery Replacement', SB_MAINT: 'Sound Box Operational Support',
-  SB_RETURN: 'Return', POS_MAINT: 'POS Operational Support', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate' };
+  SB_RETURN: 'Return', POS_MAINT: 'POS Operational Support', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate', POS_OFFLINE: 'POS Offline Count' };
 
 const SortBtn: React.FC<{
   k: string;
@@ -1800,7 +1805,7 @@ const ReviewRow = memo(function ReviewRow({
       {/* Clean Row */}
       <div className={`${GRID} px-3.5 py-2.5 text-xs font-normal text-slate-700`}>
         <span className="flex justify-center">
-          {selectable && <SelectBox checked={checked} onChange={() => onCheck(e.id)} label={`Select ${e.serial}`} />}
+          {selectable && <SelectBox checked={checked} onChange={() => onCheck(e.id)} label={`Select ${recName(e)}`} />}
         </span>
         <span className="text-center text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#184e77]'}`}>
@@ -1840,15 +1845,22 @@ const ReviewRow = memo(function ReviewRow({
                 }`}
                 aria-hidden
               />
-              <span className={`${serialCls} select-text group-hover:text-slate-950 dark:group-hover:text-white`}>
-                {e.serial}
-              </span>
+              {e.serial ? (
+                <span className={`${serialCls} select-text group-hover:text-slate-950 dark:group-hover:text-white`}>
+                  {e.serial}
+                </span>
+              ) : (
+                /* (21 Nov 2026) POS Offline Count: the form asks no serial - the terminal is its TID */
+                <span className="font-sans text-slate-500 dark:text-slate-400 italic">{e.tid ? `TID ${e.tid}` : 'No serial'}</span>
+              )}
             </button>
-            <CopySerialButton value={e.serial} label="serial" />
-            <InputMethodBadge
-              method={entry.serial}
-              titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
-            />
+            {e.serial && <CopySerialButton value={e.serial} label="serial" />}
+            {e.serial && (
+              <InputMethodBadge
+                method={entry.serial}
+                titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
+              />
+            )}
           </div>
           {e.oldSerial && (
             <div

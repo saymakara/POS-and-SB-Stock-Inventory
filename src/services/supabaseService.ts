@@ -1536,7 +1536,7 @@ export interface FieldEvent {
   sourceRecordId: string;
   unitNo: number;
   revision: number;
-  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN' | 'POS_MAINT' | 'POS_INACTIVE' | 'POS_RETURN';
+  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN' | 'POS_MAINT' | 'POS_INACTIVE' | 'POS_RETURN' | 'POS_OFFLINE';
   deviceType: 'POS Terminal' | 'Sound Box';
   serial: string;
   oldSerial: string | null;
