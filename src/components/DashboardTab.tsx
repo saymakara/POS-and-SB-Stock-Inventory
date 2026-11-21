@@ -3385,14 +3385,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     isLight ? 'text-slate-900' : 'text-white'
                   }`}
                 >
-                  Cross-Channel Daily Velocity & Active Staff
+                  Daily Volume &amp; Staff
                 </h3>
                 <p
                   className={`text-[12px] truncate ${
                     isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  Daily 5-channel volume trajectory with active staff trendline
+                  5-channel daily trend
                 </p>
               </div>
             </div>
