@@ -274,8 +274,8 @@ interface KpiTargetComparisonDonutProps {
 
 const KT_RING_CX = 120;
 const KT_RING_CY = 120;
-const KT_OUTER_R = 98;
-const KT_INNER_R = 72;
+const KT_OUTER_R = 106;
+const KT_INNER_R = 78;
 const KT_OUTER_C = 2 * Math.PI * KT_OUTER_R;
 const KT_INNER_C = 2 * Math.PI * KT_INNER_R;
 
@@ -346,7 +346,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col"
+      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col"
     >
       <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="min-w-0">
@@ -360,10 +360,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         </div>
       </div>
 
-      <div className="px-4 sm:px-5 py-5 flex-1 flex items-center justify-center">
-        {/* Dual Concentric Activity Rings + Interactive Side Ledger */}
-        <div className="w-full flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-center gap-5 2xl:gap-7">
-          <div className="relative w-[212px] h-[212px] sm:w-[228px] sm:h-[228px] xl:w-[220px] xl:h-[220px] 2xl:w-[244px] 2xl:h-[244px] shrink-0">
+      <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
+        {/* Dual Concentric Activity Rings + Right-Side Ledger */}
+        <div className="w-full flex flex-col @[425px]:flex-row items-center @[425px]:justify-between gap-4 @[425px]:gap-3 @[490px]:gap-5 @[570px]:gap-6">
+          <div className="relative w-[224px] h-[224px] @[425px]:w-[230px] @[425px]:h-[230px] @[490px]:w-[266px] @[490px]:h-[266px] @[570px]:w-[306px] @[570px]:h-[306px] @[640px]:w-[322px] @[640px]:h-[322px] shrink-0">
             <svg
               viewBox="0 0 240 240"
               className="w-full h-full"
@@ -378,7 +378,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke="#e2e8f0"
-                strokeWidth={18}
+                strokeWidth={19}
               />
               <circle
                 data-kpi-target-slice="actual"
@@ -387,7 +387,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 20 : 18}
+                strokeWidth={hoveredKey === 'actual' ? 21 : 19}
                 strokeLinecap="round"
                 strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
                 strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
@@ -406,7 +406,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_INNER_R}
                 fill="none"
                 stroke="#f1f5f9"
-                strokeWidth={14}
+                strokeWidth={15}
               />
               {showPacing && (
                 <circle
@@ -416,7 +416,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                   r={KT_INNER_R}
                   fill="none"
                   stroke={paceRingColor}
-                  strokeWidth={hoveredKey === 'pace' ? 16 : 14}
+                  strokeWidth={hoveredKey === 'pace' ? 17 : 15}
                   strokeLinecap="round"
                   strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
                   strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
@@ -432,28 +432,28 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               {/* Ring Center Metric */}
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY - 8}
+                y={KT_RING_CY - 9}
                 textAnchor="middle"
                 className="fill-slate-900 font-figure"
-                style={{ fontSize: '29px', fontWeight: 800, letterSpacing: '-0.025em' }}
+                style={{ fontSize: '31px', fontWeight: 800, letterSpacing: '-0.025em' }}
               >
                 {centerReadout.pct}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 13}
+                y={KT_RING_CY + 14}
                 textAnchor="middle"
                 className="fill-slate-500"
-                style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.07em' }}
+                style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em' }}
               >
                 {centerReadout.top}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 30}
+                y={KT_RING_CY + 32}
                 textAnchor="middle"
                 fill={centerReadout.subColor}
-                style={{ fontSize: '11px', fontWeight: 700 }}
+                style={{ fontSize: '11.5px', fontWeight: 700 }}
               >
                 {centerReadout.sub}
               </text>
@@ -461,7 +461,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           </div>
 
           {/* Right Side Ledger Stack */}
-          <div className="flex-1 w-full min-w-0 max-w-[235px] flex flex-col gap-4">
+          <div className="w-full @[425px]:w-auto @[425px]:ml-auto @[490px]:pr-1 min-w-0 shrink-0 flex flex-col gap-3.5 @[490px]:gap-4.5 @[570px]:gap-5">
             <button
               type="button"
               data-kpi-comparison-row="actual"
@@ -469,15 +469,15 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('actual')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-3 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-700' : 'border-[#155484]'
               } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                 Actual Achievement
               </div>
-              <div className="font-figure text-[16px] font-extrabold text-slate-900 tabular-nums mt-0.5">
-                {fmtPts(safeActual)} <span className="text-[11.5px] font-semibold text-slate-500">pts</span>
+              <div className="font-figure text-[15px] @[490px]:text-[17px] @[570px]:text-[18.5px] font-extrabold text-slate-900 tabular-nums mt-0.5 whitespace-nowrap">
+                {fmtPts(safeActual)} <span className="text-[11px] @[490px]:text-[12px] font-semibold text-slate-500">pts</span>
               </div>
             </button>
 
@@ -488,17 +488,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('pace')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-3 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
               } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                 {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
               </div>
-              <div className={`font-figure text-[15px] font-extrabold tabular-nums mt-0.5 ${
+              <div className={`font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold tabular-nums mt-0.5 whitespace-nowrap ${
                 isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
               }`}>
-                {fmtPts(expectedPacePts)} <span className="text-[11.5px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
+                {fmtPts(expectedPacePts)} <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
               </div>
             </button>
 
@@ -509,16 +509,16 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('target')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] border-slate-300 pl-3 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] border-slate-300 pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
                 hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
               }`}
             >
-              <div className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                 {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
               </div>
-              <div className="font-figure text-[15px] font-extrabold text-slate-700 tabular-nums mt-0.5">
+              <div className="font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold text-slate-700 tabular-nums mt-0.5 whitespace-nowrap">
                 {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
-                <span className="text-[11.5px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
+                <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
               </div>
             </button>
           </div>
