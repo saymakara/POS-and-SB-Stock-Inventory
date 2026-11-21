@@ -3,7 +3,12 @@ import { isFresh, markFresh } from '../utils/freshness';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation, PencilLine, Trash2 } from 'lucide-react';
 import { Branch, UserRole } from '../types';
-import { ClearFiltersButton } from './ClearFiltersButton';
+import {
+  ClearFiltersButton,
+  REVIEW_FILTER_BAR_CLS,
+  REVIEW_SELECT_CLS,
+  REVIEW_INPUT_CLS,
+} from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { Pager } from './Pager';
@@ -207,33 +212,28 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
 
       {/* Filters & Inline Selection Toolbar */}
       <section
-        className="flex flex-wrap items-center justify-between gap-2.5 bg-white rounded-2xl border border-slate-200 shadow-2xs px-3.5 py-2.5 min-h-[52px]"
+        className={`flex flex-wrap items-center justify-between gap-2 ${REVIEW_FILTER_BAR_CLS}`}
         aria-label="Filters"
       >
-        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
-          <label className="relative w-64 sm:w-72 lg:w-80 shrink-0">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search merchant, MID, Record ID or staff"
-              aria-label="Search"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm outline-none focus:border-slate-400 bg-white placeholder:text-slate-400 shadow-2xs transition-colors"
-            />
-          </label>
-          <select
-            value={activity}
-            onChange={(e) => setActivity(e.target.value)}
-            aria-label="Activity"
-            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 cursor-pointer shadow-2xs outline-none"
-          >
-            <option value="">All activities</option>
-            {activities.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+          <div className="relative inline-flex items-center shrink-0">
+            <select
+              value={activity}
+              onChange={(e) => setActivity(e.target.value)}
+              aria-label="Activity"
+              className={`${REVIEW_SELECT_CLS} max-w-[132px] ${
+                activity ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+              }`}
+            >
+              <option value="">All activities</option>
+              {activities.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+          </div>
           {isAdmin && (
             <div className="relative inline-flex items-center shrink-0">
               <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
@@ -245,10 +245,10 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
                   setBranchId('');
                 }}
                 aria-label="Filter by region"
-                className={`appearance-none pl-8 pr-7 py-1.5 rounded-xl border text-xs sm:text-sm font-medium cursor-pointer shadow-2xs outline-none ${
+                className={`${REVIEW_SELECT_CLS} !pl-7 max-w-[116px] ${
                   region !== 'ALL'
-                    ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
-                    : 'bg-white text-slate-700 border-slate-200'
+                    ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35'
+                    : ''
                 }`}
               >
                 <option value="ALL">All Regions</option>
@@ -259,22 +259,37 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
             </div>
           )}
           {isAdmin && (
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              aria-label="Branch"
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 cursor-pointer max-w-[260px] shadow-2xs outline-none"
-            >
-              <option value="">All branches</option>
-              {region === 'ALL' && <option value="NONE">No matched branch</option>}
-              {branchOptions.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.id} · {b.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                aria-label="Branch"
+                className={`${REVIEW_SELECT_CLS} max-w-[132px] ${
+                  branchId ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+                }`}
+              >
+                <option value="">All branches</option>
+                {region === 'ALL' && <option value="NONE">No matched branch</option>}
+                {branchOptions.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.id} · {b.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+            </div>
           )}
-          <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setRegion('ALL'); setBranchId(''); setQuery(''); }} />
+          <label className="relative flex-1 min-w-[150px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search merchant, MID, Record ID or staff"
+              aria-label="Search"
+              className={REVIEW_INPUT_CLS}
+            />
+          </label>
+          <ClearFiltersButton short active={filtered} onClear={() => { setActivity(''); setRegion('ALL'); setBranchId(''); setQuery(''); }} />
         </div>
 
         {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}

@@ -3,7 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2, Inbox, BellRing, MapPin } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
-import { ClearFiltersButton } from './ClearFiltersButton';
+import {
+  ClearFiltersButton,
+  REVIEW_FILTER_BAR_CLS,
+  REVIEW_TAB_GROUP_CLS,
+  REVIEW_SELECT_CLS,
+  REVIEW_INPUT_CLS,
+} from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
@@ -241,9 +247,9 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
       </section>
 
       {loadError !== 'SETUP' && (<>
-        <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="Filters">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-slate-100 border border-slate-200/90" role="tablist" aria-label="Review status">
+        <section className={REVIEW_FILTER_BAR_CLS} aria-label="Filters">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+            <div className={REVIEW_TAB_GROUP_CLS} role="tablist" aria-label="Review status">
               {REVIEW_TABS.map((t) => {
                 const active = review === t.v;
                 const n = tabCount(t.v);
@@ -255,7 +261,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     role="tab"
                     aria-selected={active}
                     onClick={() => setReview(t.v)}
-                    className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 select-none ${
+                    className={`relative h-[30px] px-1.5 rounded-lg text-[11px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-1 select-none whitespace-nowrap ${
                       active
                         ? 'text-white font-semibold'
                         : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -269,7 +275,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                       />
                     )}
                     <Icon
-                      className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-150 ${
+                      className={`w-3 h-3 shrink-0 relative z-10 transition-colors duration-150 ${
                         active ? 'text-white' : t.accentColor
                       }`}
                       aria-hidden
@@ -277,7 +283,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     <span className="relative z-10 whitespace-nowrap">{t.label}</span>
                     {n !== undefined && (
                       <span
-                        className={`font-figure tabular-nums text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none relative z-10 transition-colors duration-150 ${
+                        className={`font-figure tabular-nums text-[9.5px] font-medium px-1 py-[1px] rounded-full leading-tight relative z-10 transition-colors duration-150 ${
                           active
                             ? 'bg-white/20 text-white'
                             : 'bg-white text-slate-700 border border-slate-200/80'
@@ -301,10 +307,10 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     setRegion(next);
                     setBranchId('');
                   }}
-                  className={`appearance-none pl-8 pr-7 py-2 text-xs font-medium rounded-xl border outline-none cursor-pointer ${
+                  className={`${REVIEW_SELECT_CLS} !pl-7 max-w-[112px] ${
                     region !== 'ALL'
-                      ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
-                      : 'bg-white text-slate-700 border-slate-200'
+                      ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35'
+                      : ''
                   }`}
                 >
                   <option value="ALL">All Regions</option>
@@ -315,19 +321,29 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               </div>
             )}
             {isAdmin && (
-              <select aria-label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer max-w-[220px]">
-                <option value="">All branches</option>
-                {region !== 'REGIONAL' && <option value="100">Code 100 · Head Office</option>}
-                {branchOptions.map((b) => <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>)}
-              </select>
+              <div className="relative inline-flex items-center shrink-0">
+                <select
+                  aria-label="Branch"
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  className={`${REVIEW_SELECT_CLS} max-w-[116px] ${
+                    branchId ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+                  }`}
+                >
+                  <option value="">All branches</option>
+                  {region !== 'REGIONAL' && <option value="100">Code 100 · Head Office</option>}
+                  {branchOptions.map((b) => <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>)}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+              </div>
             )}
-            <div className="relative w-64 sm:w-72 lg:w-80 shrink-0">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
+            <div className="relative flex-1 min-w-[95px]">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
               <input aria-label="Search credit card entries" value={query} onChange={(e) => setQuery(e.target.value)}
-                placeholder={isAdmin ? 'Search Record ID, customer, staff, phone or account' : 'Search Record ID, customer, staff or phone'}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs" />
+                placeholder="Search ID, customer…"
+                className={REVIEW_INPUT_CLS} />
             </div>
-            <ClearFiltersButton active={filtersActive} onClear={clearAll} />
+            <ClearFiltersButton compact active={filtersActive} onClear={clearAll} />
 
             {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
             {isSuper && pick.sel.size > 0 && (

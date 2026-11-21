@@ -1466,7 +1466,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement | null>(null);
   const [velocityChannel, setVelocityChannel] = useState<VelocityChannelKey>('ALL');
-  const [batteryViewMode, setBatteryViewMode] = useState<'STATUS' | 'WATCHLIST'>('STATUS');
 
   useEffect(() => {
     if (!dateMenuOpen) return;
@@ -1486,19 +1485,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [dateMenuOpen]);
 
-  const availableMonths = useMemo(() => {
-    const anchor = new Date(`${today}T12:00:00+07:00`);
-    return lastMonthsPP(24, Number.isNaN(anchor.getTime()) ? new Date() : anchor).reverse();
-  }, [today]);
-
-  const minMonthKey = availableMonths[availableMonths.length - 1]?.key || currentMonth;
-
-  const activeMonth = useMemo(() => {
-    if (selectedMonth > currentMonth) return currentMonth;
-    if (selectedMonth < minMonthKey) return minMonthKey;
-    return selectedMonth;
-  }, [selectedMonth, currentMonth, minMonthKey]);
-
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
     const unsub = onStaffList(setCachedStaff);
@@ -1517,6 +1503,102 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     () => buildPpDirectoryScope(branches, directoryUsers, cachedStaff),
     [branches, directoryUsers, cachedStaff]
   );
+
+  const [kpiData, setKpiData] = useState<KpiDashboardData | null>(
+    () => getCachedKpiSummary(kpiPeriodRange('MONTH').from, null) || getCachedKpiSummary(null, null) || null
+  );
+
+  // Rule lookup map for KPI point valuation
+  const ruleMap = useMemo(() => {
+    const m = new Map<string, KpiPointRule>();
+    for (const r of kpiData?.rules || []) m.set(r.code, r);
+    return m;
+  }, [kpiData]);
+
+  // Only list calendar months (up to currentMonth) that have actual scoped KPI activity
+  const availableMonths = useMemo(() => {
+    const hasSeries = (src?: KpiDashboardData | null) =>
+      Boolean(
+        src &&
+          ((src.dailyStaff?.length || 0) > 0 ||
+            (src.monthlyStaff?.length || 0) > 0 ||
+            (src.daily?.length || 0) > 0 ||
+            (src.monthly?.length || 0) > 0)
+      );
+    const fallbackSeries = !hasSeries(kpiData) ? getCachedKpiSummary(null, null) : undefined;
+    const src = kpiData && hasSeries(kpiData) ? kpiData : fallbackSeries || kpiData;
+
+    const monthSet = new Set<string>();
+    const dailyStaff = src?.dailyStaff || [];
+    const monthlyStaff = src?.monthlyStaff || [];
+    const t5mCutoff = shiftMonthYm(currentMonth, -5);
+
+    for (const ds of dailyStaff) {
+      if (!ds.day || ds.day.length < 7) continue;
+      const total =
+        (Number(ds.totalTasks) || 0) +
+        (Number(ds.posTasks) || 0) +
+        (Number(ds.sbTasks) || 0) +
+        (Number(ds.khqrTasks) || 0) +
+        (Number(ds.ccTasks) || 0) +
+        (Number(ds.mvTasks) || 0);
+      if (total <= 0) continue;
+      const dir = ppDirectoryScope.resolveKpiStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
+      if (!dir) continue;
+      if (branchScopedId && dir.branchId !== branchScopedId) continue;
+      const ym = ds.day.slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(ym) && ym <= currentMonth) monthSet.add(ym);
+    }
+
+    for (const ms of monthlyStaff) {
+      if (!ms.month || ms.month.length < 7) continue;
+      const pts = computeKpiPoints(ms, ruleMap);
+      if (pts.totalTasks <= 0 && (ms.khqrMaterials || 0) <= 0) continue;
+      const dir = ppDirectoryScope.resolveKpiStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+      if (!dir) continue;
+      if (branchScopedId && dir.branchId !== branchScopedId) continue;
+      const ym = ms.month.slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(ym) && ym <= currentMonth) monthSet.add(ym);
+    }
+
+    // Older history (7–12 months back, beyond per-staff t5m window) from monthly aggregates for admin views
+    if (!branchScopedId) {
+      for (const m of src?.monthly || []) {
+        if (!m.period || !/^\d{4}-\d{2}$/.test(m.period) || m.period > currentMonth) continue;
+        if (m.period >= t5mCutoff && (dailyStaff.length > 0 || monthlyStaff.length > 0 || ppDirectoryScope.hasDirectory)) continue;
+        const pts = computeKpiPoints(m, ruleMap);
+        if (pts.totalTasks > 0 || (m.khqrMaterials || 0) > 0 || (m.activeStaff || 0) > 0) {
+          monthSet.add(m.period);
+        }
+      }
+    }
+
+    if (dailyStaff.length === 0 && monthlyStaff.length === 0 && !ppDirectoryScope.hasDirectory && !branchScopedId) {
+      for (const d of src?.daily || []) {
+        if (!d.period || d.period.length < 7) continue;
+        const ym = d.period.slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(ym) || ym > currentMonth) continue;
+        const pts = computeKpiPoints(d, ruleMap);
+        if (pts.totalTasks > 0 || (d.khqrMaterials || 0) > 0 || (d.activeStaff || 0) > 0) monthSet.add(ym);
+      }
+    }
+
+    if (monthSet.size === 0) {
+      monthSet.add(currentMonth);
+    }
+
+    return Array.from(monthSet)
+      .sort((a, b) => b.localeCompare(a))
+      .map((key) => ({ key, label: fmtMonthLabel(key) }));
+  }, [kpiData, ppDirectoryScope, branchScopedId, ruleMap, currentMonth]);
+
+  const minMonthKey = availableMonths[availableMonths.length - 1]?.key || currentMonth;
+  const maxMonthKey = availableMonths[0]?.key || currentMonth;
+
+  const activeMonth = useMemo(() => {
+    if (availableMonths.some((m) => m.key === selectedMonth)) return selectedMonth;
+    return maxMonthKey;
+  }, [availableMonths, selectedMonth, maxMonthKey]);
 
   const range = useMemo(() => {
     if (viewMode === 'ALL') {
@@ -1587,9 +1669,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [viewMode, activeMonth, currentMonth, dateFrom, dateTo, today]);
 
-  const [kpiData, setKpiData] = useState<KpiDashboardData | null>(
-    () => getCachedKpiSummary(range.kpiFrom, range.kpiTo) || getCachedKpiSummary(null, null) || null
-  );
   const [ccCounts, setCcCounts] = useState<CcCounts | null>(
     () => getCachedCcCounts(`${range.ccFrom || ''}|${range.ccTo || ''}`) || null
   );
@@ -1730,13 +1809,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       window.clearTimeout(timer);
     };
   }, [kpiData, syncing, today, currentMonth]);
-
-  // Rule lookup map for KPI point valuation
-  const ruleMap = useMemo(() => {
-    const m = new Map<string, KpiPointRule>();
-    for (const r of kpiData?.rules || []) m.set(r.code, r);
-    return m;
-  }, [kpiData]);
 
   // Scoped cross-channel KPI totals strictly matching Active Phnom Penh Staff Directory
   const scopedKpiTotals = useMemo(() => {
@@ -1995,7 +2067,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [activeDevices, serverStageCounts, serverTotalDevices]);
 
-  // POS Terminal Battery lifecycle status (compliance, age cohorts, placement & oldest watchlist)
+  // POS Terminal Battery lifecycle status (compliance, age cohorts & placement)
   const batterySummary = useMemo(() => {
     let healthy = 0;
     let replaceSoon = 0;
@@ -2009,16 +2081,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     let poolTotal = 0;
     let withSerial = 0;
     let monthsSum = 0;
-    const watchlist: {
-      serial: string;
-      branchId: string;
-      model: string;
-      batterySerial?: string;
-      installedDate: string;
-      monthsUsed: number;
-      lifePercent: number;
-      status: 'HEALTHY' | 'DUE_SOON' | 'EXPIRED';
-    }[] = [];
 
     for (const d of activeDevices) {
       if (d.type !== 'POS Terminal') continue;
@@ -2033,16 +2095,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
       const st = getBatteryLifecycleStatus(d, today);
       const used = st.monthsUsed;
-      const rem = Math.max(0, batteryLifespanMonths - used);
-      const lifePercent = Math.max(0, Math.min(100, Math.round((rem / Math.max(1, batteryLifespanMonths)) * 100)));
       monthsSum += used;
 
-      let status: 'HEALTHY' | 'DUE_SOON' | 'EXPIRED' = 'HEALTHY';
       if (used >= batteryLifespanMonths) {
-        status = 'EXPIRED';
         critical++;
       } else if (used >= batteryWarningMonths) {
-        status = 'DUE_SOON';
         replaceSoon++;
       } else {
         healthy++;
@@ -2050,21 +2107,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         else mid12toWarn++;
         if (isDeployed) deployedHealthy++;
         else poolHealthy++;
-      }
-
-      if (watchlist.length < 7 || used > watchlist[watchlist.length - 1].monthsUsed) {
-        watchlist.push({
-          serial: d.serial,
-          branchId: d.branchId,
-          model: d.model,
-          batterySerial: d.batterySerial,
-          installedDate: st.installedDate,
-          monthsUsed: used,
-          lifePercent,
-          status,
-        });
-        watchlist.sort((a, b) => b.monthsUsed - a.monthsUsed || a.serial.localeCompare(b.serial));
-        if (watchlist.length > 7) watchlist.pop();
       }
     }
 
@@ -2094,7 +2136,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       withSerial,
       avgMonthsUsed,
       avgLifePct,
-      watchlist,
     };
   }, [activeDevices, today, batteryLifespanMonths, batteryWarningMonths]);
 
@@ -2561,9 +2602,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const iosCardClass = isLight
     ? 'rounded-[22px] bg-white border border-slate-200/70 shadow-[0_1px_10px_rgba(15,23,42,0.025)] text-slate-900'
     : 'rounded-[22px] bg-[#161a24] border border-slate-800 text-slate-100';
-  const iosSegWrapClass = isLight
-    ? 'inline-flex items-center p-0.5 rounded-full bg-slate-100/90 border border-slate-200/50 text-[11px] shrink-0'
-    : 'inline-flex items-center p-0.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-[11px] shrink-0';
   const kpiCardClass = isLight
     ? 'bg-[#f8f9fb] border border-slate-200/55 text-[#0f172a]'
     : 'bg-[#1e2330] border border-slate-800 text-slate-100';
@@ -2695,13 +2733,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   };
 
   const stepSelectedMonth = (direction: -1 | 1) => {
-    const next = shiftMonthYm(activeMonth, direction);
-    if (next > currentMonth) {
-      setSelectedMonth(currentMonth);
-    } else if (next < minMonthKey) {
-      setSelectedMonth(minMonthKey);
-    } else {
-      setSelectedMonth(next);
+    const idx = availableMonths.findIndex((m) => m.key === activeMonth);
+    if (idx < 0) return;
+    const nextIdx = direction < 0 ? idx + 1 : idx - 1;
+    if (nextIdx >= 0 && nextIdx < availableMonths.length) {
+      setSelectedMonth(availableMonths[nextIdx].key);
     }
   };
 
@@ -2843,7 +2879,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </div>
                 <button
                   type="button"
-                  disabled={activeMonth >= currentMonth}
+                  disabled={activeMonth >= maxMonthKey}
                   onClick={() => stepSelectedMonth(1)}
                   aria-label="Next month"
                   title="Next month"
@@ -3580,56 +3616,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div
-                className={`${iosSegWrapClass} text-[10px] shrink-0`}
-                role="tablist"
-                aria-label="Battery View Mode"
+            {onNavigateTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab('inventory_pos')}
+                className={`text-[11px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
+                  isLight
+                    ? 'text-[#004e75] hover:text-[#003857]'
+                    : 'text-sky-400 hover:text-sky-300'
+                }`}
               >
-                {([
-                  { id: 'STATUS' as const, label: 'Status' },
-                  { id: 'WATCHLIST' as const, label: 'Watchlist' },
-                ]).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={batteryViewMode === m.id}
-                    onClick={() => setBatteryViewMode(m.id)}
-                    className={`px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
-                      batteryViewMode === m.id
-                        ? isLight
-                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
-                          : 'bg-slate-700 text-white shadow-xs'
-                        : isLight
-                        ? 'text-slate-500 hover:text-slate-900'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('inventory')}
-                  className={`text-[11px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
-                    isLight
-                      ? 'text-[#004e75] hover:text-[#003857]'
-                      : 'text-sky-400 hover:text-sky-300'
-                  }`}
-                >
-                  Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
+                Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
           </div>
 
-          {batteryViewMode === 'STATUS' ? (
-            <>
-              {(() => {
+          {(() => {
                 const datedTot = Math.max(1, batterySummary.total);
                 const pctOf = (v: number, tot = datedTot) =>
                   tot > 0 ? Math.round((v / tot) * 100) : 0;
@@ -3876,117 +3878,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </>
                   )}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setBatteryViewMode('WATCHLIST')}
-                  className={`font-semibold cursor-pointer transition inline-flex items-center gap-1 ${
-                    isLight
-                      ? 'text-[#004e75] hover:text-[#003857]'
-                      : 'text-sky-400 hover:text-sky-300'
-                  }`}
-                >
-                  <span>
-                    {batterySummary.critical + batterySummary.replaceSoon > 0
-                      ? `Action Needed (${fmtNum(batterySummary.critical + batterySummary.replaceSoon)})`
-                      : `Oldest POS (${batterySummary.watchlist.length})`}
-                  </span>
-                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col">
-              <div
-                className={`px-5 py-2 border-y flex items-center justify-between gap-2 text-[11px] ${
-                  isLight
-                    ? 'border-slate-100 bg-[#f9fafb]/70 text-slate-500'
-                    : 'border-slate-800/70 bg-slate-900/40 text-slate-400'
-                }`}
-              >
-                <span>Oldest POS batteries ({fmtNum(batterySummary.total)} dated)</span>
-                {onNavigateTab && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab('inventory')}
-                    className={`font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
-                      isLight
-                        ? 'text-[#004e75] hover:text-[#003857]'
-                        : 'text-sky-400 hover:text-sky-300'
-                    }`}
-                  >
-                    Inventory <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-
-              <div
-                className={`divide-y ${
-                  isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
-                } flex-1 flex flex-col justify-center`}
-              >
-                {batterySummary.watchlist.length === 0 ? (
-                  <div className="py-12 px-5 text-center text-xs text-slate-400">
-                    No POS battery install dates recorded yet.
-                  </div>
+                {batterySummary.critical + batterySummary.replaceSoon > 0 ? (
+                  onNavigateTab ? (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab('inventory_pos')}
+                      className={`font-semibold cursor-pointer transition inline-flex items-center gap-1 ${
+                        isLight
+                          ? 'text-amber-700 hover:text-amber-800'
+                          : 'text-amber-400 hover:text-amber-300'
+                      }`}
+                    >
+                      <span>Action Needed ({fmtNum(batterySummary.critical + batterySummary.replaceSoon)})</span>
+                      <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <span className={`font-semibold ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
+                      Action Needed ({fmtNum(batterySummary.critical + batterySummary.replaceSoon)})
+                    </span>
+                  )
                 ) : (
-                  batterySummary.watchlist.map((item) => {
-                    const pillCls =
-                      item.status === 'EXPIRED'
-                        ? isLight
-                          ? 'bg-rose-50 text-rose-700 border-rose-200/80'
-                          : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                        : item.status === 'DUE_SOON'
-                          ? isLight
-                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                            : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                          : isLight
-                            ? 'bg-[#2d6a4f]/10 text-[#2d6a4f] border-[#2d6a4f]/20'
-                            : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
-                    return (
-                      <button
-                        key={item.serial}
-                        type="button"
-                        onClick={() => onSelectDevice(item.serial)}
-                        aria-label={`Open serial ${item.serial}`}
-                        className={`w-full text-left px-5 py-2.5 flex items-center justify-between gap-2.5 transition cursor-pointer group ${
-                          isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <span
-                              className={`font-mono font-bold transition truncate ${
-                                isLight
-                                  ? 'text-slate-900 group-hover:text-[#004e75]'
-                                  : 'text-white group-hover:text-sky-400'
-                              }`}
-                            >
-                              {item.serial}
-                            </span>
-                            <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
-                            <span className="font-mono text-[10.5px] text-slate-400 shrink-0">
-                              Code {item.branchId}
-                            </span>
-                          </div>
-                          <div className={`text-[10.5px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            Installed {item.installedDate || '—'}
-                            {item.batterySerial ? ` · ${item.batterySerial}` : ` · ${item.model}`}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className={`text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full border ${pillCls}`}>
-                            {item.monthsUsed}M / {batteryLifespanMonths}M
-                          </span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
-                        </div>
-                      </button>
-                    );
-                  })
+                  <span className={`font-semibold ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-400'}`}>
+                    All Healthy
+                  </span>
                 )}
               </div>
-            </div>
-          )}
         </section>
       </div>
 

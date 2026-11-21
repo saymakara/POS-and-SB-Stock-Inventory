@@ -47,6 +47,12 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
   return 'Needs Improvement';
 }
 
+const KPI_BRANCH_GRID =
+  'grid items-center gap-x-2 grid-cols-[28px_minmax(175px,1.3fr)_minmax(44px,0.4fr)_minmax(46px,0.42fr)_minmax(42px,0.38fr)_minmax(52px,0.48fr)_minmax(42px,0.38fr)_minmax(42px,0.38fr)_minmax(46px,0.42fr)_minmax(50px,0.45fr)_minmax(84px,0.72fr)_minmax(112px,0.92fr)_minmax(152px,0.92fr)_16px]';
+
+const KPI_STAFF_GRID =
+  'grid items-center gap-x-2 grid-cols-[28px_minmax(180px,1.28fr)_minmax(168px,1.15fr)_minmax(46px,0.42fr)_minmax(42px,0.38fr)_minmax(52px,0.48fr)_minmax(42px,0.38fr)_minmax(42px,0.38fr)_minmax(48px,0.44fr)_minmax(84px,0.72fr)_minmax(110px,0.92fr)_minmax(150px,0.92fr)_16px]';
+
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
@@ -4530,7 +4536,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   <SortIcon active={dailySortKey === 'targetPct'} dir={dailySortDir} />
                                 </div>
                               </th>
-                              <th className="px-3 py-2.5 text-center w-[130px] min-w-[130px] font-medium text-xs text-white border-b border-white/20">
+                              <th className="px-3 py-2.5 text-center w-[152px] min-w-[152px] font-medium text-xs text-white border-b border-white/20">
                                 Performance
                               </th>
                             </tr>
@@ -4695,8 +4701,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   ) : (
             <>
               <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-                <div className="min-w-[1060px] w-full">
-                <div className="grid items-center gap-x-2 grid-cols-[28px_minmax(185px,1.5fr)_minmax(44px,0.44fr)_minmax(48px,0.48fr)_minmax(44px,0.44fr)_minmax(58px,0.56fr)_minmax(44px,0.44fr)_minmax(46px,0.46fr)_minmax(52px,0.5fr)_minmax(52px,0.5fr)_minmax(78px,0.75fr)_minmax(88px,0.82fr)_130px_18px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-3.5 py-2.5">
+                <div className="min-w-[1090px] w-full">
+                <div className={`${KPI_BRANCH_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff" sortKey="staffCount" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
@@ -4707,9 +4713,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader icon={<ClipboardList className="w-3.5 h-3.5 text-[#52b788] shrink-0" aria-hidden />} label="MV" title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Points'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Avg" sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title={isTaskMode ? 'Average KPI tasks per active staff member in the branch' : 'Average KPI points per active staff member in the branch'} />
                   <SortableHeader label={isTaskMode ? 'Points' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                  <span className="text-slate-200">Status</span>
+                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
+                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
+                  <span className="text-slate-200 pl-2">Status</span>
                   <span />
                 </div>
 
@@ -4726,7 +4732,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenBranch((o) => (o === b.branchId ? null : b.branchId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-2 grid-cols-[28px_minmax(185px,1.5fr)_minmax(44px,0.44fr)_minmax(48px,0.48fr)_minmax(44px,0.44fr)_minmax(58px,0.56fr)_minmax(44px,0.44fr)_minmax(46px,0.46fr)_minmax(52px,0.5fr)_minmax(52px,0.5fr)_minmax(78px,0.75fr)_minmax(88px,0.82fr)_130px_18px] w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className={`${KPI_BRANCH_GRID} w-full text-left px-3 py-2.5 text-[13px] text-slate-700 cursor-pointer`}
                           >
                             <span className="text-center tabular-nums text-xs text-slate-400">{rank}</span>
                             <span className="min-w-0 block" title={`${cleanBranchName(b.branchName)} (${fmtBranchCode(b.branchId)})`}>
@@ -4747,12 +4753,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? `${fmtPts(b.totalPoints)}` : fmtInt(b.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857]">
+                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857] whitespace-nowrap pr-1">
                               {isTaskMode ? `${fmtInt(b.totalTasks)} tasks` : `${fmtPts(b.totalPoints)} pts`}
                             </span>
-                            <span><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
-                            <span><RatingBadge rating={b.rating} pacingPct={b.pacingPct} title={`Pacing: ${b.pacingPct}% (${fmtPts(b.totalPoints)} / ${fmtPts(b.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
-                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                            <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
+                            <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={b.rating} pacingPct={b.pacingPct} title={`Pacing: ${b.pacingPct}% (${fmtPts(b.totalPoints)} / ${fmtPts(b.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 justify-self-end transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
 
                           <AnimatePresence initial={false}>
@@ -4921,7 +4927,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <SortIcon active={dailyStaffSortKey === 'targetPct'} dir={dailyStaffSortDir} />
                       </div>
                     </th>
-                    <th className="px-3 py-2.5 text-center w-[130px] min-w-[130px] font-medium text-xs text-white border-b border-white/20">
+                    <th className="px-3 py-2.5 text-center w-[152px] min-w-[152px] font-medium text-xs text-white border-b border-white/20">
                       Performance
                     </th>
                   </tr>
@@ -5114,8 +5120,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         ) : (
           <>
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-              <div className="min-w-[1060px] w-full">
-                <div className="grid items-center gap-x-2 grid-cols-[28px_minmax(195px,1.55fr)_minmax(160px,1.25fr)_minmax(48px,0.48fr)_minmax(44px,0.44fr)_minmax(58px,0.56fr)_minmax(44px,0.44fr)_minmax(46px,0.46fr)_minmax(50px,0.5fr)_minmax(78px,0.75fr)_minmax(88px,0.82fr)_130px_18px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-3.5 py-2.5">
+              <div className="min-w-[1128px] w-full">
+                <div className={`${KPI_STAFF_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Staff" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -5125,9 +5131,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC" title={isTaskMode ? 'Sort by Credit Card Tasks' : 'Sort by Credit Card Points'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<ClipboardList className="w-3.5 h-3.5 text-[#52b788] shrink-0" aria-hidden />} label="MV" title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Points'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Points' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                  <span className="text-slate-200">Status</span>
+                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
+                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
+                  <span className="text-slate-200 pl-2">Status</span>
                   <span />
                 </div>
 
@@ -5144,7 +5150,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-2 grid-cols-[28px_minmax(195px,1.55fr)_minmax(160px,1.25fr)_minmax(48px,0.48fr)_minmax(44px,0.44fr)_minmax(58px,0.56fr)_minmax(44px,0.44fr)_minmax(46px,0.46fr)_minmax(50px,0.5fr)_minmax(78px,0.75fr)_minmax(88px,0.82fr)_130px_18px] w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className={`${KPI_STAFF_GRID} w-full text-left px-3 py-2.5 text-[13px] text-slate-700 cursor-pointer`}
                           >
                             <span className="text-center tabular-nums text-xs text-slate-400">{rank}</span>
                             <span
@@ -5185,12 +5191,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857]">
+                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857] whitespace-nowrap pr-1">
                               {isTaskMode ? `${fmtInt(s.totalTasks)} tasks` : `${fmtPts(s.totalPoints)} pts`}
                             </span>
-                            <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
-                            <span><RatingBadge rating={s.rating} pacingPct={s.pacingPct} title={`Pacing: ${s.pacingPct}% (${fmtPts(s.totalPoints)} / ${fmtPts(s.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
-                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                            <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
+                            <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={s.rating} pacingPct={s.pacingPct} title={`Pacing: ${s.pacingPct}% (${fmtPts(s.totalPoints)} / ${fmtPts(s.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 justify-self-end transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
 
                           <AnimatePresence initial={false}>
@@ -5511,8 +5517,8 @@ const SortableHeader: React.FC<{
       type="button"
       onClick={() => onSort(sortKey)}
       title={title || `Sort by ${label} (${active ? (dir === 'asc' ? 'ascending' : 'descending') : 'click to sort'})`}
-      className={`inline-flex items-center gap-1 cursor-pointer select-none transition-colors group uppercase tracking-wider ${
-        align === 'right' ? 'justify-end text-right w-full' : align === 'center' ? 'justify-center text-center w-full' : 'justify-start text-left'
+      className={`inline-flex items-center gap-1 min-w-0 max-w-full overflow-hidden cursor-pointer select-none transition-colors group uppercase tracking-wide ${
+        align === 'right' ? 'justify-end text-right w-full' : align === 'center' ? 'justify-center text-center w-full' : 'justify-start text-left w-full'
       } ${active ? 'text-white font-semibold' : 'text-white/85 hover:text-white font-semibold'} ${className}`}
     >
       {icon}
@@ -5524,7 +5530,7 @@ const SortableHeader: React.FC<{
           <ArrowDown className="w-3 h-3 text-sky-300 shrink-0" aria-hidden />
         )
       ) : (
-        <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity shrink-0" aria-hidden />
+        <ArrowUpDown className="w-2.5 h-2.5 hidden group-hover:inline-block opacity-75 transition-opacity shrink-0" aria-hidden />
       )}
     </button>
   );
@@ -5544,12 +5550,12 @@ const TargetBar: React.FC<{
       title ||
       `Management level staff are exempt from individual field KPIs (Completed: ${points !== undefined ? fmtPts(points) : '0'} pts)`;
     return (
-      <div className="flex items-center gap-1.5" title={mgtTooltip}>
-        <span className="text-[11px] font-medium text-indigo-700 bg-indigo-50/90 px-1.5 py-0.2 rounded border border-indigo-200/80 whitespace-nowrap inline-flex items-center gap-1">
+      <div className="flex items-center gap-1.5 min-w-0" title={mgtTooltip}>
+        <span className="text-[11px] font-medium text-indigo-700 bg-indigo-50/90 px-1.5 py-0.5 rounded border border-indigo-200/80 whitespace-nowrap inline-flex items-center gap-1">
           <ShieldCheck className="w-2.5 h-2.5 text-indigo-600 shrink-0" aria-hidden />
           <span>Exempt</span>
         </span>
-        {pct > 0 && <span className="text-[10px] text-slate-500 font-figure tabular-nums">({pct}%)</span>}
+        {pct > 0 && <span className="text-[10px] text-slate-500 font-figure tabular-nums whitespace-nowrap">({pct}%)</span>}
       </div>
     );
   }
@@ -5559,11 +5565,11 @@ const TargetBar: React.FC<{
       ? `${pct}% of target (${fmtPts(points)} / ${fmtPts(target)} pts)${pacingPct !== undefined && pacingTarget !== undefined ? ` · Pacing: ${pacingPct}% (${fmtPts(points)} / ${fmtPts(pacingTarget)} pts)` : ''}`
       : `${pct}% of target`);
   return (
-    <div className="flex items-center gap-1.5" title={tooltip}>
-      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+    <div className="flex items-center gap-2 min-w-0" title={tooltip}>
+      <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-slate-200/75 overflow-hidden">
         <div className="h-full rounded-full bg-[#1e5b88]" style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
       </div>
-      <span className="text-[11px] font-figure font-normal tabular-nums text-slate-700 w-9 text-right">{pct}%</span>
+      <span className="text-[11px] font-figure font-medium tabular-nums text-slate-700 min-w-[42px] shrink-0 text-right whitespace-nowrap">{pct}%</span>
     </div>
   );
 });

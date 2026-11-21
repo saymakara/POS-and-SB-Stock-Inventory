@@ -5,7 +5,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy, PencilLine, Trash2 } from 'lucide-react';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Branch, UserRole } from '../types';
-import { ClearFiltersButton } from './ClearFiltersButton';
+import {
+  ClearFiltersButton,
+  REVIEW_FILTER_BAR_CLS,
+  REVIEW_TAB_GROUP_CLS,
+  REVIEW_SELECT_CLS,
+  REVIEW_INPUT_CLS,
+} from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { Pager } from './Pager';
@@ -364,9 +370,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       )}
 
       {/* Entries: filters */}
-      <section ref={entriesRef} className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs scroll-mt-4" aria-label="Filters">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0" role="tablist" aria-label="View">
+      <section ref={entriesRef} className={`${REVIEW_FILTER_BAR_CLS} scroll-mt-4`} aria-label="Filters">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <div className={REVIEW_TAB_GROUP_CLS} role="tablist" aria-label="View">
             {([['entries', 'KHQR entries', summary?.total], ['failed', 'Failed attempts', summary?.attempts], ['wrong', 'Wrong scans', summary?.wrongScans], ['shared', 'Same MID, 2+ staff', summary?.sharedMids]] as const).map(([v, label, n]) => {
               const active = view === v;
               return (
@@ -376,18 +382,18 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   role="tab"
                   aria-selected={active}
                   onClick={() => setView(v)}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+                  className={`relative h-[30px] px-2 rounded-lg text-[11.5px] font-medium flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                     active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   {active && (
                     <PillMotion layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${v === 'entries' ? (active ? 'bg-[#74b9ff]' : 'bg-[#1e6091]') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
+                  <span className="relative z-10 flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${v === 'entries' ? (active ? 'bg-[#74b9ff]' : 'bg-[#1e6091]') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
                     <span>{label}</span>
                     {n !== undefined && (
-                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                      <span className={`font-mono text-[10px] px-1.5 py-[1px] rounded-full ${active ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                         ({n.toLocaleString()})
                       </span>
                     )}
@@ -396,16 +402,21 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               );
             })}
           </div>
-          <select
-            value={activity}
-            onChange={(e) => setActivity(e.target.value as 'ALL' | QrActivity)}
-            aria-label="Activity"
-            className="btn-press px-3 py-1.5 rounded-xl text-xs border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 cursor-pointer"
-          >
-            <option value="ALL">All activities</option>
-            <option value="NEW_INSTALLATION">New Installation{summary ? ` (${summary.install.toLocaleString()})` : ''}</option>
-            <option value="QR_REPLACEMENT">QR Replacement{summary ? ` (${summary.replace.toLocaleString()})` : ''}</option>
-          </select>
+          <div className="relative inline-flex items-center shrink-0">
+            <select
+              value={activity}
+              onChange={(e) => setActivity(e.target.value as 'ALL' | QrActivity)}
+              aria-label="Activity"
+              className={`${REVIEW_SELECT_CLS} max-w-[116px] ${
+                activity !== 'ALL' ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+              }`}
+            >
+              <option value="ALL">All activities</option>
+              <option value="NEW_INSTALLATION">New Installation{summary ? ` (${summary.install.toLocaleString()})` : ''}</option>
+              <option value="QR_REPLACEMENT">QR Replacement{summary ? ` (${summary.replace.toLocaleString()})` : ''}</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+          </div>
           {isAdmin && (
             <div className="relative inline-flex items-center shrink-0">
               <MapPin className="w-3.5 h-3.5 text-slate-500 pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden />
@@ -417,10 +428,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   setBranchId('');
                 }}
                 aria-label="Filter by region"
-                className={`btn-press appearance-none pl-8 pr-7 py-1.5 rounded-xl text-xs font-medium border outline-none focus:border-[#004e75] cursor-pointer ${
+                className={`${REVIEW_SELECT_CLS} !pl-7 max-w-[116px] ${
                   region !== 'ALL'
-                    ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35'
+                    : ''
                 }`}
               >
                 <option value="ALL">All Regions</option>
@@ -431,37 +442,42 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             </div>
           )}
           {isAdmin && (
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              aria-label="Branch"
-              className="btn-press px-3 py-1.5 rounded-xl text-xs border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 cursor-pointer max-w-[200px]"
-            >
-              <option value="">All branches</option>
-              {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.code ? `${b.code} – ${b.name}` : b.name}</option>)}
-            </select>
+            <div className="relative inline-flex items-center shrink-0">
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                aria-label="Branch"
+                className={`${REVIEW_SELECT_CLS} max-w-[122px] ${
+                  branchId ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+                }`}
+              >
+                <option value="">All branches</option>
+                {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.code ? `${b.code} – ${b.name}` : b.name}</option>)}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
+            </div>
           )}
           {staffSel && (
             <button
               type="button"
               onClick={() => setStaffSel(null)}
               title="Show every staff member"
-              className="btn-press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs border border-rose-200 bg-rose-50 text-rose-700 cursor-pointer"
+              className="btn-press inline-flex items-center gap-1.5 h-[34px] px-2.5 rounded-xl text-xs border border-rose-200 bg-rose-50 text-rose-700 cursor-pointer shrink-0"
             >
               Staff: {staffSel.name} <span aria-hidden>×</span>
             </button>
           )}
-          <div className="relative w-56 sm:w-64 shrink-0">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 min-w-[115px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={view === 'failed' || view === 'wrong' ? 'Search MID, Staff, Branch…' : view === 'shared' ? 'Search MID, Merchant, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
+              placeholder={view === 'failed' || view === 'wrong' ? 'Search MID, staff, branch…' : view === 'shared' ? 'Search MID, merchant…' : 'Search MID, staff, ID…'}
               aria-label={view === 'failed' ? 'Search failed attempts' : view === 'wrong' ? 'Search wrong scans' : view === 'shared' ? 'Search same MID by 2+ staff' : 'Search KHQR entries'}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs"
+              className={REVIEW_INPUT_CLS}
             />
           </div>
-          <ClearFiltersButton className="!py-1.5" active={filtersActive} onClear={clearAll} />
+          <ClearFiltersButton compact active={filtersActive} onClear={clearAll} />
 
           {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
           {isSuper && pick.sel.size > 0 && view === 'entries' && (

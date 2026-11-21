@@ -1,8 +1,14 @@
-import { ClearFiltersButton } from './ClearFiltersButton';
+import {
+  ClearFiltersButton,
+  REVIEW_FILTER_BAR_CLS,
+  REVIEW_TAB_GROUP_CLS,
+  REVIEW_SELECT_CLS,
+  REVIEW_INPUT_CLS,
+} from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, Copy, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -28,7 +34,7 @@ import { getCachedFieldEvents, isFieldCacheComplete, setCachedFieldEvents } from
 import { FieldScope, normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
-import { CopyableRecordId } from './CopyableRecordId';
+import { CopyableRecordId, copyTextToClipboard } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { PillMotion } from './PillMotion';
 import { todayPP } from '../utils/time';
@@ -246,6 +252,33 @@ const InputMethodBadge: React.FC<{
     );
   }
   return null;
+};
+
+const CopySerialButton: React.FC<{ value: string; label?: string }> = ({ value, label = 'serial' }) => {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+  return (
+    <button
+      type="button"
+      onClick={async (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        if (await copyTextToClipboard(value)) {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1800);
+        }
+      }}
+      aria-label={`Copy ${label} ${value}`}
+      title={copied ? `Copied: ${value}` : `Copy ${value}`}
+      className={`inline-flex items-center justify-center p-0.5 rounded transition cursor-pointer shrink-0 active:scale-95 ${
+        copied
+          ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400'
+          : 'text-slate-400 hover:text-[#003857] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:hover:text-sky-300 opacity-60 hover:opacity-100'
+      }`}
+    >
+      {copied ? <Check className="w-3 h-3" aria-hidden /> : <Copy className="w-3 h-3" aria-hidden />}
+    </button>
+  );
 };
 
 /* (7 Nov 2026) Edit: the fields of a record for the edit window. An approved record changed the stock: its serials, MID,
@@ -1097,12 +1130,12 @@ export const FieldReviewTab: React.FC<Props> = ({
 
       {/* Section 1 — Clean Filter & Bulk Decision Header */}
       <section
-        className="bg-white rounded-2xl border border-slate-200 px-3.5 py-2.5 shadow-2xs transition-all"
+        className={`${REVIEW_FILTER_BAR_CLS} transition-all`}
         aria-label="Filters"
       >
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           {/* Segmented status tabs */}
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0">
+          <div className={REVIEW_TAB_GROUP_CLS}>
             {([
               { f: 'PENDING' as Filter, label: 'Waiting', Icon: Clock, accent: 'text-amber-500' },
               { f: 'APPROVED' as Filter, label: 'Approved', Icon: CheckCircle2, accent: 'text-emerald-600' },
@@ -1116,7 +1149,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
+                  className={`relative h-[30px] px-2 rounded-lg text-[11.5px] font-medium flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                     isActive ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
@@ -1128,11 +1161,11 @@ export const FieldReviewTab: React.FC<Props> = ({
                       transition={SPRING}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5">
+                  <span className="relative z-10 flex items-center gap-1">
                     <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? 'text-white' : accent}`} aria-hidden />
                     <span>{label}</span>
                     <span
-                      className={`font-mono text-[10.5px] px-1.5 py-0.5 rounded-full transition-colors ${
+                      className={`font-mono text-[10px] px-1.5 py-[1px] rounded-full transition-colors ${
                         isActive
                           ? 'bg-white/20 text-white font-bold'
                           : 'bg-white text-slate-700 border border-slate-200/80'
@@ -1148,7 +1181,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           {/* Segmented device type tabs (not shown when a sub-menu has chosen the device type) */}
           {!deviceType && (
-            <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0">
+            <div className={REVIEW_TAB_GROUP_CLS}>
               {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
               {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
               {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
@@ -1162,10 +1195,10 @@ export const FieldReviewTab: React.FC<Props> = ({
               value={activeScope}
               onChange={(e) => setActiveScope(e.target.value as FieldScope)}
               aria-label="Filter by region"
-              className={`btn-press appearance-none pl-8 pr-7 py-1.5 rounded-xl text-xs font-medium border outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer ${
+              className={`${REVIEW_SELECT_CLS} !pl-7 max-w-[116px] ${
                 activeScope !== 'ALL'
-                  ? 'bg-sky-50/70 text-[#155484] border-[#155484]/35'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                  ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35'
+                  : ''
               }`}
               title="Filter records by Phnom Penh, Regional, or All Regions"
             >
@@ -1173,7 +1206,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               <option value="PHNOM_PENH">Phnom Penh</option>
               <option value="REGIONAL">Regional</option>
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
           </div>
 
           {/* Record Type Select Filter */}
@@ -1182,16 +1215,18 @@ export const FieldReviewTab: React.FC<Props> = ({
               value={recordTypeFilter}
               onChange={(e) => setRecordTypeFilter(e.target.value as RecordTypeFilter)}
               aria-label="Filter by record type"
-              className="btn-press appearance-none pl-3 pr-7 py-1.5 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer min-w-[165px] max-w-[235px]"
+              className={`${REVIEW_SELECT_CLS} max-w-[132px] ${
+                recordTypeFilter !== 'ALL' ? '!bg-sky-50/70 !text-[#155484] !border-[#155484]/35' : ''
+              }`}
             >
-              <option value="ALL">All Record Types ({kindCounts.ALL || 0})</option>
+              <option value="ALL">All Types ({kindCounts.ALL || 0})</option>
               {availableKinds.map((k) => (
                 <option key={k} value={k}>
                   {KIND_LABEL[k] || k} ({kindCounts[k] || 0})
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
           </div>
 
           {/* Date Selector & Quick Range Popover */}
@@ -1203,7 +1238,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                 aria-expanded={dateMenuOpen}
                 aria-haspopup="dialog"
                 aria-label="Filter by date"
-                className={`btn-press inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border transition-all cursor-pointer whitespace-nowrap ${
+                className={`btn-press inline-flex items-center gap-1.5 h-[34px] px-2.5 text-xs border transition-all cursor-pointer whitespace-nowrap ${
                   hasDateFilter
                     ? 'rounded-l-xl bg-[#004e75]/10 border-[#004e75]/35 text-[#004e75] font-semibold hover:bg-[#004e75]/15'
                     : 'rounded-xl bg-white hover:bg-slate-50 text-slate-700 border-slate-200 font-medium'
@@ -1232,7 +1267,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   }}
                   aria-label="Clear date filter"
                   title="Show all dates"
-                  className="btn-press px-2 py-1.5 rounded-r-xl border border-l-0 border-[#004e75]/35 bg-[#004e75]/10 text-[#004e75] hover:bg-[#004e75]/20 transition-colors cursor-pointer"
+                  className="btn-press h-[34px] px-2 rounded-r-xl border border-l-0 border-[#004e75]/35 bg-[#004e75]/10 text-[#004e75] hover:bg-[#004e75]/20 transition-colors cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden />
                 </button>
@@ -1402,18 +1437,18 @@ export const FieldReviewTab: React.FC<Props> = ({
             )}
           </div>
 
-          <div className="relative flex-1 min-w-[155px]">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 min-w-[135px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Serial, MID, Staff, Branch…"
+              placeholder="Search serial, MID, staff…"
               aria-label="Search records"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 shadow-2xs transition-all"
+              className={REVIEW_INPUT_CLS}
             />
           </div>
           <ClearFiltersButton
-            className="!px-3 !py-1.5 !rounded-xl !text-xs !gap-1.5 shrink-0"
+            short
             active={!!query || typeFilter !== (deviceType || 'ALL') || filter !== 'PENDING' || recordTypeFilter !== 'ALL' || hasDateFilter}
             onClear={() => {
               setQuery('');
@@ -1796,7 +1831,7 @@ const ReviewRow = memo(function ReviewRow({
               type="button"
               onClick={() => onToggle(e.id)}
               aria-expanded={isOpen}
-              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0"
+              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0 select-text"
               title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
             >
               <ChevronDown
@@ -1805,10 +1840,11 @@ const ReviewRow = memo(function ReviewRow({
                 }`}
                 aria-hidden
               />
-              <span className={`${serialCls} group-hover:text-slate-950 dark:group-hover:text-white`}>
+              <span className={`${serialCls} select-text group-hover:text-slate-950 dark:group-hover:text-white`}>
                 {e.serial}
               </span>
             </button>
+            <CopySerialButton value={e.serial} label="serial" />
             <InputMethodBadge
               method={entry.serial}
               titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
@@ -1822,9 +1858,10 @@ const ReviewRow = memo(function ReviewRow({
               <span className="w-3.5 shrink-0 inline-flex items-center justify-center">
                 <ArrowLeftRight className="w-3 h-3 text-amber-600 dark:text-amber-400" aria-hidden />
               </span>
-              <span className={`${serialCls} truncate`}>
+              <span className={`${serialCls} select-text truncate`}>
                 {e.oldSerial}
               </span>
+              <CopySerialButton value={e.oldSerial} label="old serial" />
               <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
             </div>
           )}
@@ -1951,6 +1988,7 @@ const ReviewRow = memo(function ReviewRow({
                 <Line k="Replaces" mono>
                   <span className="inline-flex items-center gap-1">
                     {e.oldSerial}
+                    <CopySerialButton value={e.oldSerial} label="old serial" />
                     <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
                   </span>
                 </Line>
