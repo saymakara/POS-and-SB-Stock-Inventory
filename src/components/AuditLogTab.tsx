@@ -105,6 +105,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const [pageSize, setPageSize] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [hasNextServerPage, setHasNextServerPage] = useState<boolean>(false);
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
 
   // Server audit trail state
   const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>(() => getCachedAudit(50, 0) || []);   // the last page is shown at once
@@ -449,95 +450,116 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
         <div className="overflow-x-auto overflow-y-hidden border-t border-slate-200/80 dark:border-[#182c49]">
           <table
-            className={`w-full text-left text-xs min-w-[980px] ${
+            className={`audit-table w-full table-fixed text-left text-xs min-w-[1060px] ${
               isLight ? 'bg-white' : 'bg-[#11141e]'
             }`}
           >
+            <colgroup>
+              <col className="w-[46px]" />
+              <col className="w-[144px]" />
+              {serverMode && <col className="w-[192px]" />}
+              {serverMode && <col className="w-[114px]" />}
+              <col className="w-[122px]" />
+              <col className="w-[168px]" />
+              <col />
+              <col className="w-[142px]" />
+            </colgroup>
             <thead className="glass-table-thead text-[11px] font-normal uppercase tracking-wider text-white sticky top-0 z-20">
               <tr>
-                <th className="py-3 px-3.5 w-10 text-right">No.</th>
-                <SortTh k="time" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</SortTh>
-                {serverMode && <SortTh k="actor" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Actor</SortTh>}
-                {serverMode && <SortTh k="role" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Role</SortTh>}
-                <SortTh k="branch" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Branch Code</SortTh>
-                <SortTh k="action" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Action Type</SortTh>
-                <SortTh k="detail" sort={auSort} onSort={auToggle} className="py-3 px-3.5 min-w-[260px]">Change Details</SortTh>
-                <th className="py-3 px-3.5 whitespace-nowrap">System Integrity Seal</th>
+                <th className="text-right">No.</th>
+                <SortTh k="time" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Date &amp; Time</SortTh>
+                {serverMode && <SortTh k="actor" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Actor</SortTh>}
+                {serverMode && <SortTh k="role" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Role</SortTh>}
+                <SortTh k="branch" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Branch Code</SortTh>
+                <SortTh k="action" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Action Type</SortTh>
+                <SortTh k="detail" sort={auSort} onSort={auToggle} className="whitespace-nowrap">Change Details</SortTh>
+                <th className="text-right whitespace-nowrap">Integrity Seal</th>
               </tr>
             </thead>
             <tbody
               className={`divide-y ${
-                isLight ? 'divide-slate-200/80 bg-white' : 'divide-[#182c49] bg-[#11141e]'
+                isLight ? 'divide-slate-100 bg-white' : 'divide-[#182c49] bg-[#11141e]'
               }`}
             >
-              {paginatedRows.map((row, rowIdx) => (
+              {paginatedRows.map((row, rowIdx) => {
+                const isExpanded = expandedRowKey === row.key;
+                const seal = `SHA-${computeAuditHash(`${row.key}|${row.time}|${row.actor}|${row.title}|${row.detail}`).slice(0, 10).toUpperCase()}`;
+                return (
                 <tr
                   key={row.key}
+                  onClick={() => setExpandedRowKey((prev) => (prev === row.key ? null : row.key))}
+                  title={row.detail ? (isExpanded ? 'Click to collapse' : 'Click to inspect full change details') : undefined}
                   className={
                     isLight
-                      ? 'hover:bg-slate-50/90 transition-colors'
-                      : 'hover:bg-white/[0.04] transition-colors'
+                      ? 'hover:bg-slate-50/80 transition-colors cursor-pointer'
+                      : 'hover:bg-white/[0.04] transition-colors cursor-pointer'
                   }
                 >
-                  <td className={`py-2.5 px-3.5 text-right tabular-nums ${subtextClass}`}>{(currentPage - 1) * pageSize + rowIdx + 1}</td>
-                  <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${subtextClass}`}>
+                  <td className={`text-right tabular-nums align-top ${subtextClass}`}>{(currentPage - 1) * pageSize + rowIdx + 1}</td>
+                  <td className={`font-mono whitespace-nowrap align-top ${subtextClass}`}>
                     {showDateTime(row.time, true)}
                   </td>
                   {serverMode && (
-                    <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
-                      <span className="">{row.actor}</span>
-                      {row.actorEmp && <span className={`ml-1 font-mono text-[11px] ${subtextClass}`}>({row.actorEmp})</span>}
+                    <td className={`align-top ${headingClass}`} title={row.actorEmp ? `${row.actor} (${row.actorEmp})` : row.actor}>
+                      <div className="truncate">
+                        <span>{row.actor}</span>
+                        {row.actorEmp && <span className={`ml-1 font-mono text-[11px] ${subtextClass}`}>({row.actorEmp})</span>}
+                      </div>
                     </td>
                   )}
                   {serverMode && (
-                    <td className="py-2.5 px-3.5 whitespace-nowrap">
+                    <td className="whitespace-nowrap align-top">
                       {row.actorRole === 'SUPER_ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 text-amber-500">
-                          <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1 text-amber-600/90">
+                          <ShieldAlert className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                           <span>Super Admin</span>
                         </span>
                       ) : row.actorRole === 'ADMIN' ? (
                         <span className={`inline-flex items-center gap-1 ${navyTitleClass}`}>
-                          <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                           <span>Admin HQ</span>
                         </span>
                       ) : row.actorRole === 'BRANCH' ? (
                         <span className={`inline-flex items-center gap-1 ${subtextClass}`}>
-                          <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <Building2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                           <span>Branch Staff</span>
                         </span>
                       ) : (
-                        <span className={`${subtextClass}`}>{roleText(row.actorRole)}</span>
+                        <span className={subtextClass}>{roleText(row.actorRole)}</span>
                       )}
                     </td>
                   )}
-                  <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${headingClass}`}>
+                  <td className={`font-mono whitespace-nowrap align-top ${headingClass}`}>
                     {row.branchCode === '—' ? '—' : `Branch Code ${row.branchCode}`}
                   </td>
-                  <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
-                    {row.title}
+                  <td className={`align-top ${headingClass}`} title={row.title}>
+                    <div className="truncate">{row.title}</div>
                   </td>
-                  <td className={`py-2.5 px-3.5 ${subtextClass} max-w-md`}>
-                    {row.detail || '—'}
-                  </td>
-                  <td className="py-2.5 px-3.5 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono text-[10px] font-normal ${
-                        isLight
-                          ? 'bg-slate-100 text-slate-600 border-slate-200'
-                          : 'bg-slate-800/80 text-slate-300 border-slate-700'
-                      }`}
+                  <td className={`align-top ${subtextClass}`}>
+                    <div
+                      className={isExpanded ? 'whitespace-normal break-words leading-relaxed text-slate-700 dark:text-slate-200' : 'truncate'}
+                      title={row.detail || undefined}
                     >
-                      <ShieldCheck className="w-3 h-3 text-slate-400" />
-                      <span>SHA-{computeAuditHash(`${row.key}|${row.time}|${row.actor}|${row.title}|${row.detail}`).slice(0, 10).toUpperCase()}</span>
+                      {row.detail || '—'}
+                    </div>
+                  </td>
+                  <td className="text-right whitespace-nowrap align-top">
+                    <span
+                      className={`font-mono text-[11px] font-normal tabular-nums ${
+                        isLight ? 'text-slate-400' : 'text-slate-400'
+                      }`}
+                      title={`System Integrity Seal: ${seal}`}
+                    >
+                      {seal}
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={serverMode ? 7 : 5} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={serverMode ? 8 : 6} className="py-12 text-center text-slate-400 text-xs">
                     {serverMode && loading && rows.length === 0
                       ? 'Loading audit records from the server…'
                       : serverMode && loadError && rows.length === 0

@@ -868,8 +868,8 @@ table thead th.col-no { width: 52px; text-align: center; }
 /* Proportional balanced padding & crisp header tracking for Top 10 Leaderboard tables */
 .top10-table thead th {
   padding: 9px 7px !important;
-  font-size: 10.5px !important;
-  letter-spacing: 0.035em !important;
+  font-size: 9.75px !important;
+  letter-spacing: 0.015em !important;
   box-sizing: border-box !important;
 }
 .top10-table thead th:first-child,
@@ -905,6 +905,26 @@ table thead th.col-no { width: 52px; text-align: center; }
 .branches-table thead th:last-child,
 .branches-table tbody td:last-child {
   padding-right: 14px !important;
+}
+
+/* Crisp uniform column padding & single-line scannability for Audit Trail Table */
+.audit-table thead th {
+  padding: 9px 10px !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.03em !important;
+  box-sizing: border-box !important;
+}
+.audit-table tbody td {
+  padding: 9px 10px !important;
+  box-sizing: border-box !important;
+}
+.audit-table thead th:first-child,
+.audit-table tbody td:first-child {
+  padding-left: 12px !important;
+}
+.audit-table thead th:last-child,
+.audit-table tbody td:last-child {
+  padding-right: 16px !important;
 }
 
 /* "transition-all" strictly constrained to composite & paint properties for 60fps performance */
