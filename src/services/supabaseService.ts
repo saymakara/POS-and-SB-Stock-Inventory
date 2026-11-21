@@ -1244,6 +1244,75 @@ export async function saveDevicesStrict(
   }
 }
 
+/** (22 Nov 2026) One problem the server found in an uploaded stock file. `row` is the 1-based position in the rows sent. */
+export interface StockBatchRowError { row: number; column: string; message: string }
+export interface StockBatchResult {
+  ok: boolean;
+  /** Set when the whole call failed (network, access, incomplete upload). Nothing was saved. */
+  error?: string;
+  /** Row problems found by the server. Nothing was saved. */
+  errors?: StockBatchRowError[];
+  errorCount?: number;
+  created?: number;
+  moved?: number;
+  versions?: Map<string, number>;
+}
+/** What the upload window gets back from App after pressing Confirm. ok=false: nothing was saved. */
+export interface BatchCommitResult { ok: boolean; message?: string; errors?: StockBatchRowError[]; errorCount?: number }
+const STOCK_STAGE_ROWS = 2000;
+const newBatchId = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
+/**
+ * (22 Nov 2026) Stock Inventory > Upload CSV: the whole file in one server step (stock_batch_stage + stock_batch_commit,
+ * migration 20261122_01). The server checks every row again and saves ALL rows in one transaction, or NONE and returns the
+ * problems by row. `move` rows are HQ stock units sent to a branch and carry the version the page loaded (stale = refused).
+ */
+export async function commitStockBatch(
+  rows: { op: 'create' | 'move'; device: Device }[],
+  onProgress?: (sent: number, total: number) => void
+): Promise<StockBatchResult> {
+  if (!isSupabaseConfigured) return { ok: true, created: 0, moved: 0, versions: new Map() };
+  const batchId = newBatchId();
+  const payload = rows.map((r, i) => {
+    const row = mapDeviceToRow({ ...r.device, rowVersion: undefined });
+    return { row_no: i + 1, op: r.op, row_version: r.op === 'move' ? r.device.rowVersion ?? null : null, device: row };
+  });
+  try {
+    for (let i = 0; i < payload.length; i += STOCK_STAGE_ROWS) {
+      const part = payload.slice(i, i + STOCK_STAGE_ROWS);
+      const { error } = await supabase.rpc('stock_batch_stage', { p: { batch_id: batchId, rows: part } });
+      if (error) {
+        await reportCaughtError('commitStockBatch.stage', error, { target: part[0]?.device?.serial, showPopup: false });
+        return { ok: false, error: /PGRST202|42883|does not exist/i.test(error.message) ? 'the server is not updated yet (run SQL 20261122_01)' : friendlyDbError(error.message) };
+      }
+      onProgress?.(Math.min(payload.length, i + part.length), payload.length);
+    }
+    const { data, error } = await supabase.rpc('stock_batch_commit', { p: { batch_id: batchId, total: payload.length } });
+    if (error) {
+      await reportCaughtError('commitStockBatch.commit', error, { target: payload[0]?.device?.serial, showPopup: false });
+      return { ok: false, error: friendlyDbError(error.message) };
+    }
+    const d = (data || {}) as any;
+    if (!d.ok) {
+      return { ok: false, errors: Array.isArray(d.errors) ? d.errors : [], errorCount: Number(d.error_count) || 0 };
+    }
+    const versions = new Map<string, number>();
+    (Array.isArray(d.versions) ? d.versions : []).forEach((v: any) => versions.set(String(v.serial), Number(v.row_version)));
+    clearInventoryCache();
+    clearConfiguringCache();
+    return { ok: true, created: Number(d.created) || 0, moved: Number(d.moved) || 0, versions };
+  } catch (err) {
+    await reportCaughtError('commitStockBatch', err, { target: rows[0]?.device?.serial, showPopup: false });
+    return { ok: false, error: err instanceof Error ? err.message : 'Network error' };
+  }
+}
+
 /** Saves a new or edited requisition (Error-Only Logging). */
 export async function saveRequisitionStrict(req: Requisition, isNew: boolean): Promise<string> {
   if (!isSupabaseConfigured) return '';

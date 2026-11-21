@@ -42,7 +42,7 @@ import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { tidFromMid } from '../utils/tid';
 import { validateStaffWithBranch } from '../utils/staffUtils';
-import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
+import { checkExistingSerialsOnServer, type BatchCommitResult } from '../services/supabaseService';
 import { PillMotion } from './PillMotion';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
@@ -129,8 +129,8 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'MID', label: 'MID', desc: '15-digit MID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Amazon Cafe BKK', '100000000012345'],
-      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'SEOUN Chettra (25490)', 'Lucky Mart Tuol Kork', '100000000054321'],
+      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Amazon Cafe BKK', '200000000012345'],
+      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'SEOUN Chettra (25490)', 'Lucky Mart Tuol Kork', '600000000054321'],
     ],
   },
   COMPLETE: {
@@ -153,8 +153,8 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'MID', label: 'MID', desc: '15-digit MID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'KY Vibol (27267)', 'Lucky Supermarket Monivong', '100000000098765'],
-      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'SEOUN Chettra (25490)', 'Brown Coffee 57', '100000000087654'],
+      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'KY Vibol (27267)', 'Lucky Supermarket Monivong', '200000000098765'],
+      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'SEOUN Chettra (25490)', 'Brown Coffee 57', '600000000087654'],
     ],
   },
 };
@@ -211,7 +211,8 @@ interface BatchUploadModalProps {
   branches: Branch[];
   users?: User[];
   existingDevices: Device[];
-  onCommitBatch: (newDevices: Partial<Device>[]) => void | Promise<void>;
+  /** (22 Nov 2026) Resolves with ok=false and the problems by row (positions in `newDevices`) when nothing was saved. */
+  onCommitBatch: (newDevices: Partial<Device>[], onProgress?: (sent: number, total: number) => void) => void | Promise<void | BatchCommitResult>;
   activeBranchId: string;
   theme?: ThemeMode;
   /** Signed-in operator's name/label, recorded as the person who stocked the units in. */
@@ -258,6 +259,13 @@ function parseDeviceTypeStrict(rawType: string, serial: string): 'POS Terminal' 
   }
   return null;
 }
+
+/** (22 Nov 2026) Battery values that are not real serials (same list as the server check). */
+const BATTERY_PLACEHOLDERS = new Set(['N/A', 'NA', '-', '--', 'NONE', 'NULL', '0', 'NO']);
+/** A battery value already shared by this many units is a placeholder too (e.g. a default code), as on the server. */
+const BATTERY_SHARED_PLACEHOLDER = 10;
+/** Preview rows drawn at a time: 5,000 rows drawn at once froze the window for 8 s. */
+const PREVIEW_PAGE_ROWS = 200;
 
 const isDate = (v: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
@@ -395,6 +403,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [commitNotice, setCommitNotice] = useState('');
   const [isCommittingBatches, setIsCommittingBatches] = useState(false);
   const [serverExistingSerials, setServerExistingSerials] = useState<Set<string>>(new Set());
+  /** Problems the server found on the last Confirm, by `${csvRowNumber}|${serial}` (cleared when the file changes). */
+  const [serverRowErrors, setServerRowErrors] = useState<Map<string, CsvCellValidationError[]>>(new Map());
+  const [previewPage, setPreviewPage] = useState(0);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; rowsSent: number; totalRows: number } | null>(null);
 
   // Reset step when modal opens
@@ -417,6 +428,29 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     serverExistingSerials.forEach((s) => set.add(s));
     return set;
   }, [existingDevices, serverExistingSerials]);
+
+  /** (22 Nov 2026) One pass over the inventory: units by serial, TIDs of configuring/installed units, battery owners. */
+  const inventoryIndex = useMemo(() => {
+    const bySerial = new Map<string, Device>();
+    const tidOwner = new Map<string, Device>();
+    const batteryOwner = new Map<string, Device>();
+    const batteryCount = new Map<string, number>();
+    for (let i = 0; i < existingDevices.length; i++) {
+      const d = existingDevices[i];
+      const sn = d.serial.trim().toUpperCase();
+      bySerial.set(sn, d);
+      const tid = (d.tid || '').trim();
+      if (tid && (d.stage === 'CONFIGURING' || d.stage === 'COMPLETE') && !tidOwner.has(tid)) tidOwner.set(tid, d);
+      const bat = (d.batterySerial || '').trim().toUpperCase();
+      if (bat) {
+        batteryCount.set(bat, (batteryCount.get(bat) || 0) + 1);
+        if (!batteryOwner.has(bat)) batteryOwner.set(bat, d);
+      }
+    }
+    return { bySerial, tidOwner, batteryOwner, batteryCount };
+  }, [existingDevices]);
+  const isRealBattery = (bat: string) =>
+    !!bat && !BATTERY_PLACEHOLDERS.has(bat) && (inventoryIndex.batteryCount.get(bat) || 0) < BATTERY_SHARED_PLACEHOLDER;
 
   const defaultBranch = useMemo(
     () => branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId),
@@ -477,6 +511,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   };
 
   // Master Table CSV Parser with strict Client-Side Pre-Validation (Row & Column error pinpointing)
+  /** Column positions of the last parsed table CSV (for pointing at the right column in later checks). */
+  const tableColMapRef = useRef<Record<string, number>>({});
   const tableCsvBatch = useMemo(() => {
     if (!tableCsvText.trim()) return [];
     const rows = parseCsv(tableCsvText);
@@ -623,6 +659,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       }
     }
 
+    tableColMapRef.current = colMap;
     const colNumber = (key: string, fallbackCol = 1): number =>
       colMap[key] !== undefined ? colMap[key] + 1 : fallbackCol;
     const colLabel = (key: string, fallbackName: string): string =>
@@ -938,7 +975,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         const targetStage = defaultStage;
 
         // Dynamic stock lookup: is this unit currently available in existing stock?
-        const inStockDev = existingDevices.find((d) => d.serial.trim().toUpperCase() === serial);
+        const inStockDev = inventoryIndex.bySerial.get(serial);
         const isAvailableHqStock = inStockDev && inStockDev.stage === 'HQ_STOCK';
 
         // Staff assignment: use selected default receiving staff or operator
@@ -994,7 +1031,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
     return parsed;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, defaultBranchId, defaultStaff, branches, staffLabel, existingDevices, directoryUsers]);
+  }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, defaultBranchId, defaultStaff, branches, staffLabel, inventoryIndex, directoryUsers]);
 
   const processCsvFile = (file: File) => {
     const sizeKb = (file.size / 1024).toFixed(1);
@@ -1151,11 +1188,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const activeStagedBatch = useMemo(() => {
     const raw = method === 'tableCsv' ? tableCsvBatch : pastedBatch;
     const firstSeenRowBySerial = new Map<string, number>();
+    const firstSeenRowByTid = new Map<string, number>();
+    const firstSeenRowByBattery = new Map<string, number>();
+    const COL_KEY: Record<string, string> = { TID: 'tid', MID: 'mid', Merchant_Name: 'merchantName', Battery_Serial: 'batterySerial' };
+    const colOf = (name: string, fallback: number) => {
+      if (method !== 'tableCsv') return 1;
+      const idx = tableColMapRef.current[COL_KEY[name]];
+      return idx !== undefined ? idx + 1 : fallback;
+    };
 
     return raw.map((item, idx) => {
       const rowNum = item.csvRowNumber || idx + 1;
       const key = item.serial.trim().toUpperCase();
-      const inStockDev = existingDevices.find((d) => d.serial.trim().toUpperCase() === key);
+      const inStockDev = inventoryIndex.bySerial.get(key);
       const isAvailableInHqStock = inStockDev && inStockDev.stage === 'HQ_STOCK';
       const isAllocatingToBranch = item.stage === 'BRANCH_RESERVE' || (item.branchId && item.branchId !== '100');
       const isValidHqStockAllocation = isAvailableInHqStock && isAllocatingToBranch;
@@ -1169,6 +1214,40 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       const isDuplicate = inDb || inFileDup;
       const baseCellErrors = item.cellErrors ? [...item.cellErrors] : [];
+      const addIssue = (columnName: string, column: number, message: string, category: CsvCellValidationError['category'] = 'INVALID_TYPE') =>
+        baseCellErrors.push({ row: rowNum, column: colOf(columnName, column), columnName, category, message });
+
+      // (22 Nov 2026) The same checks the server makes when saving, so a file that passes here also saves there.
+      if (!inDb && !inFileDup && !key.startsWith('MISSING_SN_ROW_')) {
+        const isMove = !!isValidHqStockAllocation;
+        const hasMerchantInfo = !!((item.mid || '').trim() || (item.merchantName || '').trim());
+        // a new HQ / reserve row with merchant details is saved as Under Configuring, which needs both name and MID
+        const finalStage = !isMove && (item.stage === 'HQ_STOCK' || item.stage === 'BRANCH_RESERVE') && hasMerchantInfo ? 'CONFIGURING' : item.stage;
+        if (!isMove && finalStage === 'CONFIGURING' && item.stage !== 'CONFIGURING') {
+          if (!(item.merchantName || '').trim()) addIssue('Merchant_Name', 10, 'A row with a MID is saved as Under Configuring and needs the Merchant_Name too');
+          if (!(item.mid || '').trim()) addIssue('MID', 11, 'A row with a merchant name is saved as Under Configuring and needs the 15-digit MID too');
+        }
+        const tid = !isMove && (finalStage === 'CONFIGURING' || finalStage === 'COMPLETE') ? (item.tid || '').trim() : '';
+        if (tid) {
+          const firstTidRow = firstSeenRowByTid.get(tid);
+          if (firstTidRow !== undefined) addIssue('TID', 12, `TID "${tid}" is twice in the file (first at Row ${firstTidRow})`, 'DUPLICATE_IN_FILE');
+          else firstSeenRowByTid.set(tid, rowNum);
+          const owner = inventoryIndex.tidOwner.get(tid);
+          if (owner && owner.serial.trim().toUpperCase() !== key) {
+            addIssue('TID', 12, `TID "${tid}" is already used by ${owner.serial} (${STAGE_META[owner.stage]?.short || owner.stage}${owner.merchantName ? `, ${owner.merchantName}` : ''})`);
+          }
+        }
+        const bat = ((item.batterySerial || (isMove ? inStockDev?.batterySerial : '') || '') as string).trim().toUpperCase();
+        if (isRealBattery(bat)) {
+          const firstBatRow = firstSeenRowByBattery.get(bat);
+          if (firstBatRow !== undefined) addIssue('Battery_Serial', 4, `Battery serial "${bat}" is twice in the file (first at Row ${firstBatRow})`, 'DUPLICATE_IN_FILE');
+          else firstSeenRowByBattery.set(bat, rowNum);
+          const owner = inventoryIndex.batteryOwner.get(bat);
+          if (owner && owner.serial.trim().toUpperCase() !== key) addIssue('Battery_Serial', 4, `Battery serial "${bat}" is already on unit ${owner.serial}`);
+        }
+      }
+      const fromServer = serverRowErrors.get(`${rowNum}|${key}`);
+      if (fromServer) baseCellErrors.push(...fromServer);
 
       if (inFileDup) {
         baseCellErrors.push({
@@ -1216,7 +1295,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         cellErrors: baseCellErrors,
       };
     });
-  }, [method, tableCsvBatch, pastedBatch, existingSerials, existingDevices]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [method, tableCsvBatch, pastedBatch, existingSerials, inventoryIndex, serverRowErrors]);
 
   /** Flatten all row/column validation issues across the staged batch. */
   const allValidationIssues = useMemo(() => {
@@ -1251,10 +1331,24 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     );
   }, [activeCycle, activeStagedBatch]);
 
-  const displayedStagedBatch = useMemo(() => {
+  const filteredStagedBatch = useMemo(() => {
     if (stageFilter === 'ALL') return activeStagedBatch;
     return activeStagedBatch.filter((item) => item.stage === stageFilter);
   }, [activeStagedBatch, stageFilter]);
+  const previewPageCount = Math.max(1, Math.ceil(filteredStagedBatch.length / PREVIEW_PAGE_ROWS));
+  const safePreviewPage = Math.min(previewPage, previewPageCount - 1);
+  const displayedStagedBatch = useMemo(
+    () => filteredStagedBatch.slice(safePreviewPage * PREVIEW_PAGE_ROWS, (safePreviewPage + 1) * PREVIEW_PAGE_ROWS),
+    [filteredStagedBatch, safePreviewPage]
+  );
+  /** First page that holds a row with a problem (to jump straight to it). */
+  const firstProblemPage = useMemo(() => {
+    const i = filteredStagedBatch.findIndex((it) => it.error || it.isDuplicateInFile || it.isAlreadyInDb);
+    return i < 0 ? -1 : Math.floor(i / PREVIEW_PAGE_ROWS);
+  }, [filteredStagedBatch]);
+  React.useEffect(() => { setPreviewPage(0); }, [stageFilter, method]);
+  // a changed file starts clean: the server's problems were about the previous version
+  React.useEffect(() => { setServerRowErrors((m) => (m.size ? new Map() : m)); }, [tableCsvText, posPasteText, sbPasteText, method]);
 
   const {
     validItems,
@@ -1314,7 +1408,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     const stillEligible = validItems.filter((i) => {
       const key = i.serial.trim().toUpperCase();
       if (i.stockOrigin === 'EXISTING_HQ_STOCK') {
-        const dev = existingDevices.find((d) => d.serial.trim().toUpperCase() === key);
+        const dev = inventoryIndex.bySerial.get(key);
         return dev && dev.stage === 'HQ_STOCK';
       }
       return !existingSerials.has(key);
@@ -1352,7 +1446,34 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     });
 
     try {
-      await Promise.resolve(onCommitBatch(cleanPayload));
+      const result = await Promise.resolve(
+        onCommitBatch(cleanPayload, (sent, total) =>
+          setBatchProgress({ current: Math.ceil(sent / 2000), total: Math.max(1, Math.ceil(total / 2000)), rowsSent: sent, totalRows: total })
+        )
+      );
+      if (result && !result.ok) {
+        // nothing was saved: show the server's problems on their rows and keep the window open
+        const byKey = new Map<string, CsvCellValidationError[]>();
+        (result.errors || []).forEach((e) => {
+          const it = stillEligible[e.row - 1];
+          if (!it) return;
+          const rowNum = it.csvRowNumber || e.row;
+          const k = `${rowNum}|${it.serial.trim().toUpperCase()}`;
+          const list = byKey.get(k) || [];
+          list.push({ row: rowNum, column: 1, columnName: e.column || 'Row', category: 'INVALID_TYPE', message: `${e.message} (checked on the server)` });
+          byKey.set(k, list);
+        });
+        setServerRowErrors(byKey);
+        const n = result.errorCount || result.errors?.length || 0;
+        setCommitNotice(
+          n > 0
+            ? `Nothing was saved: the server found ${n} problem(s)${n > (result.errors?.length || 0) ? ` (first ${result.errors?.length} shown)` : ''}, listed above.`
+            : `Nothing was saved: ${result.message || 'the server did not accept the file'}. Please try again.`
+        );
+        setPreviewPage(0);
+        setBatchStep('INPUT');
+        return;
+      }
 
       setTableCsvText('');
       setUploadedFileMeta(null);
@@ -1416,7 +1537,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
-                  Strict client-side pre-validation &amp; batched 100-row database inserts
+                  Every row checked before upload and again on the server · saved all at once or not at all
                 </p>
               </div>
             </div>
@@ -1454,7 +1575,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               className={simStepPillCls(batchStep === 'PREVIEW', validItems.length > 0 && !isUploadHalted)}
             >
               <span className={simStepNumCls(batchStep === 'PREVIEW')}>2</span>
-              <span>Intake Verification &amp; Batch Write (100/Batch)</span>
+              <span>Review &amp; Save (all rows at once)</span>
             </button>
           </div>
 
@@ -1547,10 +1668,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <Ban className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-                          Upload Halted by Client-Side Pre-Validation ({haltingValidationIssues.length} Error{haltingValidationIssues.length === 1 ? '' : 's'} Found)
+                          Upload Halted by {serverRowErrors.size ? 'Server Check' : 'Client-Side Pre-Validation'} ({haltingValidationIssues.length} Error{haltingValidationIssues.length === 1 ? '' : 's'} Found)
                         </div>
                         <p className="text-[11px] text-rose-800 dark:text-rose-200 mt-0.5">
-                          To protect the database and prevent incomplete batch uploads, no API calls have been made to Supabase. Fix the exact row and column errors listed below in your CSV and re-upload:
+                          {serverRowErrors.size ? 'The server checked every row and saved nothing.' : 'Nothing has been sent to the database.'} Fix the exact row and column errors listed below in your CSV and re-upload:
                         </p>
                       </div>
                     </div>
@@ -2277,6 +2398,34 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   </div>
                 </div>
 
+                {(previewPageCount > 1 || firstProblemPage >= 0) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[11px] border-b border-slate-200/70 dark:border-slate-700/60" aria-label="Preview pages">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Rows {filteredStagedBatch.length ? safePreviewPage * PREVIEW_PAGE_ROWS + 1 : 0}–{Math.min(filteredStagedBatch.length, (safePreviewPage + 1) * PREVIEW_PAGE_ROWS)} of {filteredStagedBatch.length.toLocaleString('en-US')}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {firstProblemPage >= 0 && firstProblemPage !== safePreviewPage && (
+                        <button type="button" onClick={() => setPreviewPage(firstProblemPage)}
+                          className="px-2.5 py-1 rounded-lg border border-rose-300 text-rose-600 dark:text-rose-300 font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer">
+                          Go to first problem
+                        </button>
+                      )}
+                      {previewPageCount > 1 && (
+                        <>
+                          <button type="button" aria-label="Previous rows" disabled={safePreviewPage === 0} onClick={() => setPreviewPage(safePreviewPage - 1)}
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="tabular-nums font-semibold text-slate-700 dark:text-slate-200">Page {safePreviewPage + 1} / {previewPageCount}</span>
+                          <button type="button" aria-label="Next rows" disabled={safePreviewPage >= previewPageCount - 1} onClick={() => setPreviewPage(safePreviewPage + 1)}
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 font-semibold disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="overflow-auto min-h-[240px] max-h-[62vh]">
                   <table className="w-full text-left text-xs min-w-[700px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white sticky top-0 z-10">
@@ -2509,7 +2658,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>
-                      {validItems.length} pre-validated serials ready ({Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch{Math.ceil(validItems.length / CSV_BATCH_SIZE) === 1 ? '' : 'es'} of {CSV_BATCH_SIZE})
+                      {validItems.length} pre-validated serials ready (saved in one step)
                     </span>
                     {alreadyInDbCount > 0 && (
                       <span className="text-amber-700 dark:text-amber-300 font-medium ml-1">
@@ -2524,6 +2673,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   </span>
                 )}
               </div>
+              {commitNotice && (
+                <span role="alert" className="flex-1 mx-3 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                  {commitNotice}
+                </span>
+              )}
 
               <div className="flex items-center gap-2">
                 <button
@@ -2566,10 +2720,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span className="font-extrabold text-xs block">
-                    Double-Step Safeguard: Batched Database Insert ({CSV_BATCH_SIZE} Rows / Batch, {CSV_BATCH_DELAY_MS}ms Delay)
+                    Double-Step Safeguard: All or Nothing
                   </span>
                   <p className="text-[11px] mt-0.5 opacity-90 leading-relaxed">
-                    All <strong>{validItems.length} hardware items</strong> passed strict client-side pre-validation and will be inserted into Supabase in <strong>{Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch(es) of {CSV_BATCH_SIZE} rows</strong> with a {CSV_BATCH_DELAY_MS}ms pause between batches to protect connection pools.
+                    All <strong>{validItems.length} hardware items</strong> passed pre-validation. On Confirm the server checks <strong>every row again</strong> and saves <strong>all of them in one step</strong>. If any row has a problem, <strong>nothing is saved</strong> and the problems are shown on their rows.
                   </p>
                 </div>
               </div>
@@ -2632,10 +2786,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   }`}
                 >
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                    Batch Schedule
+                    Save
                   </span>
                   <span className="font-bold text-xs text-slate-600 dark:text-slate-300 mt-0.5 block">
-                    {Math.ceil(validItems.length / CSV_BATCH_SIZE)} Ã— {CSV_BATCH_SIZE} rows ({CSV_BATCH_DELAY_MS}ms)
+                    One step · {Math.max(1, Math.ceil(validItems.length / 2000))} part(s) sent
                   </span>
                 </div>
               </div>
@@ -2674,7 +2828,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         isLight ? 'divide-slate-200/80' : 'divide-slate-800'
                       }`}
                     >
-                      {validItems.map((item, idx) => (
+                      {validItems.slice(0, PREVIEW_PAGE_ROWS).map((item, idx) => (
                         <tr
                           key={idx}
                           className={isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/40'}
@@ -2733,6 +2887,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           )}
                         </tr>
                       ))}
+                    {validItems.length > PREVIEW_PAGE_ROWS && (
+                        <tr>
+                          <td colSpan={7 + (isStaffColVisible ? 1 : 0) + (isMerchantColVisible ? 1 : 0)} className="py-2.5 px-3 text-center text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            First {PREVIEW_PAGE_ROWS} shown · all {validItems.length.toLocaleString('en-US')} rows will be saved
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2741,7 +2902,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
-                  Each item is inserted in batches of {CSV_BATCH_SIZE} rows with {CSV_BATCH_DELAY_MS}ms spacing and error-only failure telemetry.
+                  Saved in one database transaction: every row or none, with one Audit Trail entry.
                 </span>
               </div>
             </div>
