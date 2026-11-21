@@ -19,7 +19,15 @@ import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialSto
 import { ManageSimModal } from './ManageSimModal';
 import { getCachedDeviceBySerialMap } from './RightDrawerShell';
 import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
 import { getCachedStaff, onStaffList } from '../services/staffCache';
 import type { StaffAccount } from '../services/supabaseService';
@@ -357,49 +365,75 @@ const SimCardTabComponent: React.FC<{
         </div>
 
         {/* 3-Step Lifecycle & Status Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 mt-5 pt-5 border-t border-slate-200/90" role="group" aria-label="Status">
-          <motion.button
-            whileTap={WHILE_TAP_BUTTON}
-            type="button"
-            onClick={() => React.startTransition(() => setStatus(''))}
-            aria-pressed={status === ''}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-              status === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? '—'}</span>
-          </motion.button>
-          {PRIMARY_SIM_STEPS.map((item) => (
-            <motion.button
-              key={item.status}
-              whileTap={WHILE_TAP_BUTTON}
+        <div className="mt-5 pt-5 border-t border-slate-200/90">
+          <div className={`${CAPSULE_TRACK_CLS} flex-wrap`} role="tablist" aria-label="Status">
+            <button
               type="button"
-              onClick={() => React.startTransition(() => setStatus(item.status))}
-              aria-pressed={status === item.status}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
-                status === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              role="tab"
+              aria-selected={status === ''}
+              aria-pressed={status === ''}
+              onClick={() => React.startTransition(() => setStatus(''))}
+              className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                status === '' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
               }`}
             >
-              <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
-                status === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-              }`}>{item.step}</span>
-              <span>{item.label}</span>
-              <span className="tabular-nums opacity-80 ml-0.5">
-                {effectiveCounts ? effectiveCounts[item.status].toLocaleString() : '—'}
+              {status === '' && (
+                <PillMotion
+                  layoutId="sim-status-step-pill"
+                  aria-hidden
+                  className={CAPSULE_PILL_CLS}
+                  transition={SPRING_TAB_PILL}
+                />
+              )}
+              <span className="w-2 h-2 rounded-full bg-[#004e75] relative z-10 shrink-0" aria-hidden />
+              <span className="relative z-10">All</span>
+              <span className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums transition-colors ${status === '' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+                {totalAll?.toLocaleString() ?? '—'}
               </span>
-            </motion.button>
-          ))}
+            </button>
+            {PRIMARY_SIM_STEPS.map((item) => {
+              const active = status === item.status;
+              const dotCls = item.status === 'AT_MERCHANT' ? 'bg-emerald-500' : item.status === 'BRANCH_RESERVE' ? 'bg-amber-500' : 'bg-sky-500';
+              return (
+                <button
+                  key={item.status}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-pressed={active}
+                  onClick={() => React.startTransition(() => setStatus(item.status))}
+                  className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                  }`}
+                >
+                  {active && (
+                    <PillMotion
+                      layoutId="sim-status-step-pill"
+                      aria-hidden
+                      className={CAPSULE_PILL_CLS}
+                      transition={SPRING_TAB_PILL}
+                    />
+                  )}
+                  <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dotCls}`} aria-hidden />
+                  <span className="relative z-10">{item.step}. {item.label}</span>
+                  <span className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums transition-colors ${active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+                    {effectiveCounts ? effectiveCounts[item.status].toLocaleString() : '—'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Hardware Type Selector Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3.5 pt-3.5 border-t border-slate-200/90">
           <div
-            className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none flex-wrap"
+            className={`${CAPSULE_TRACK_CLS} flex-wrap`}
             role="tablist"
             aria-label="Select Device Type"
           >
             {([
-              { id: 'ALL' as const, label: 'All Types', icon: CreditCard, count: typeCounts.ALL, accent: 'text-[#003857] dark:text-sky-400' },
+              { id: 'ALL' as const, label: 'All Types', icon: CreditCard, count: typeCounts.ALL, accent: 'text-[#004e75] dark:text-sky-400' },
               { id: 'POS' as const, label: 'POS Terminal', icon: Cpu, count: typeCounts.POS, accent: 'text-[#184e77] dark:text-[#5cc8ff]' },
               { id: 'SOUND_BOX' as const, label: 'Sound Box', icon: Volume2, count: typeCounts.SOUND_BOX, accent: 'text-[#4F518C] dark:text-[#a2a5e0]' },
               { id: 'UNASSIGNED' as const, label: 'Available Pool', icon: Layers, count: typeCounts.UNASSIGNED, accent: 'text-emerald-600 dark:text-emerald-400' },
@@ -412,26 +446,23 @@ const SimCardTabComponent: React.FC<{
                   role="tab"
                   aria-selected={active}
                   onClick={() => React.startTransition(() => setHardwareFilter(id))}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
-                    active
-                      ? 'text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  className={`relative px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer select-none flex items-center gap-1.5 ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {active && (
                     <PillMotion
                       layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
+                      aria-hidden
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${active ? 'text-white' : accent}`} />
+                  <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${accent}`} />
                   <span className="relative z-10">{label}</span>
                   <span
-                    className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium transition-colors ${
-                      active
-                        ? 'bg-white/20 text-white font-bold'
-                        : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700/60 dark:text-slate-300'
+                    className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
+                      active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                     }`}
                   >
                     {count}

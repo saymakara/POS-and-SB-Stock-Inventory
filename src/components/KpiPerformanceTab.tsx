@@ -28,7 +28,17 @@ import {
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS, ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
 import { buildAnnularArcPath } from './Charts';
@@ -2628,7 +2638,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <div
-              className="inline-flex items-center p-1 rounded-xl bg-white border border-slate-200/90 shadow-2xs gap-0.5 shrink-0 whitespace-nowrap"
+              className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}
               role="tablist"
               aria-label="KPI metric mode"
             >
@@ -2644,18 +2654,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => handleMetricModeChange(m)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
-                      active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="kpi-metric-mode-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
-                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : accent}`} aria-hidden />
+                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${accent}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -2782,7 +2793,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       <section className="bg-white rounded-2xl border border-slate-200/90 px-3.5 py-2.5 shadow-2xs" aria-label="KPI Navigation and Filters">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
-            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 shrink-0 whitespace-nowrap" role="tablist" aria-label="KPI Views">
+            <div className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`} role="tablist" aria-label="KPI Views">
             {navTabs.map((t) => {
               const active = view === t.id;
               const Icon = t.Icon;
@@ -2793,23 +2804,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={active}
                   onClick={() => handleViewChange(t.id)}
-                  className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
-                    active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {active && (
                     <PillMotion
                       layoutId="kpi-view-pill"
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      aria-hidden
+                      className={CAPSULE_PILL_CLS}
                       transition={SPRING}
                     />
                   )}
-                  <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : t.accentColor}`} aria-hidden />
+                  <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${t.accentColor}`} aria-hidden />
                   <span className="relative z-10">{t.label}</span>
                   {t.count !== undefined && (
                     <span
-                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none font-medium ${
-                        active ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'
+                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none transition-colors ${
+                        active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                       }`}
                     >
                       {t.count.toLocaleString()}
@@ -2912,11 +2924,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <p className="text-[11px] text-slate-500">Executive velocity across selected granularity</p>
                   </div>
 
-                  <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
+                  <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="Chart granularity">
                     {([
                       { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
                       { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
-                      { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                      { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#004e75]' },
                       { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
                     ]).map(({ g, label, dot }) => {
                       const active = granularity === g;
@@ -2928,18 +2940,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           aria-selected={active}
                           onClick={() => setGranularity(g)}
                           aria-pressed={active}
-                          className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
-                            active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                          className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                            active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                           }`}
                         >
                           {active && (
                             <PillMotion
                               layoutId="kpi-chart-granularity-pill"
+                              aria-hidden
                               transition={SPRING}
-                              className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                              className={CAPSULE_PILL_CLS}
                             />
                           )}
-                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
+                          <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dot}`} aria-hidden />
                           <span className="relative z-10">{label}</span>
                         </button>
                       );
@@ -3255,39 +3268,38 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <button
                             type="button"
                             onClick={() => setSubCatActiveOnly((v) => !v)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border shadow-2xs cursor-pointer transition ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-2xs cursor-pointer transition ${
                               subCatActiveOnly
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                             }`}
                             title={subCatActiveOnly ? 'Click to show all rules (including 0 pts)' : 'Click to hide 0-pt standby rules'}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${subCatActiveOnly ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            <span className={`w-2 h-2 rounded-full ${subCatActiveOnly ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                             <span>{subCatActiveOnly ? `Active Only (${activeSubCategoryCount})` : `All Rules (${totalInSelectedCategory})`}</span>
                           </button>
 
                           {/* View Mode Switcher */}
-                          <div className="relative inline-flex rounded-xl border border-slate-200/90 p-1 bg-slate-100/90 shadow-2xs gap-0.5" role="tablist" aria-label="View mode">
+                          <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="View mode">
                             <button
                               type="button"
                               role="tab"
                               aria-selected={subCatViewMode === 'cards'}
                               onClick={() => setSubCatViewMode('cards')}
-                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
-                                subCatViewMode === 'cards'
-                                  ? 'text-white font-semibold'
-                                  : 'text-slate-600 hover:text-slate-900'
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatViewMode === 'cards' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
                               title="Card Grid View"
                             >
                               {subCatViewMode === 'cards' && (
                                 <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  aria-hidden
                                   transition={SPRING_TAB_PILL}
-                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className={CAPSULE_PILL_CLS}
                                 />
                               )}
-                              <LayoutGrid className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'cards' ? 'text-white' : 'text-sky-600'}`} />
+                              <LayoutGrid className="w-3.5 h-3.5 relative z-10 text-sky-600" />
                               <span className="hidden sm:inline relative z-10">Cards</span>
                             </button>
                             <button
@@ -3295,21 +3307,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               role="tab"
                               aria-selected={subCatViewMode === 'table'}
                               onClick={() => setSubCatViewMode('table')}
-                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
-                                subCatViewMode === 'table'
-                                  ? 'text-white font-semibold'
-                                  : 'text-slate-700 hover:text-slate-900'
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatViewMode === 'table' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
                               title="Detailed Table View"
                             >
                               {subCatViewMode === 'table' && (
                                 <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  aria-hidden
                                   transition={SPRING_TAB_PILL}
-                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className={CAPSULE_PILL_CLS}
                                 />
                               )}
-                              <List className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'table' ? 'text-white' : 'text-emerald-600'}`} />
+                              <List className="w-3.5 h-3.5 relative z-10 text-emerald-600" />
                               <span className="hidden sm:inline relative z-10">Table</span>
                             </button>
                           </div>
@@ -3322,7 +3333,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <div
                           role="tablist"
                           aria-label="Filter tasks by category"
-                          className="relative inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs gap-0.5 select-none"
+                          className={`${CAPSULE_TRACK_CLS} flex-wrap`}
                         >
                           {([
                             { id: 'ALL' as const, label: 'All', catStyle: null, count: subCategoryBreakdown.length },
@@ -3343,30 +3354,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 role="tab"
                                 aria-selected={active}
                                 onClick={() => setCategoryFilter(active && id !== 'ALL' ? 'ALL' : id)}
-                                className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                                  active
-                                    ? 'text-white'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                className={`relative px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                                  active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                                 }`}
                               >
                                 {active && (
                                   <PillMotion
                                     layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_CATEGORY_PILL}
+                                    aria-hidden
                                     transition={SPRING_TAB_PILL}
-                                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                    className={CAPSULE_PILL_CLS}
                                   />
                                 )}
                                 <span
                                   className={`w-2 h-2 rounded-full relative z-10 shrink-0 transition-colors ${
-                                    active ? 'bg-white' : (catStyle ? catStyle.dot : 'bg-slate-400')
+                                    catStyle ? catStyle.dot : 'bg-[#004e75]'
                                   }`}
                                 />
                                 <span className="relative z-10">{label}</span>
                                 <span
-                                  className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-md font-mono font-medium transition-colors ${
-                                    active
-                                      ? 'bg-white/20 text-white font-bold'
-                                      : 'bg-white text-slate-600 border border-slate-200/80 shadow-2xs'
+                                  className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full font-mono transition-colors ${
+                                    active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                                   }`}
                                 >
                                   {count}
@@ -3636,26 +3644,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Switch View by Staff or Branch */}
-              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Leaderboard mode">
+              <div className={`${CAPSULE_TRACK_CLS} text-xs shrink-0 whitespace-nowrap`} role="tablist" aria-label="Leaderboard mode">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={leaderboardMode === 'staff'}
                   onClick={() => setLeaderboardMode('staff')}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    leaderboardMode === 'staff' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    leaderboardMode === 'staff' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {leaderboardMode === 'staff' && (
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'staff' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10 text-sky-600" aria-hidden />
                   <span className="relative z-10">Top 10 Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${leaderboardMode === 'staff' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {top10Data.staff.length}
                   </span>
                 </button>
@@ -3665,41 +3674,43 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={leaderboardMode === 'branch'}
                   onClick={() => setLeaderboardMode('branch')}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    leaderboardMode === 'branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    leaderboardMode === 'branch' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {leaderboardMode === 'branch' && (
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'branch' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10 text-emerald-600" aria-hidden />
                   <span className="relative z-10">Top 10 Branches</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${leaderboardMode === 'branch' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {top10Data.branches.length}
                   </span>
                 </button>
               </div>
 
               {/* Month Selector Pills */}
-              <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-slate-100 border border-slate-200/90" role="tablist" aria-label="Leaderboard month">
+              <div className={`${CAPSULE_TRACK_CLS} flex-wrap`} role="tablist" aria-label="Leaderboard month">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={selectedTopMonth === 'ALL'}
                   onClick={() => setSelectedTopMonth('ALL')}
-                  className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
-                    selectedTopMonth === 'ALL' ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
+                    selectedTopMonth === 'ALL' ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {selectedTopMonth === 'ALL' && (
                     <PillMotion
                       layoutId="kpi-top10-month-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
                   <span className="relative z-10">{KPI_PERIOD_LABEL[period]}</span>
@@ -3711,15 +3722,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={selectedTopMonth === m}
                     onClick={() => setSelectedTopMonth(m)}
-                    className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
-                      selectedTopMonth === m ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
+                      selectedTopMonth === m ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {selectedTopMonth === m && (
                       <PillMotion
                         layoutId="kpi-top10-month-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
                     <span className="relative z-10">{fmtMonth(m)}</span>
@@ -4035,11 +4047,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${timelineExpanded ? 'rotate-180' : ''}`} />
                 </button>
               )}
-              <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/90 text-[11px] gap-0.5" role="tablist" aria-label="Timeline granularity">
+              <div className={`${CAPSULE_TRACK_CLS} text-[11px]`} role="tablist" aria-label="Timeline granularity">
               {([
                 { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
                 { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
-                { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#004e75]' },
                 { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
               ]).map(({ g, label, dot }) => {
                 const active = granularity === g;
@@ -4050,18 +4062,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => setGranularity(g)}
-                    className={`relative px-3 py-1 rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
-                      active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1 rounded-full cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="kpi-timeline-granularity-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
-                    <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
+                    <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dot}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -4173,26 +4186,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap xl:flex-nowrap items-center gap-2">
               <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
-                <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Matrix mode">
+                <div className={`${CAPSULE_TRACK_CLS} text-xs shrink-0 whitespace-nowrap`} role="tablist" aria-label="Matrix mode">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'summary'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'summary' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10 text-sky-600" aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {filteredStaff.length}
                   </span>
                 </button>
@@ -4201,20 +4215,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'summary'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'summary' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10 text-emerald-600" aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {filteredBranches.length}
                   </span>
                 </button>
@@ -4223,20 +4238,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'daily'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'daily' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-amber-500'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10 text-amber-500" aria-hidden />
                   <span className="relative z-10">Staff Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -4245,20 +4261,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'daily'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'daily' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-indigo-600'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10 text-indigo-600" aria-hidden />
                   <span className="relative z-10">Branch Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -4355,24 +4372,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {tableMode === 'staff' && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-500 font-medium">Level:</span>
-                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs gap-0.5" role="tablist" aria-label="Staff level filter">
+                    <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-xs`} role="tablist" aria-label="Staff level filter">
                       <button
                         type="button"
                         role="tab"
                         aria-selected={staffLevelFilter === 'all'}
                         onClick={() => setStaffLevelFilter('all')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'all' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'all' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                       >
                         {staffLevelFilter === 'all' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'all' ? 'bg-white' : 'bg-[#003857]'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
                         <span className="relative z-10">All ({enrichedStaff.length})</span>
                       </button>
                       <button
@@ -4380,18 +4398,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'field'}
                         onClick={() => setStaffLevelFilter('field')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'field' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'field' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                       >
                         {staffLevelFilter === 'field' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'field' ? 'bg-white' : 'bg-emerald-500'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-emerald-500" aria-hidden />
                         <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
                       </button>
                       <button
@@ -4399,19 +4418,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'management'}
                         onClick={() => setStaffLevelFilter('management')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'management' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'management' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                         title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
                       >
                         {staffLevelFilter === 'management' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'management' ? 'bg-white' : 'bg-amber-500'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-amber-500" aria-hidden />
                         <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
                       </button>
                     </div>

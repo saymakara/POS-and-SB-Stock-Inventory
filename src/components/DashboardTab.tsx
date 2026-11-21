@@ -2778,7 +2778,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div
               className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
                 isLight
-                  ? 'bg-slate-200/65 border-slate-200/80'
+                  ? 'bg-slate-200/75 border-slate-200/90'
                   : 'bg-slate-900/80 border-slate-700'
               }`}
               role="tablist"
@@ -2796,12 +2796,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       setViewMode(opt.id);
                       if (opt.id !== 'DATE') setDateMenuOpen(false);
                     }}
-                    className={`relative px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
+                    className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
                       active
                         ? isLight
-                          ? 'text-slate-900 font-bold'
+                          ? 'text-[#003857] font-bold'
                           : 'text-white font-bold'
-                        : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                        : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
                     }`}
                   >
                     {active && (
@@ -2810,7 +2810,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         transition={SPRING_TAB_PILL}
                         className={`absolute inset-0 rounded-full pointer-events-none ${
                           isLight
-                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.09)]'
+                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
                             : 'bg-slate-800 shadow-2xs'
                         }`}
                       />

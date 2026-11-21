@@ -26,7 +26,15 @@ import {
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
@@ -382,18 +390,18 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   role="tab"
                   aria-selected={active}
                   onClick={() => setView(v)}
-                  className={`relative h-[30px] px-2 rounded-lg text-[11.5px] font-medium flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
-                    active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
+                  className={`relative h-[30px] px-2.5 rounded-full text-[11.5px] flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {active && (
-                    <PillMotion layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
+                    <PillMotion layoutId="qr-view-pill" aria-hidden className={CAPSULE_PILL_CLS} transition={SPRING} />
                   )}
-                  <span className="relative z-10 flex items-center gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${v === 'entries' ? (active ? 'bg-[#74b9ff]' : 'bg-[#1e6091]') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${v === 'entries' ? 'bg-[#1e6091]' : v === 'failed' ? 'bg-rose-500' : v === 'wrong' ? 'bg-orange-500' : 'bg-violet-500'}`} aria-hidden />
                     <span>{label}</span>
                     {n !== undefined && (
-                      <span className={`font-mono text-[10px] px-1.5 py-[1px] rounded-full ${active ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                      <span className={`font-mono text-[10px] px-1.5 py-[1px] rounded-full transition-colors ${active ? (v === 'failed' || v === 'wrong' ? CAPSULE_COUNT_WARN_ACTIVE_CLS : CAPSULE_COUNT_ACTIVE_CLS) : CAPSULE_COUNT_INACTIVE_CLS}`}>
                         ({n.toLocaleString()})
                       </span>
                     )}

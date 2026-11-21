@@ -9,6 +9,13 @@ import { todayPP, stampSecPP } from '../utils/time';
 import { showDateTime } from '../utils/format';
 import { motion } from 'motion/react';
 import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+} from './PillMotion';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
+import {
   FileSpreadsheet,
   Search,
   ShieldAlert,
@@ -570,26 +577,51 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               }`}
             >
               <span className="text-[11px] text-slate-400 font-semibold">Page View:</span>
-              {[50, 100].map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => {
-                    setPageSize(num);
-                    setCurrentPage(1);
-                  }}
-                  aria-pressed={pageSize === num}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${
-                    pageSize === num
-                      ? 'bg-[#003857] text-white shadow-2xs'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
-                      : 'bg-[#1e293b] hover:bg-slate-700 text-slate-200 border border-slate-700'
-                  }`}
-                >
-                  {num} Rows
-                </button>
-              ))}
+              <div
+                role="tablist"
+                aria-label="Rows per page"
+                className={`relative inline-flex items-center p-0.5 rounded-full border gap-0.5 select-none ${
+                  isLight
+                    ? 'bg-slate-200/75 border-slate-200/90'
+                    : 'bg-slate-800/90 border-slate-700/80'
+                }`}
+              >
+                {[50, 100].map((num) => {
+                  const active = pageSize === num;
+                  return (
+                    <button
+                      key={num}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      aria-pressed={active}
+                      onClick={() => {
+                        setPageSize(num);
+                        setCurrentPage(1);
+                      }}
+                      className={`relative px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors ${
+                        active
+                          ? isLight
+                            ? CAPSULE_BTN_NAVY_ACTIVE_CLS
+                            : 'text-white font-bold'
+                          : isLight
+                            ? CAPSULE_BTN_INACTIVE_CLS
+                            : 'text-slate-300 hover:text-white font-medium'
+                      }`}
+                    >
+                      {active && (
+                        <PillMotion
+                          layoutId="audit-pagesize-pill"
+                          aria-hidden
+                          className={CAPSULE_PILL_CLS}
+                          transition={SPRING_TAB_PILL}
+                        />
+                      )}
+                      <span className="relative z-10">{num} Rows</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

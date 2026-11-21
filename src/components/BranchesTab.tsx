@@ -43,7 +43,15 @@ import {
 } from 'lucide-react';
 import { fmtNum } from '../utils/format';
 import { getControlledBranches, isUserInPhnomPenh } from '../utils/fieldScope';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+} from './PillMotion';
 
 interface BranchesTabProps {
   branches: Branch[];
@@ -453,15 +461,15 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
             {/* Status Filter */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none"
+              className={CAPSULE_TRACK_CLS}
               role="tablist"
               aria-label="Branch status filter"
             >
               {[
-                { id: 'ALL' as const, label: 'All', count: undefined, Icon: Building2, accent: 'text-[#003857] dark:text-sky-400' },
-                { id: 'HEALTHY' as const, label: 'Healthy', count: undefined, Icon: CheckCircle2, accent: 'text-emerald-600 dark:text-emerald-400' },
-                { id: 'LOW_RESERVE' as const, label: 'Low Reserve', count: metrics.lowReserveCount, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400' },
-              ].map(({ id, label, count, Icon, accent }) => {
+                { id: 'ALL' as const, label: 'All', count: undefined, Icon: Building2, accent: 'text-[#004e75] dark:text-sky-400', dot: 'bg-[#004e75]' },
+                { id: 'HEALTHY' as const, label: 'Healthy', count: undefined, Icon: CheckCircle2, accent: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+                { id: 'LOW_RESERVE' as const, label: 'Low Reserve', count: metrics.lowReserveCount, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400', dot: 'bg-amber-500' },
+              ].map(({ id, label, count, dot }) => {
                 const isActive = statusFilter === id;
                 return (
                   <button
@@ -470,28 +478,26 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setStatusFilter(id)}
-                    className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    className={`relative px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
+                      isActive ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {isActive && (
                       <PillMotion
                         layoutId="branch-status-filter-pill"
                         aria-hidden
-                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                         transition={SPRING_TAB_PILL}
                       />
                     )}
-                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${isActive ? 'text-white' : accent}`} aria-hidden />
+                    <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dot}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                     {count !== undefined && count > 0 && (
                       <span
-                        className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+                        className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-full transition-colors ${
                           isActive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200/80'
+                            ? CAPSULE_COUNT_WARN_ACTIVE_CLS
+                            : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 font-bold'
                         }`}
                       >
                         {count}
@@ -504,12 +510,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
             {/* View Switcher: Table (default) vs Cards */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none"
+              className={CAPSULE_TRACK_CLS}
               role="tablist"
               aria-label="View switcher"
             >
               {[
-                { id: 'TABLE' as const, label: 'Table', icon: List, accent: 'text-[#003857] dark:text-sky-400' },
+                { id: 'TABLE' as const, label: 'Table', icon: List, accent: 'text-[#004e75] dark:text-sky-400' },
                 { id: 'GRID' as const, label: 'Cards', icon: LayoutGrid, accent: 'text-sky-600 dark:text-sky-400' },
               ].map(({ id, label, icon: Icon, accent }) => {
                 const isActive = displayLayout === id;
@@ -520,10 +526,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setDisplayLayout(id)}
-                    className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer select-none outline-none ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    className={`relative px-3 py-1.5 rounded-full text-xs transition-colors flex items-center gap-1.5 cursor-pointer select-none outline-none ${
+                      isActive ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                     title={id === 'TABLE' ? 'Table View (by Branch)' : 'Cards Grid'}
                   >
@@ -531,11 +535,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       <PillMotion
                         layoutId="branch-layout-view-pill"
                         aria-hidden
-                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                         transition={SPRING_TAB_PILL}
                       />
                     )}
-                    <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${isActive ? 'text-white' : accent}`} />
+                    <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${accent}`} />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );

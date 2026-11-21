@@ -1139,18 +1139,18 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                     <p className="text-[11px] text-slate-600 dark:text-slate-300">
                       Merchant details detached and kept in <strong>Merchant History</strong>. Unit returns to stock:
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full border gap-1 ${isLight ? 'bg-slate-200/75 border-slate-200/90' : 'bg-slate-800/90 border-slate-700'}`}>
                       <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#155484] text-white border-[#155484] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                        <Building2 className="w-3 h-3" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
+                        className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'BRANCH_RESERVE' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
+                        <Building2 className={`w-3 h-3 ${returnTo === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                       </button>
                       {isAdminLike ? (
                         <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#155484] text-white border-[#155484] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                          <RotateCcw className="w-3 h-3" /><span>Admin HQ stock (Code 100)</span>
+                          className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'HQ_STOCK' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
+                          <RotateCcw className={`w-3 h-3 ${returnTo === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} /><span>Admin HQ stock (Code 100)</span>
                         </button>
                       ) : (
-                        <span className="px-2.5 py-1.5 rounded-lg text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
+                        <span className="px-3 py-1.5 rounded-full text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
                       )}
                     </div>
                     <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -1171,41 +1171,41 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                       <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>Where Is the Faulty Unit Held? *</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full border gap-1 ${isLight ? 'bg-slate-200/75 border-slate-200/90' : 'bg-slate-800/90 border-slate-700'}`}>
                       <button
                         type="button"
                         onClick={() => setTerminateDestination('BRANCH_RESERVE')}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           terminateDestination === 'BRANCH_RESERVE'
-                            ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
                             : isLight
-                            ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                            : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                            ? 'text-slate-600 hover:text-slate-900 font-medium'
+                            : 'text-slate-300 hover:text-white font-medium'
                         }`}
                       >
-                        <Building2 className="w-3 h-3" />
+                        <Building2 className={`w-3 h-3 ${terminateDestination === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} />
                         <span>Held at Branch Code {branchId}</span>
                       </button>
                       {isAdminLike ? (
                         <button
                           type="button"
                           onClick={() => setTerminateDestination('HQ_STOCK')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             terminateDestination === 'HQ_STOCK'
-                              ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
+                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
                               : isLight
-                              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                              : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                              ? 'text-slate-600 hover:text-slate-900 font-medium'
+                              : 'text-slate-300 hover:text-white font-medium'
                           }`}
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className={`w-3 h-3 ${terminateDestination === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} />
                           <span>Held at HQ (Code 100)</span>
                         </button>
                       ) : (
                         <button
                           type="button"
                           disabled
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold border border-transparent flex items-center justify-center gap-1.5 transition opacity-50 cursor-not-allowed text-slate-400"
                         >
                           <span>Return to HQ (Admin Only)</span>
                         </button>

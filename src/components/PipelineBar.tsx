@@ -4,7 +4,14 @@ import { STAGE_META } from '../data/initialData';
 import { Odometer } from './Odometer';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import {
   Layers,
   Warehouse,
@@ -113,7 +120,15 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
             : 'surface-card-dark p-2'
         } flex items-center justify-between gap-2 overflow-x-auto no-scrollbar`}
       >
-        <div className="flex items-center gap-1.5 flex-1 min-w-max">
+        <div
+          role="tablist"
+          aria-label="Hardware lifecycle stages"
+          className={`inline-flex items-center p-1 rounded-full border gap-1 min-w-max ${
+            isLight
+              ? 'bg-slate-200/75 border-slate-200/90'
+              : 'bg-slate-800/90 border-slate-700/80'
+          }`}
+        >
           {visibleStages.map((s) => {
             const Icon = s.icon;
             const isSelected = currentStageFilter === s.id;
@@ -121,38 +136,39 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
               <motion.button
                 key={s.id}
                 type="button"
+                role="tab"
+                aria-selected={isSelected}
                 whileTap={WHILE_TAP_BUTTON}
                 onClick={() => onSelectStage(s.id)}
-                className={`relative px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer transition-colors duration-200 ${
+                className={`relative px-3 py-1.5 rounded-full text-left flex items-center gap-2 cursor-pointer transition-colors duration-200 select-none outline-none ${
                   isSelected
-                    ? 'border-transparent text-white'
+                    ? CAPSULE_BTN_ACTIVE_CLS
                     : isLight
-                    ? 'bg-white border-slate-200 text-zinc-800 hover:border-zinc-400'
-                    : 'bg-[#18191e] border-zinc-800 text-slate-200 hover:border-zinc-600'
+                    ? CAPSULE_BTN_INACTIVE_CLS
+                    : 'text-slate-300 hover:text-white font-medium'
                 }`}
               >
                 {isSelected && (
                   <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.PIPELINE_STAGE_PILL}
+                    aria-hidden
                     transition={SPRING_NO_BOUNCE}
-                    className="absolute -inset-[1px] rounded-md tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
+                    className={CAPSULE_PILL_CLS}
                   />
                 )}
                 <Icon
-                  className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-200 ${
-                    isSelected ? 'text-white' : s.accentColor
-                  }`}
+                  className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-200 ${s.accentColor}`}
                 />
-                <span className="text-xs font-bold whitespace-nowrap relative z-10">
+                <span className="text-xs font-semibold whitespace-nowrap relative z-10">
                   {s.title}
                 </span>
                 <span
-                  className={`font-figure text-xs font-extrabold tabular-nums px-1.5 py-0.2 rounded relative z-10 transition-colors duration-200 ${
+                  className={`font-figure text-[11px] tabular-nums px-1.5 py-0.2 rounded-full relative z-10 transition-colors duration-200 ${
                     isSelected
-                      ? 'bg-white/15 text-white'
+                      ? CAPSULE_COUNT_ACTIVE_CLS
                       : isLight
-                      ? 'bg-slate-100 text-zinc-900 border border-slate-200'
-                      : 'bg-zinc-800 text-white'
+                      ? CAPSULE_COUNT_INACTIVE_CLS
+                      : 'bg-slate-900/70 text-slate-200 border border-slate-700'
                   }`}
                 >
                   <Odometer value={s.count} format={s.count >= 1000} duration={340} />
