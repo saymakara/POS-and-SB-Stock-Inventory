@@ -18,7 +18,16 @@ import {
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL } from '../utils/animationRules';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import {
   Smartphone,
   Wifi,
@@ -845,7 +854,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
             {/* Filter Tabs */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none flex-wrap"
+              className={`${CAPSULE_TRACK_CLS} flex-wrap`}
               role="tablist"
               aria-label="Reconciliation filter"
             >
@@ -854,7 +863,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   id: 'ALL',
                   label: `Flagged (${reconciliationReport.totalDiscrepancies})`,
                   Icon: Scale,
-                  accent: 'text-[#003857] dark:text-sky-400',
+                  accent: 'text-[#004e75] dark:text-sky-400',
                 },
                 {
                   id: 'CRITICAL',
@@ -884,21 +893,19 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setReconciliationFilter(tab.id as any)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    className={`relative px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                      isActive ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {isActive && (
                       <PillMotion
                         layoutId="sync-reconciliation-filter-pill"
                         aria-hidden
-                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                         transition={SPRING_TAB_PILL}
                       />
                     )}
-                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? 'text-white' : tab.accent}`} aria-hidden />
+                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${tab.accent}`} aria-hidden />
                     <span className="relative z-10">{tab.label}</span>
                   </button>
                 );
@@ -1747,12 +1754,12 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
             {/* Segmented Filter Tabs */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none overflow-x-auto no-scrollbar"
+              className={`${CAPSULE_TRACK_CLS} overflow-x-auto no-scrollbar`}
               role="tablist"
               aria-label="Feed filter"
             >
               {[
-                { id: 'ALL', label: 'All Events', count: feedCounts.all, Icon: Wifi, accent: 'text-[#003857] dark:text-sky-400' },
+                { id: 'ALL', label: 'All Events', count: feedCounts.all, Icon: Wifi, accent: 'text-[#004e75] dark:text-sky-400' },
                 { id: 'POS', label: 'POS Terminals', count: feedCounts.pos, Icon: Cpu, accent: 'text-[#184e77] dark:text-[#5cc8ff]' },
                 { id: 'SB', label: 'Sound Boxes', count: feedCounts.sb, Icon: Volume2, accent: 'text-[#4F518C] dark:text-[#a2a5e0]' },
                 { id: 'DRIFT', label: 'Out-of-Sync Only', count: feedCounts.drift, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400' },
@@ -1766,29 +1773,29 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     role="tab"
                     aria-selected={active}
                     onClick={() => setFeedFilter(tab.id as any)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
-                      active
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="sync-feed-filter-pill"
                         aria-hidden
-                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                         transition={SPRING_TAB_PILL}
                       />
                     )}
-                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${active ? 'text-white' : tab.accent}`} aria-hidden />
+                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${tab.accent}`} aria-hidden />
                     <span className="relative z-10">{tab.label}</span>
                     <span
-                      className={`relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold transition-colors ${
+                      className={`relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-mono transition-colors ${
                         active
-                          ? 'bg-white/20 text-white'
+                          ? tab.id === 'DRIFT'
+                            ? CAPSULE_COUNT_WARN_ACTIVE_CLS
+                            : CAPSULE_COUNT_ACTIVE_CLS
                           : tab.id === 'DRIFT' && tab.count > 0
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200/80'
-                          : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700/60 dark:text-slate-300'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200/80 font-bold'
+                          : CAPSULE_COUNT_INACTIVE_CLS
                       }`}
                     >
                       {tab.count}

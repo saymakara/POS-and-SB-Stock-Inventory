@@ -58,7 +58,14 @@ import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
 import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+} from './PillMotion';
 import { MeasuredChart } from './MeasuredChart';
 
 /**
@@ -885,7 +892,7 @@ return (
 
             {/* Chart Mode Toggle */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-semibold gap-1 select-none"
+              className={`${CAPSULE_TRACK_CLS} text-xs`}
               role="tablist"
               aria-label="Chart mode"
             >
@@ -894,21 +901,19 @@ return (
                 role="tab"
                 aria-selected={trendChartMode === 'POS_VS_SB'}
                 onClick={() => setTrendChartMode('POS_VS_SB')}
-                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                  trendChartMode === 'POS_VS_SB'
-                    ? 'text-white'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                className={`relative px-3 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                  trendChartMode === 'POS_VS_SB' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                 }`}
               >
                 {trendChartMode === 'POS_VS_SB' && (
                   <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
                     aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    className={CAPSULE_PILL_CLS}
                     transition={SPRING_TAB_PILL}
                   />
                 )}
-                <Cpu className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendChartMode === 'POS_VS_SB' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
+                <Cpu className="relative z-10 w-3.5 h-3.5 shrink-0 text-sky-600" aria-hidden />
                 <span className="relative z-10">POS vs. Sound Box</span>
               </button>
               <button
@@ -916,28 +921,26 @@ return (
                 role="tab"
                 aria-selected={trendChartMode === 'BY_MID_STACKED'}
                 onClick={() => setTrendChartMode('BY_MID_STACKED')}
-                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                  trendChartMode === 'BY_MID_STACKED'
-                    ? 'text-white'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                className={`relative px-3 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                  trendChartMode === 'BY_MID_STACKED' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                 }`}
               >
                 {trendChartMode === 'BY_MID_STACKED' && (
                   <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
                     aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    className={CAPSULE_PILL_CLS}
                     transition={SPRING_TAB_PILL}
                   />
                 )}
-                <Store className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendChartMode === 'BY_MID_STACKED' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+                <Store className="relative z-10 w-3.5 h-3.5 shrink-0 text-emerald-600" aria-hidden />
                 <span className="relative z-10">Per-MID Comparison</span>
               </button>
             </div>
 
             {/* Time Horizon Toggle */}
             <div
-              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-mono gap-1 select-none"
+              className={`${CAPSULE_TRACK_CLS} text-xs font-mono`}
               role="tablist"
               aria-label="Time horizon"
             >
@@ -946,21 +949,19 @@ return (
                 role="tab"
                 aria-selected={trendHorizon === '6M'}
                 onClick={() => setTrendHorizon('6M')}
-                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                  trendHorizon === '6M'
-                    ? 'text-white'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                className={`relative px-3 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                  trendHorizon === '6M' ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                 }`}
               >
                 {trendHorizon === '6M' && (
                   <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
                     aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    className={CAPSULE_PILL_CLS}
                     transition={SPRING_TAB_PILL}
                   />
                 )}
-                <Clock className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendHorizon === '6M' ? 'text-white' : 'text-amber-500'}`} aria-hidden />
+                <Clock className="relative z-10 w-3.5 h-3.5 shrink-0 text-amber-500" aria-hidden />
                 <span className="relative z-10">6M</span>
               </button>
               <button
@@ -968,21 +969,19 @@ return (
                 role="tab"
                 aria-selected={trendHorizon === '12M'}
                 onClick={() => setTrendHorizon('12M')}
-                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                  trendHorizon === '12M'
-                    ? 'text-white'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                className={`relative px-3 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                  trendHorizon === '12M' ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                 }`}
               >
                 {trendHorizon === '12M' && (
                   <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
                     aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    className={CAPSULE_PILL_CLS}
                     transition={SPRING_TAB_PILL}
                   />
                 )}
-                <BarChart3 className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendHorizon === '12M' ? 'text-white' : 'text-[#003857]'}`} aria-hidden />
+                <BarChart3 className="relative z-10 w-3.5 h-3.5 shrink-0 text-[#004e75]" aria-hidden />
                 <span className="relative z-10">12M</span>
               </button>
             </div>

@@ -43,7 +43,14 @@ import { todayPP } from '../utils/time';
 import { tidFromMid } from '../utils/tid';
 import { validateStaffWithBranch } from '../utils/staffUtils';
 import { checkExistingSerialsOnServer, type BatchCommitResult } from '../services/supabaseService';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+} from './PillMotion';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
 
@@ -1595,26 +1602,25 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   : 'bg-[#131722] border-slate-800/80'
               }`}
             >
-              <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 gap-0.5 border border-slate-200/90 dark:border-slate-700/60 shadow-2xs" role="tablist" aria-label="Import method">
+              <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="Import method">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={method === 'tableCsv'}
                   onClick={() => setMethod('tableCsv')}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                    method === 'tableCsv'
-                      ? 'text-white font-semibold'
-                      : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
+                    method === 'tableCsv' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {method === 'tableCsv' && (
                     <PillMotion
                       layoutId="batch-import-method-pill"
+                      aria-hidden
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg bg-[#155484] shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <FileSpreadsheet className={`w-3.5 h-3.5 relative z-10 ${method === 'tableCsv' ? 'text-white' : 'text-[#155484] dark:text-sky-400'}`} />
+                  <FileSpreadsheet className="w-3.5 h-3.5 relative z-10 text-[#155484] dark:text-sky-400" />
                   <span className="relative z-10">Method A: Table CSV Import</span>
                 </button>
                 <button
@@ -1622,20 +1628,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   role="tab"
                   aria-selected={method === 'paste'}
                   onClick={() => setMethod('paste')}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                    method === 'paste'
-                      ? 'text-white font-semibold'
-                      : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
+                    method === 'paste' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {method === 'paste' && (
                     <PillMotion
                       layoutId="batch-import-method-pill"
+                      aria-hidden
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg bg-[#155484] shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Layers className={`w-3.5 h-3.5 relative z-10 ${method === 'paste' ? 'text-white' : 'text-indigo-500'}`} />
+                  <Layers className="w-3.5 h-3.5 relative z-10 text-indigo-500" />
                   <span className="relative z-10">Method B: By Hardware Type</span>
                 </button>
               </div>
@@ -1928,25 +1933,37 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         {/* Cycle Switcher Tabs */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
+                        <div className={`${CAPSULE_TRACK_COMPACT_CLS} overflow-x-auto text-xs`} role="tablist" aria-label="Intake cycle schema">
                           {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
                             const cDef = CYCLE_SCHEMAS[cKey];
                             const isSelected = activeCycle === cKey;
+                            const cycleDot =
+                              cKey === 'HQ_STOCK' ? 'bg-slate-500' :
+                              cKey === 'BRANCH_RESERVE' ? 'bg-sky-500' :
+                              cKey === 'CONFIGURING' ? 'bg-amber-500' :
+                              'bg-emerald-500';
                             return (
                               <button
                                 key={cKey}
                                 type="button"
+                                role="tab"
+                                aria-selected={isSelected}
                                 onClick={() => handleSelectStage(cKey)}
-                                className={`px-2.5 py-1 rounded-lg font-semibold text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                                  isSelected
-                                    ? 'bg-[#155484] text-white shadow-2xs'
-                                    : isLight
-                                    ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                                className={`relative px-2.5 py-1 rounded-full text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                                  isSelected ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                                 }`}
                               >
-                                <span>{cDef.tag}</span>
-                                <span className="text-[10px] opacity-75">({cDef.columns.length} Cols)</span>
+                                {isSelected && (
+                                  <PillMotion
+                                    layoutId="batch-cycle-schema-pill"
+                                    aria-hidden
+                                    transition={SPRING_TAB_PILL}
+                                    className={CAPSULE_PILL_CLS}
+                                  />
+                                )}
+                                <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${cycleDot}`} aria-hidden />
+                                <span className="relative z-10">{cDef.tag}</span>
+                                <span className="relative z-10 text-[10px] opacity-75">({cDef.columns.length} Cols)</span>
                               </button>
                             );
                           })}
@@ -2312,7 +2329,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <div className="flex items-center gap-2">
                     {activeStagedBatch.length > 0 && (
                       <div
-                        className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-[11px] font-semibold gap-1 select-none overflow-x-auto no-scrollbar"
+                        className={`${CAPSULE_TRACK_CLS} text-[11px] overflow-x-auto no-scrollbar`}
                         role="tablist"
                         aria-label="Stage filter"
                       >
@@ -2321,21 +2338,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           role="tab"
                           aria-selected={stageFilter === 'ALL'}
                           onClick={() => setStageFilter('ALL')}
-                          className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                            stageFilter === 'ALL'
-                              ? 'text-white'
-                              : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                          className={`relative px-2.5 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                            stageFilter === 'ALL' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                           }`}
                         >
                           {stageFilter === 'ALL' && (
                             <PillMotion
                               layoutId="batch-stage-filter-pill"
                               aria-hidden
-                              className="absolute inset-0 rounded-lg bg-[#155484] border border-white/10 shadow-xs z-0 pointer-events-none"
+                              className={CAPSULE_PILL_CLS}
                               transition={SPRING_TAB_PILL}
                             />
                           )}
-                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${stageFilter === 'ALL' ? 'bg-white' : 'bg-[#155484]'}`} aria-hidden />
+                          <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
                           <span className="relative z-10">All ({activeStagedBatch.length})</span>
                         </button>
                         {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
@@ -2355,21 +2370,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               role="tab"
                               aria-selected={isActive}
                               onClick={() => setStageFilter(cKey)}
-                              className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                                isActive
-                                  ? 'text-white'
-                                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                              className={`relative px-2.5 py-1 rounded-full transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                                isActive ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
                             >
                               {isActive && (
                                 <PillMotion
                                   layoutId="batch-stage-filter-pill"
                                   aria-hidden
-                                  className="absolute inset-0 rounded-lg bg-[#155484] border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className={CAPSULE_PILL_CLS}
                                   transition={SPRING_TAB_PILL}
                                 />
                               )}
-                              <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${isActive ? 'bg-white' : stageDot}`} aria-hidden />
+                              <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${stageDot}`} aria-hidden />
                               <span className="relative z-10">{cDef.tag} ({count})</span>
                             </button>
                           );

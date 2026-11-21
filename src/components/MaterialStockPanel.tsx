@@ -19,7 +19,18 @@ import {
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance, deriveDeviceKitMaterials,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { ManageMaterialModal } from './ManageMaterialModal';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
 import { getCachedStaff, onStaffList } from '../services/staffCache';
@@ -135,18 +146,18 @@ export const ProductViewToggle: React.FC<{
       ref={listRef}
       role="tablist"
       aria-label={`${group} views`}
-      className="relative inline-flex p-1 rounded-xl bg-white dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0 select-none"
+      className={`${CAPSULE_TRACK_CLS} shrink-0`}
     >
       <div
         ref={pillRef}
         aria-hidden
-        className="absolute left-0 top-1 bottom-1 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none will-change-transform"
+        className="absolute left-0 top-1 bottom-1 rounded-full bg-white dark:bg-slate-700 shadow-[0_1px_4px_rgba(15,23,42,0.12)] z-0 pointer-events-none will-change-transform"
       />
       {views.map((v) => {
         const n = v === 'PUSH' ? pushCount || 0 : 0;
         const isSelected = view === v;
         const Icon = v === 'UNITS' ? (group === 'POS' ? Cpu : Volume2) : SendHorizontal;
-        const inactiveIconColor = v === 'UNITS' ? 'text-[#003857] dark:text-sky-400' : 'text-amber-500';
+        const iconColor = v === 'UNITS' ? 'text-[#004e75] dark:text-sky-400' : 'text-amber-500';
         return (
           <button
             key={v}
@@ -161,22 +172,20 @@ export const ProductViewToggle: React.FC<{
               onViewChange(v);
             }}
             title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : undefined}
-            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
+            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs sm:text-sm cursor-pointer select-none"
           >
-            <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors duration-200 ${isSelected ? 'text-white' : inactiveIconColor}`} aria-hidden />
+            <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors duration-200 ${iconColor}`} aria-hidden />
             <span
-              className={`relative z-10 font-semibold transition-colors duration-200 ease-out ${
-                isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              className={`relative z-10 transition-colors duration-200 ease-out ${
+                isSelected ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
               }`}
             >
               {v === 'UNITS' ? 'Units' : 'Push Configuring'}
             </span>
             {n > 0 && (
               <span
-                className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-200 ease-out ${
-                  isSelected
-                    ? 'bg-white/20 text-white'
-                    : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700 dark:text-slate-200'
+                className={`relative z-10 text-[10.5px] px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-200 ease-out ${
+                  isSelected ? CAPSULE_COUNT_WARN_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                 }`}
               >
                 {n}
@@ -1366,50 +1375,50 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
 
           <div
-            className="relative inline-flex p-0.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs select-none gap-0.5"
-            role="group"
+            className={CAPSULE_TRACK_COMPACT_CLS}
+            role="tablist"
             aria-label="Ledger views"
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={activeLedgerView === 'DEPLOYMENTS'}
               aria-pressed={activeLedgerView === 'DEPLOYMENTS'}
               onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
-                activeLedgerView === 'DEPLOYMENTS'
-                  ? 'text-white'
-                  : 'text-slate-700 hover:text-slate-900'
+              className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
+                activeLedgerView === 'DEPLOYMENTS' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
               }`}
             >
               {activeLedgerView === 'DEPLOYMENTS' && (
                 <PillMotion
                   layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
                   aria-hidden
-                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                  className={CAPSULE_PILL_CLS}
                   transition={SPRING_TAB_PILL}
                 />
               )}
-              <Package className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${activeLedgerView === 'DEPLOYMENTS' ? 'text-white' : 'text-[#003857]'}`} aria-hidden />
+              <Package className="relative z-10 w-3.5 h-3.5 shrink-0 text-[#004e75] dark:text-sky-400" aria-hidden />
               <span className="relative z-10">Inventory ({combinedItems.length})</span>
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={activeLedgerView === 'BALANCES'}
               aria-pressed={activeLedgerView === 'BALANCES'}
               onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
-                activeLedgerView === 'BALANCES'
-                  ? 'text-white'
-                  : 'text-slate-700 hover:text-slate-900'
+              className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
+                activeLedgerView === 'BALANCES' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
               }`}
             >
               {activeLedgerView === 'BALANCES' && (
                 <PillMotion
                   layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
                   aria-hidden
-                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                  className={CAPSULE_PILL_CLS}
                   transition={SPRING_TAB_PILL}
                 />
               )}
-              <Building2 className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${activeLedgerView === 'BALANCES' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+              <Building2 className="relative z-10 w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span className="relative z-10">Branch Stock ({branchBalanceRows.length})</span>
             </button>
           </div>
@@ -1430,38 +1439,62 @@ const MaterialStockPanelComponent: React.FC<{
       </div>
 
       {/* 3-Step Lifecycle & Status Filter Pills */}
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
-        <motion.button
-          whileTap={{ scale: 0.97 }}
+      <div className={`${CAPSULE_TRACK_CLS} flex-wrap`} role="tablist" aria-label="Status">
+        <button
           type="button"
-          onClick={() => React.startTransition(() => setStatusFilter(''))}
+          role="tab"
+          aria-selected={statusFilter === ''}
           aria-pressed={statusFilter === ''}
-          className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition shadow-2xs ${
-            statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200/90 hover:bg-slate-50'
+          onClick={() => React.startTransition(() => setStatusFilter(''))}
+          className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+            statusFilter === '' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
           }`}
         >
-          All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
-        </motion.button>
-        {PRIMARY_MATERIAL_STEPS.map((item) => (
-          <motion.button
-            key={item.status}
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={() => React.startTransition(() => setStatusFilter(item.status))}
-            aria-pressed={statusFilter === item.status}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 shadow-2xs ${
-              statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50'
-            }`}
-          >
-            <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
-              statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}>{item.step}</span>
-            <span>{item.label}</span>
-            <span className="tabular-nums opacity-80 ml-0.5">
-              {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
-            </span>
-          </motion.button>
-        ))}
+          {statusFilter === '' && (
+            <PillMotion
+              layoutId="material-step-status-pill"
+              aria-hidden
+              className={CAPSULE_PILL_CLS}
+              transition={SPRING_TAB_PILL}
+            />
+          )}
+          <span className="w-2 h-2 rounded-full bg-[#004e75] relative z-10 shrink-0" aria-hidden />
+          <span className="relative z-10">All</span>
+          <span className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums transition-colors ${statusFilter === '' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+            {totalAllItems?.toLocaleString() ?? '—'}
+          </span>
+        </button>
+        {PRIMARY_MATERIAL_STEPS.map((item) => {
+          const active = statusFilter === item.status;
+          const stepColor = item.status === 'AT_MERCHANT' ? 'bg-emerald-500' : item.status === 'BRANCH_RESERVE' ? 'bg-amber-500' : 'bg-sky-500';
+          return (
+            <button
+              key={item.status}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-pressed={active}
+              onClick={() => React.startTransition(() => setStatusFilter(item.status))}
+              className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+              }`}
+            >
+              {active && (
+                <PillMotion
+                  layoutId="material-step-status-pill"
+                  aria-hidden
+                  className={CAPSULE_PILL_CLS}
+                  transition={SPRING_TAB_PILL}
+                />
+              )}
+              <span className={`relative z-10 w-2 h-2 rounded-full shrink-0 ${stepColor}`} aria-hidden />
+              <span className="relative z-10">{item.step}. {item.label}</span>
+              <span className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums transition-colors ${active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+                {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1820,10 +1853,10 @@ export const LostTable: React.FC<{
     <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label={title}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-600" />{title}</h3>
-        <div className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-semibold select-none gap-1" role="tablist">
+        <div className={`${CAPSULE_TRACK_CLS} text-xs`} role="tablist">
           {([
             { v: 'OPEN', l: 'Open', Icon: AlertTriangle, accent: 'text-amber-500' },
-            { v: '', l: 'All', Icon: Boxes, accent: 'text-[#003857]' },
+            { v: '', l: 'All', Icon: Boxes, accent: 'text-[#004e75]' },
           ] as const).map(({ v, l, Icon, accent }) => {
             const isSelected = filter === v;
             return (
@@ -1833,20 +1866,19 @@ export const LostTable: React.FC<{
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => onFilter(v)}
-                className={`relative px-3 py-1 rounded-lg cursor-pointer select-none transition-colors duration-150 outline-none inline-flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'text-white font-bold'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                className={`relative px-3 py-1 rounded-full cursor-pointer select-none transition-colors duration-150 outline-none inline-flex items-center gap-1.5 ${
+                  isSelected ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                 }`}
               >
                 {isSelected && (
                   <PillMotion
                     layoutId="active-lost-filter-pill"
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    aria-hidden
+                    className={CAPSULE_PILL_CLS}
                     transition={SPRING_TAB_PILL}
                   />
                 )}
-                <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${isSelected ? 'text-white' : accent}`} aria-hidden />
+                <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${accent}`} aria-hidden />
                 <span className="relative z-10">{l}</span>
               </button>
             );

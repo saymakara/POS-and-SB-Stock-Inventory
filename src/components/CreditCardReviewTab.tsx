@@ -20,7 +20,15 @@ import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
@@ -261,32 +269,31 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     role="tab"
                     aria-selected={active}
                     onClick={() => setReview(t.v)}
-                    className={`relative h-[30px] px-1.5 rounded-lg text-[11px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-1 select-none whitespace-nowrap ${
-                      active
-                        ? 'text-white font-semibold'
-                        : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative h-[30px] px-2.5 rounded-full text-[11px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 select-none whitespace-nowrap ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="cc-review-pill"
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        aria-hidden
+                        className={CAPSULE_PILL_CLS}
                         transition={SPRING}
                       />
                     )}
                     <Icon
-                      className={`w-3 h-3 shrink-0 relative z-10 transition-colors duration-150 ${
-                        active ? 'text-white' : t.accentColor
-                      }`}
+                      className={`w-3 h-3 shrink-0 relative z-10 transition-colors duration-150 ${t.accentColor}`}
                       aria-hidden
                     />
                     <span className="relative z-10 whitespace-nowrap">{t.label}</span>
                     {n !== undefined && (
                       <span
-                        className={`font-figure tabular-nums text-[9.5px] font-medium px-1 py-[1px] rounded-full leading-tight relative z-10 transition-colors duration-150 ${
+                        className={`font-figure tabular-nums text-[9.5px] px-1.5 py-[1px] rounded-full leading-tight relative z-10 transition-colors duration-150 ${
                           active
-                            ? 'bg-white/20 text-white'
-                            : 'bg-white text-slate-700 border border-slate-200/80'
+                            ? t.v === 'PENDING'
+                              ? CAPSULE_COUNT_WARN_ACTIVE_CLS
+                              : CAPSULE_COUNT_ACTIVE_CLS
+                            : CAPSULE_COUNT_INACTIVE_CLS
                         }`}
                       >
                         {n.toLocaleString()}

@@ -36,7 +36,15 @@ import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId, copyTextToClipboard } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_WARN_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { todayPP } from '../utils/time';
 
 /**
@@ -962,37 +970,33 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const typePill = (t: TypeFilter, label: string, n: number) => {
     const active = typeFilter === t;
-  return (
+    return (
       <button
         key={t}
         type="button"
         onClick={() => setTypeFilter(t)}
         aria-pressed={active}
-        className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
-          active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
+        className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+          active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
         }`}
       >
         {active && (
           <PillMotion
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
+            className={CAPSULE_PILL_CLS}
             transition={SPRING}
           />
         )}
         <span className="relative z-10 flex items-center gap-1.5">
-          {t !== 'ALL' && (
-            <span
-              className={`w-2 h-2 rounded-full ${active ? (t === 'POS Terminal' ? 'bg-[#5cc8ff]' : 'bg-[#a2a5e0]') : (DOT[t] || 'bg-slate-400')}`}
-              aria-hidden
-            />
-          )}
+          <span
+            className={`w-2 h-2 rounded-full ${t === 'ALL' ? 'bg-[#004e75]' : (DOT[t] || 'bg-slate-400')}`}
+            aria-hidden
+          />
           <span>{label}</span>{' '}
           <span
             className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
-              active
-                ? 'bg-white/20 text-white font-bold'
-                : 'bg-white text-slate-700 border border-slate-200/80'
+              active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
             }`}
           >
             ({n})
@@ -1166,26 +1170,28 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative h-[30px] px-2 rounded-lg text-[11.5px] font-medium flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
-                    isActive ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
+                  className={`relative h-[30px] px-2.5 rounded-full text-[11.5px] flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
+                    isActive ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {isActive && (
                     <PillMotion
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
+                      className={CAPSULE_PILL_CLS}
                       transition={SPRING}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1">
-                    <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? 'text-white' : accent}`} aria-hidden />
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${accent}`} aria-hidden />
                     <span>{label}</span>
                     <span
                       className={`font-mono text-[10px] px-1.5 py-[1px] rounded-full transition-colors ${
                         isActive
-                          ? 'bg-white/20 text-white font-bold'
-                          : 'bg-white text-slate-700 border border-slate-200/80'
+                          ? f === 'PENDING'
+                            ? CAPSULE_COUNT_WARN_ACTIVE_CLS
+                            : CAPSULE_COUNT_ACTIVE_CLS
+                          : CAPSULE_COUNT_INACTIVE_CLS
                       }`}
                     >
                       {counts[f].toLocaleString()}

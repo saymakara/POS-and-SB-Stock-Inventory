@@ -149,9 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: RotateCcw,
         },
         {
-          // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
-          // (units + its materials) and SIM cards
-          id: 'inventory',
+          id: 'inventory_pos',
           label: 'Stock Inventory',
           icon: Boxes,
           children: [
@@ -274,24 +272,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   const isActive = showChildren ? false : (navTab === item.id || childActive);
                   const showLabels = isMobileView || !collapsed;
 
-                  return (
-                    <React.Fragment key={item.id}>
-                    <motion.button
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-                      type="button"
-                      onClick={() => {
-                        onSelectTab(item.id);
-                        if (isMobileView) onCloseMobile?.();
-                      }}
-                      onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
-                      title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
-                        isActive
-                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
-                      }`}
-                    >
+                  const rowInner = (
+                    <>
                       {/* the left line grows in place (no sliding) */}
                       {isActive && (
                         <span
@@ -335,6 +317,28 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           {fmtNum(item.count)}
                         </span>
                       )}
+                    </>
+                  );
+
+                  return (
+                    <React.Fragment key={item.id}>
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                      type="button"
+                      onClick={() => {
+                        onSelectTab(item.id);
+                        if (isMobileView) onCloseMobile?.();
+                      }}
+                      onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
+                      title={!isMobileView && collapsed ? item.label : undefined}
+                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
+                        isActive
+                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                      }`}
+                    >
+                      {rowInner}
                     </motion.button>
                     {showChildren && (
                       <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
@@ -673,7 +677,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   const reviewActive = navTab.startsWith('mobile_sync');
   const bottomTabs: { id: string; label: string; icon: React.ElementType; active: boolean; dot?: boolean; onTap: () => void }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: navTab === 'dashboard', onTap: () => onSelectTab('dashboard') },
-    { id: 'inventory', label: 'Stock', icon: Boxes, active: STOCK_TABS.includes(navTab), onTap: () => onSelectTab('inventory') },
+    { id: 'inventory', label: 'Stock', icon: Boxes, active: STOCK_TABS.includes(navTab), onTap: () => onSelectTab('inventory_pos') },
     { id: 'requisitions', label: 'Requests', icon: ScrollText, active: navTab === 'requisitions', dot: unreadCount > 0, onTap: () => onSelectTab('requisitions') },
     { id: 'mobile_sync', label: 'Review', icon: Smartphone, active: reviewActive, onTap: () => onSelectTab(activeTab.startsWith('mobile_sync') ? activeTab : 'mobile_sync') },
     { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'requisitions'].includes(navTab) && !STOCK_TABS.includes(navTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
@@ -724,7 +728,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     onSearchChange?.(localSearch.trim());
-                    onSelectTab('inventory');
+                    onSelectTab('inventory_pos');
                     setIsSearchFocused(false);
                   }
                 }}
@@ -804,7 +808,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                       onSelectDevice(d.serial);
                                     } else {
                                       onSearchChange?.(d.serial);
-                                      onSelectTab('inventory');
+                                      onSelectTab(isSB ? 'inventory_sb' : 'inventory_pos');
                                     }
                                   }}
                                   className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-50 flex items-center gap-2.5 transition cursor-pointer group"
@@ -864,7 +868,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                   setIsSearchFocused(false);
                                   // (22 Oct 2026) a branch account never changes its own branch from search
                                   if (role !== 'BRANCH') onChangeBranchId(b.id);
-                                  onSelectTab('inventory');
+                                  onSelectTab('inventory_pos');
                                 }}
                                 className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-50 flex items-center gap-2.5 transition cursor-pointer group"
                               >
@@ -897,7 +901,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                       type="button"
                       onClick={() => {
                         onSearchChange?.(localSearch.trim());
-                        onSelectTab('inventory');
+                        onSelectTab('inventory_pos');
                         setIsSearchFocused(false);
                       }}
                       className="font-bold text-[#003857] hover:underline cursor-pointer flex items-center gap-1"

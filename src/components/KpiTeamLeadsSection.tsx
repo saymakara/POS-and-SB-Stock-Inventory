@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Users, Plus, Pencil, Trash2, Loader2, Save, X } from 'lucide-react';
 import { Branch } from '../types';
 import { KpiTeamLead, deleteTeamLead, fetchTeamLeads, saveTeamLead } from '../services/kpiTeamLeadService';
+import { ToggleSwitch } from './ToggleSwitch';
 
 /**
  * (11 Nov 2026) Settings → KPI: Team leads. A team lead (Merchant Visit Staff ID) sees "Team KPI" in the phone app: today's and
@@ -82,9 +83,14 @@ export const KpiTeamLeadsSection = memo(function KpiTeamLeadsSection({ canEdit, 
               <input value={draft.members} onChange={(e) => setDraft({ ...draft, members: e.target.value })} placeholder="e.g. 27121, 10386"
                 className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-200" data-testid="tl-members" />
             </label>
-            <label className="inline-flex items-center gap-2 text-[12px] text-slate-700 mb-3">
-              <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} />Active
-            </label>
+            <div className="inline-flex items-center gap-2.5 text-[12px] font-semibold text-slate-700 mb-3">
+              <ToggleSwitch
+                checked={draft.active}
+                onChange={(checked) => setDraft({ ...draft, active: checked })}
+                label="Active"
+              />
+              <span>Active</span>
+            </div>
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} onClick={save} className="btn btn-primary" data-testid="tl-save">{busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save</button>
               <button type="button" onClick={() => setDraft(null)} className="btn btn-secondary"><X className="w-3.5 h-3.5" />Cancel</button>

@@ -47,7 +47,14 @@ import {
   Check,
 } from 'lucide-react';
 import { formatBranchName, fmtNum } from '../utils/format';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 
 interface PushConfiguringTabProps {
   devices: Device[];
@@ -963,9 +970,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     <div
       role="tablist"
       aria-label="CSV file selection mode"
-      className={`relative inline-flex flex-wrap items-center p-1 rounded-xl border shadow-2xs select-none gap-0.5 ${
+      className={`relative inline-flex flex-wrap items-center p-1 rounded-full border select-none gap-0.5 ${
         isLight
-          ? 'bg-slate-100/90 border-slate-200/90'
+          ? 'bg-slate-200/75 border-slate-200/90'
           : 'bg-slate-900/60 border-slate-800'
       }`}
     >
@@ -977,8 +984,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: '1 Msg',
             title: 'Consolidate devices per staff member into 1 Telegram message + CSV file',
             icon: 'csv' as const,
-            activeIconCls: 'text-white',
-            inactiveIconCls: 'text-emerald-600 dark:text-emerald-400',
+            iconCls: 'text-emerald-600 dark:text-emerald-400',
           },
           {
             mode: 'total_csv_all' as const,
@@ -986,8 +992,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: '1 File',
             title: 'Combine all devices across all staff into 1 single CSV file and message',
             icon: 'csv' as const,
-            activeIconCls: 'text-white',
-            inactiveIconCls: 'text-sky-600 dark:text-sky-400',
+            iconCls: 'text-sky-600 dark:text-sky-400',
           },
           {
             mode: 'single_alert' as const,
@@ -995,8 +1000,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: undefined,
             title: 'Send individual 1-device alert without attached CSV file',
             icon: 'send' as const,
-            activeIconCls: 'text-white',
-            inactiveIconCls: 'text-amber-500 dark:text-amber-400',
+            iconCls: 'text-amber-500 dark:text-amber-400',
           },
         ]
       ).map((opt) => {
@@ -1009,35 +1013,36 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             aria-selected={active}
             onClick={() => handleSetPushMode(opt.mode)}
             title={opt.title}
-            className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-200 cursor-pointer select-none outline-none ${
+            className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors duration-200 cursor-pointer select-none outline-none ${
               active
-                ? isLight ? 'text-white' : 'text-sky-300'
-                : isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                ? isLight ? CAPSULE_BTN_NAVY_ACTIVE_CLS : 'text-sky-300 font-bold'
+                : isLight ? CAPSULE_BTN_INACTIVE_CLS : 'text-slate-400 hover:text-slate-200 font-medium'
             }`}
           >
             {active && (
               <PillMotion
                 layoutId={layoutId}
-                className={`absolute inset-0 rounded-lg shadow-xs ${
+                aria-hidden
+                className={
                   isLight
-                    ? 'tab-active-blue border border-white/10'
-                    : 'bg-slate-800 border border-slate-700/80'
-                }`}
+                    ? CAPSULE_PILL_CLS
+                    : 'absolute inset-0 rounded-full bg-slate-800 border border-slate-700/80 shadow-xs z-0 pointer-events-none'
+                }
                 transition={SPRING_TAB_PILL}
               />
             )}
             <span className="relative z-10 inline-flex items-center gap-1.5">
               {opt.icon === 'csv' ? (
-                <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${active ? opt.activeIconCls : opt.inactiveIconCls}`} />
+                <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${opt.iconCls}`} />
               ) : (
-                <Send className={`w-3.5 h-3.5 transition-colors ${active ? opt.activeIconCls : opt.inactiveIconCls}`} />
+                <Send className={`w-3.5 h-3.5 transition-colors ${opt.iconCls}`} />
               )}
               <span>{opt.label}</span>
               {opt.badge && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums transition-colors ${
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums transition-colors ${
                   active
-                    ? isLight ? 'bg-white/20 text-white' : 'bg-slate-700 text-sky-200'
-                    : isLight ? 'bg-white text-slate-700 border border-slate-200/80' : 'bg-slate-800 text-slate-400'
+                    ? isLight ? CAPSULE_COUNT_ACTIVE_CLS : 'bg-slate-700 text-sky-200 font-bold'
+                    : isLight ? CAPSULE_COUNT_INACTIVE_CLS : 'bg-slate-800 text-slate-400'
                 }`}>
                   {opt.badge}
                 </span>

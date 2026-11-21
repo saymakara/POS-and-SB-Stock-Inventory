@@ -6,6 +6,24 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import type { HTMLMotionProps } from 'motion/react';
 
+/** Shared White iOS Capsule (Style #1) segmented-control tokens used across the portal. */
+export const CAPSULE_TRACK_CLS =
+  'relative inline-flex items-center p-1 rounded-full bg-slate-200/75 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-0.5 select-none';
+export const CAPSULE_TRACK_COMPACT_CLS =
+  'relative inline-flex items-center p-0.5 rounded-full bg-slate-200/75 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-0.5 select-none';
+export const CAPSULE_PILL_CLS =
+  'absolute inset-0 rounded-full bg-white dark:bg-slate-700 shadow-[0_1px_4px_rgba(15,23,42,0.12)] z-0 pointer-events-none';
+export const CAPSULE_BTN_ACTIVE_CLS = 'text-slate-900 dark:text-white font-bold';
+export const CAPSULE_BTN_NAVY_ACTIVE_CLS = 'text-[#003857] dark:text-white font-bold';
+export const CAPSULE_BTN_INACTIVE_CLS =
+  'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium';
+export const CAPSULE_COUNT_ACTIVE_CLS =
+  'bg-slate-100 text-[#003857] border border-slate-200/80 font-bold dark:bg-slate-600 dark:text-white dark:border-slate-500';
+export const CAPSULE_COUNT_WARN_ACTIVE_CLS =
+  'bg-amber-100 text-amber-800 border border-amber-200/80 font-bold dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30';
+export const CAPSULE_COUNT_INACTIVE_CLS =
+  'bg-white/80 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-700/60 dark:text-slate-300 dark:border-slate-600';
+
 interface PillBox {
   track: Element;
   x: number;
@@ -25,8 +43,8 @@ function measureInTrack(el: HTMLElement, track: Element): PillBox {
   const tr = track.getBoundingClientRect();
   return {
     track,
-    x: er.left - tr.left,
-    y: er.top - tr.top,
+    x: er.left - tr.left + track.scrollLeft,
+    y: er.top - tr.top + track.scrollTop,
     w: er.width,
     h: er.height,
   };

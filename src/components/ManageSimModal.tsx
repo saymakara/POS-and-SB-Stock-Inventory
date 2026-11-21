@@ -27,6 +27,7 @@ import {
 import { Branch, Device, User, UserRole } from '../types';
 import { MaterialSerial, SerialStatus, SERIAL_STATUS_LABEL, placeName } from '../services/materialsService';
 import { todayPP } from '../utils/time';
+import { ToggleSwitch } from './ToggleSwitch';
 
 export interface ManageSimModalProps {
   sim: MaterialSerial | null;
@@ -755,18 +756,16 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         {status === 'AT_MERCHANT' || status === 'BRANCH_RESERVE' ? '3. Carrier & Remarks' : '2. Carrier & Remarks'}
                       </h3>
                     </div>
-                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <div className="inline-flex items-center gap-2.5">
                       <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                         Blocked with Carrier
                       </span>
-                      <input
-                        type="checkbox"
+                      <ToggleSwitch
                         checked={blockedWithCarrier}
-                        onChange={(e) => setBlockedWithCarrier(e.target.checked)}
-                        className="sr-only peer"
+                        onChange={setBlockedWithCarrier}
+                        label="Blocked with Carrier"
                       />
-                      <div className="relative w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#155484]"></div>
-                    </label>
+                    </div>
                   </div>
 
                   {blockedWithCarrier && (

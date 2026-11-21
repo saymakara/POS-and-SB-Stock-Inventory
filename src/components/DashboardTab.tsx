@@ -2778,7 +2778,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div
               className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
                 isLight
-                  ? 'bg-slate-200/65 border-slate-200/80'
+                  ? 'bg-slate-200/75 border-slate-200/90'
                   : 'bg-slate-900/80 border-slate-700'
               }`}
               role="tablist"
@@ -2796,12 +2796,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       setViewMode(opt.id);
                       if (opt.id !== 'DATE') setDateMenuOpen(false);
                     }}
-                    className={`relative px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
+                    className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
                       active
                         ? isLight
-                          ? 'text-slate-900 font-bold'
+                          ? 'text-[#003857] font-bold'
                           : 'text-white font-bold'
-                        : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                        : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
                     }`}
                   >
                     {active && (
@@ -2810,7 +2810,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         transition={SPRING_TAB_PILL}
                         className={`absolute inset-0 rounded-full pointer-events-none ${
                           isLight
-                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.09)]'
+                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
                             : 'bg-slate-800 shadow-2xs'
                         }`}
                       />
@@ -3286,15 +3286,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div
             role={onNavigateTab ? 'button' : undefined}
             tabIndex={onNavigateTab ? 0 : undefined}
-            onClick={() => onNavigateTab?.('inventory')}
+            onClick={() => onNavigateTab?.('inventory_pos')}
             onKeyDown={(e) => {
               if (!onNavigateTab) return;
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onNavigateTab('inventory');
+                onNavigateTab('inventory_pos');
               }
             }}
-            title="Open Stock Inventory"
+            title="Open POS Terminal"
             className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}
           >
             <div>
@@ -3939,7 +3939,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {onNavigateTab && (
                       <button
                         type="button"
-                        onClick={() => onNavigateTab('inventory')}
+                        onClick={() => onNavigateTab('inventory_pos')}
                         className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                           isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
                         }`}
@@ -3952,7 +3952,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="grid grid-cols-3 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('inventory')}
+                      onClick={() => onNavigateTab?.('inventory_pos')}
                       title={`HQ ${fmtNum(hardwareSummary.hq)} · Branches ${fmtNum(hardwareSummary.reserve)} (POS ${fmtNum(readyPos)} · SB ${fmtNum(readySb)})`}
                       className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
@@ -4086,7 +4086,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('inventory')}
+                      onClick={() => onNavigateTab?.('inventory_pos')}
                       title={`Adaptors & Kits: ${fmtNum(adaptorsKitsTotal)} · SIMs: ${fmtNum(materialsSummary.simTotal)}`}
                       className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'

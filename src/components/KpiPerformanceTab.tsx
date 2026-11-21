@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  Area, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
+  Bar, Cell, Line, ReferenceArea, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -28,10 +28,19 @@ import {
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS, ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_ACTIVE_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+  CAPSULE_COUNT_ACTIVE_CLS,
+  CAPSULE_COUNT_INACTIVE_CLS,
+} from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
-import { buildAnnularArcPath } from './Charts';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -52,6 +61,19 @@ const KPI_BRANCH_GRID =
 
 const KPI_STAFF_GRID =
   'grid items-center gap-x-2 grid-cols-[28px_minmax(180px,1.28fr)_minmax(168px,1.15fr)_minmax(46px,0.42fr)_minmax(42px,0.38fr)_minmax(52px,0.48fr)_minmax(42px,0.38fr)_minmax(42px,0.38fr)_minmax(48px,0.44fr)_minmax(84px,0.72fr)_minmax(110px,0.92fr)_minmax(150px,0.92fr)_16px]';
+
+// Balanced proportional column widths for Top 10 Leaderboard tables (100% total prevents oversized text-column voids)
+const TOP10_STAFF_COL_WIDTHS = [
+  '3.2%', '11.0%', '6.2%', '16.2%', '8.0%',
+  '6.7%', '5.7%', '7.1%', '5.7%', '5.8%',
+  '8.5%', '7.4%', '8.5%',
+] as const;
+
+const TOP10_BRANCH_COL_WIDTHS = [
+  '3.2%', '17.6%', '8.0%', '8.2%',
+  '6.7%', '5.7%', '7.1%', '5.7%', '5.8%',
+  '8.5%', '7.5%', '7.5%', '8.5%',
+] as const;
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
@@ -250,15 +272,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 440;
-const KT_VB_H = 356;
-const KT_CX = KT_VB_W / 2;
-const KT_CY = KT_VB_H / 2 + 2;
-const KT_R_OUTER = 118;
-const KT_R_INNER = 94;
-const KT_R_HUB = KT_R_INNER - 5;
-const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
-const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
+const KT_RING_CX = 120;
+const KT_RING_CY = 120;
+const KT_OUTER_R = 106;
+const KT_INNER_R = 78;
+const KT_OUTER_C = 2 * Math.PI * KT_OUTER_R;
+const KT_INNER_C = 2 * Math.PI * KT_INNER_R;
 
 const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   periodLabel,
@@ -271,7 +290,6 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   totalWorkDays,
 }) => {
   const [hoveredKey, setHoveredKey] = useState<'actual' | 'remaining' | 'pace' | 'target' | null>(null);
-  const ktShadowId = useId();
   const safeTarget = Math.max(0, targetPoints);
   const safeActual = Math.max(0, actualPoints);
   const gapPts = Math.max(0, safeTarget - safeActual);
@@ -283,459 +301,227 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   const effectivePaceRatio = showPacing ? Math.min(1, Math.max(0.01, pacingRatio)) : 1;
   const expectedPacePct = Math.round(effectivePaceRatio * 1000) / 10;
   const expectedPacePts = Math.round(safeTarget * effectivePaceRatio * 10) / 10;
-  const paceDeltaPts = Math.round((safeActual - expectedPacePts) * 10) / 10;
-  const paceAttainmentPct = expectedPacePts > 0
-    ? Math.min(999, Math.round((safeActual / expectedPacePts) * 1000) / 10)
-    : 0;
   const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
 
-  const statusBadge = isMet
-    ? { label: 'Target Met', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80', dot: '#2d6a4f' }
-    : isAheadOfPace
-      ? { label: 'Ahead of Pace', cls: 'bg-sky-50 text-[#1e6091] border-sky-200/80', dot: '#1e6091' }
-      : { label: 'Behind Pace', cls: 'bg-amber-50 text-amber-700 border-amber-200/80', dot: '#f59e0b' };
+  const actualColor = isMet ? '#2d6a4f' : '#155484';
+  const paceRingColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
+  const outerDash = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) * KT_OUTER_C : 0;
+  const innerDash = safeTarget > 0 ? Math.min(1, effectivePaceRatio) * KT_INNER_C : 0;
 
-  const actualColor = isMet ? '#2d6a4f' : '#1e6091';
-  const denom = Math.max(safeTarget, safeActual);
-  const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / Math.max(safeTarget, safeActual)) : 0;
-  const gapFrac = safeTarget > 0 && gapPts > 0 ? gapPts / denom : 0;
-
-  const startAngle = -Math.PI / 2;
-  const fullCircle = Math.PI * 2;
-  const hasGapSlice = !isMet && gapFrac > 0.002 && actualFrac > 0.002;
-  const gapTrim = hasGapSlice ? Math.min(0.026, actualFrac * fullCircle * 0.2, gapFrac * fullCircle * 0.2) : 0;
-
-  const actualEndAngle = startAngle + actualFrac * fullCircle;
-  const remainingStartAngle = actualEndAngle;
-  const remainingEndAngle = startAngle + fullCircle;
-
-  const pacingTickAngle = startAngle + effectivePaceRatio * fullCircle;
-  const hasPacingTick = showPacing && safeTarget > 0 && effectivePaceRatio > 0 && effectivePaceRatio < 1;
+  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
 
   const centerReadout = (() => {
     if (hoveredKey === 'actual') {
       return {
-        dot: actualColor,
-        top: 'Actual',
         pct: `${achievementPct}%`,
-        ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
-        pill: { text: `${fmtPts(safeActual)} pts`, color: actualColor, bg: `${actualColor}18` },
-      };
-    }
-    if (hoveredKey === 'remaining') {
-      return {
-        dot: '#94a3b8',
-        top: 'Remaining',
-        pct: `${gapPct}%`,
-        ratio: `${fmtPts(gapPts)} of ${fmtPts(safeTarget)} pts`,
-        pill: { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' },
+        top: 'ACTUAL',
+        sub: `${fmtPts(safeActual)} pts`,
+        subColor: actualColor,
       };
     }
     if (hoveredKey === 'pace') {
-      const paceCol = isAheadOfPace ? '#1e6091' : '#d97706';
       return {
-        dot: '#0f172a',
-        top: 'Pace Rate',
-        pct: `${paceAttainmentPct}%`,
-        ratio: `${fmtPts(safeActual)} vs ${fmtPts(expectedPacePts)} pts`,
-        pill: {
-          text: `${paceDeltaPts >= 0 ? '+' : '-'}${fmtPts(Math.abs(paceDeltaPts))} pts`,
-          color: paceCol,
-          bg: isAheadOfPace ? 'rgba(30, 96, 145, 0.12)' : 'rgba(245, 158, 11, 0.14)',
-        },
+        pct: `${expectedPacePct}%`,
+        top: showPacing ? `PACE · DAY ${elapsedWorkDays}/${totalWorkDays}` : 'TARGET PACE',
+        sub: `${fmtPts(expectedPacePts)} pts`,
+        subColor: '#b45309',
       };
     }
-    if (hoveredKey === 'target') {
+    if (hoveredKey === 'remaining' || hoveredKey === 'target') {
       return {
-        dot: '#475569',
-        top: targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel,
-        pct: '100%',
-        ratio: `${fmtPts(safeTarget)} pts goal`,
-        pill: { text: `${fmtPts(safeTarget)} pts`, color: '#334155', bg: 'rgba(15, 23, 42, 0.08)' },
+        pct: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
+        top: isMet ? 'SURPLUS' : 'REMAINING',
+        sub: `${fmtPts(gapPts)} left`,
+        subColor: '#475569',
       };
     }
     return {
-      dot: statusBadge.dot,
-      top: 'Achievement',
       pct: `${achievementPct}%`,
-      ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
-      pill: isMet
-        ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
-        : { text: `${fmtPts(gapPts)} left`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' },
+      top: 'OF TARGET',
+      sub: showPacing ? `Pace ${expectedPacePct}%` : `${fmtPts(safeTarget)} pts`,
+      subColor: isMet ? '#047857' : isAheadOfPace ? '#0284c7' : '#b45309',
     };
   })();
-
-  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
-  const paceLabel = showPacing ? `Expected Pace · Day ${elapsedWorkDays}/${totalWorkDays}` : 'Expected Pace';
-
-  // Dashboard Style 1 curved Bezier leader coordinates framing the slim donut cleanly
-  const targetAnchorAngle = -Math.PI * 0.7;
-  const targetStart = {
-    x: KT_CX + (KT_R_OUTER + 5) * Math.cos(targetAnchorAngle),
-    y: KT_CY + (KT_R_OUTER + 5) * Math.sin(targetAnchorAngle),
-  };
-  const targetEnd = { x: 142, y: 38 };
-  const targetControl = { x: Math.max(targetEnd.x + 12, targetStart.x), y: targetEnd.y };
-
-  const actualRawMid = startAngle + actualFrac * fullCircle * 0.5;
-  const actualAnchorAngle =
-    isMet || actualFrac >= 0.56
-      ? -Math.PI * 0.28
-      : actualFrac > 0.01
-        ? Math.max(startAngle + 0.18, Math.min(-Math.PI * 0.28, actualRawMid))
-        : startAngle + 0.18;
-  const actualStart = {
-    x: KT_CX + (KT_R_OUTER + 5) * Math.cos(actualAnchorAngle),
-    y: KT_CY + (KT_R_OUTER + 5) * Math.sin(actualAnchorAngle),
-  };
-  const actualEnd = { x: KT_VB_W - 142, y: 38 };
-  const actualControl = { x: Math.min(actualEnd.x - 12, actualStart.x), y: actualEnd.y };
-
-  const paceAnchorAngle = hasPacingTick ? pacingTickAngle : Math.PI * 0.72;
-  const paceSide: 'left' | 'right' = Math.cos(paceAnchorAngle) > 0.12 ? 'right' : 'left';
-  const paceStartR = hasPacingTick ? KT_R_OUTER + 6 : KT_R_OUTER + 5;
-  const paceStart = {
-    x: KT_CX + paceStartR * Math.cos(paceAnchorAngle),
-    y: KT_CY + paceStartR * Math.sin(paceAnchorAngle),
-  };
-  const paceEnd = {
-    x:
-      paceSide === 'left'
-        ? Math.min(138, Math.max(106, paceStart.x - 14))
-        : Math.max(KT_VB_W - 138, Math.min(KT_VB_W - 106, paceStart.x + 14)),
-    y: KT_VB_H - 38,
-  };
-  const paceControl =
-    Math.sin(paceAnchorAngle) < 0
-      ? {
-          x: paceSide === 'right' ? Math.max(KT_CX + KT_R_OUTER + 46, paceStart.x + 28) : Math.min(KT_CX - KT_R_OUTER - 46, paceStart.x - 28),
-          y: (paceStart.y + paceEnd.y) * 0.5,
-        }
-      : {
-          x: paceSide === 'left' ? Math.max(paceEnd.x + 10, (paceStart.x + paceEnd.x) * 0.5) : Math.min(paceEnd.x - 10, (paceStart.x + paceEnd.x) * 0.5),
-          y: paceEnd.y,
-        };
 
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col"
     >
-      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold text-slate-900 truncate">
             {targetTitle} vs Actual Achievement{' '}
             <span className="text-slate-400 font-normal">· {periodLabel}</span>
           </h3>
           <p className="text-[11px] text-slate-500 truncate">
-            Target attainment, achievement percentage &amp; expected pace
+            Concentric attainment &amp; pace rings
           </p>
         </div>
       </div>
 
-      <div className="px-2 sm:px-3 py-1.5 flex-1 flex items-center justify-center">
-        {/* Dashboard Style 1: Slim Sculpted Donut + Curved Bezier Leaders + Floating Pill Callouts */}
-        <div className="relative w-full max-w-[460px] aspect-[440/356] flex items-center justify-center">
-          <svg
-            viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
-            className="w-full h-full overflow-visible"
-            role="img"
-            aria-label={`${targetTitle} vs Actual Achievement Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
-            data-testid="kpi-target-donut-svg"
-          >
-            <defs>
-              <filter id={ktShadowId} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#1e6091" floodOpacity="0.16" />
-              </filter>
-            </defs>
+      <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
+        {/* Dual Concentric Activity Rings + Right-Side Ledger */}
+        <div className="w-full flex flex-col @[425px]:flex-row items-center @[425px]:justify-between gap-4 @[425px]:gap-3 @[490px]:gap-5 @[570px]:gap-6">
+          <div className="relative w-[216px] h-[216px] @[425px]:w-[222px] @[425px]:h-[222px] @[425px]:ml-1.5 @[490px]:w-[248px] @[490px]:h-[248px] @[490px]:ml-3 @[570px]:w-[272px] @[570px]:h-[272px] @[570px]:ml-7 @[640px]:w-[282px] @[640px]:h-[282px] @[640px]:ml-10 shrink-0">
+            <svg
+              viewBox="0 0 240 240"
+              className="w-full h-full"
+              role="img"
+              aria-label={`${targetTitle} vs Actual Achievement Concentric Rings: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
+              data-testid="kpi-target-donut-svg"
+            >
+              {/* Outer Ring Track & Progress (Actual Achievement) */}
+              <circle
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_OUTER_R}
+                fill="none"
+                stroke="#e2e8f0"
+                strokeWidth={19}
+              />
+              <circle
+                data-kpi-target-slice="actual"
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_OUTER_R}
+                fill="none"
+                stroke={actualColor}
+                strokeWidth={hoveredKey === 'actual' ? 21 : 19}
+                strokeLinecap="round"
+                strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
+                strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
+                transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
+                className="cursor-pointer transition-all duration-200"
+                onMouseEnter={() => setHoveredKey('actual')}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+              </circle>
 
-            {/* Recessed Donut Track (100% Target Ring) */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_TRACK}
-              fill="none"
-              stroke="rgba(15, 23, 42, 0.045)"
-              strokeWidth={KT_TRACK_W}
-            />
-
-            {/* Sculpted Annular Arcs with Soft Drop Shadow */}
-            <g filter={`url(#${ktShadowId})`}>
-              {/* Full Ring when Target Met (>= 100%) */}
-              {safeTarget > 0 && isMet && (
+              {/* Inner Ring Track & Progress (Expected Pace) */}
+              <circle
+                cx={KT_RING_CX}
+                cy={KT_RING_CY}
+                r={KT_INNER_R}
+                fill="none"
+                stroke="#f1f5f9"
+                strokeWidth={15}
+              />
+              {showPacing && (
                 <circle
-                  data-kpi-target-slice="actual"
-                  cx={KT_CX}
-                  cy={KT_CY}
-                  r={KT_R_TRACK}
+                  data-kpi-target-slice="pace"
+                  cx={KT_RING_CX}
+                  cy={KT_RING_CY}
+                  r={KT_INNER_R}
                   fill="none"
-                  stroke={actualColor}
-                  strokeWidth={hoveredKey === 'actual' ? KT_TRACK_W + 5 : KT_TRACK_W}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredKey('actual')}
+                  stroke={paceRingColor}
+                  strokeWidth={hoveredKey === 'pace' ? 17 : 15}
+                  strokeLinecap="round"
+                  strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
+                  strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
+                  transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
+                  className="cursor-pointer transition-all duration-200"
+                  onMouseEnter={() => setHoveredKey('pace')}
                   onMouseLeave={() => setHoveredKey(null)}
                 >
-                  <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+                  <title>{`Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
                 </circle>
               )}
 
-              {/* Split Actual Achievement vs Remaining Target Arcs */}
-              {safeTarget > 0 && !isMet && (
-                <>
-                  {gapFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="remaining"
-                      d={buildAnnularArcPath(
-                        KT_CX,
-                        KT_CY,
-                        hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_INNER - 2 : KT_R_INNER,
-                        hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_OUTER + 4 : KT_R_OUTER,
-                        remainingStartAngle + gapTrim / 2,
-                        remainingEndAngle - gapTrim / 2
-                      )}
-                      fill="#e2e8f0"
-                      opacity={hoveredKey !== null && hoveredKey !== 'remaining' && hoveredKey !== 'target' ? 0.42 : 1}
-                      style={{ transition: 'opacity 150ms ease' }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('remaining')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Remaining to Target: ${fmtPts(gapPts)} pts (${gapPct}%)`}</title>
-                    </path>
-                  )}
-
-                  {actualFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="actual"
-                      d={buildAnnularArcPath(
-                        KT_CX,
-                        KT_CY,
-                        hoveredKey === 'actual' ? KT_R_INNER - 3 : KT_R_INNER,
-                        hoveredKey === 'actual' ? KT_R_OUTER + 4 : KT_R_OUTER,
-                        startAngle + gapTrim / 2,
-                        actualEndAngle - gapTrim / 2
-                      )}
-                      fill={actualColor}
-                      opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.35 : 1}
-                      style={{
-                        filter: hoveredKey === 'actual' ? `drop-shadow(0 4px 10px ${actualColor}55)` : undefined,
-                        transition: 'opacity 150ms ease, filter 150ms ease',
-                      }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('actual')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
-                    </path>
-                  )}
-                </>
-              )}
-            </g>
-
-            {/* Expected Pace Benchmark Needle Marker on Ring */}
-            {hasPacingTick && (
-              <g
-                className="cursor-pointer"
-                onMouseEnter={() => setHoveredKey('pace')}
-                onMouseLeave={() => setHoveredKey(null)}
+              {/* Ring Center Metric */}
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY - 9}
+                textAnchor="middle"
+                className="fill-slate-900 font-figure"
+                style={{ fontSize: '31px', fontWeight: 800, letterSpacing: '-0.025em' }}
               >
-                <line
-                  x1={KT_CX + (KT_R_INNER - 3) * Math.cos(pacingTickAngle)}
-                  y1={KT_CY + (KT_R_INNER - 3) * Math.sin(pacingTickAngle)}
-                  x2={KT_CX + (KT_R_OUTER + 5) * Math.cos(pacingTickAngle)}
-                  y2={KT_CY + (KT_R_OUTER + 5) * Math.sin(pacingTickAngle)}
-                  stroke="#0f172a"
-                  strokeWidth={hoveredKey === 'pace' ? 3 : 2.25}
-                  strokeLinecap="round"
-                />
-                <title>{`${paceLabel}: ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
-              </g>
-            )}
-
-            {/* Smooth Curved Bezier Leader Lines Anchored at Rim (Matching Dashboard Style 1) */}
-            <g opacity={hoveredKey !== null && hoveredKey !== 'target' ? 0.24 : hoveredKey === 'target' ? 1 : 0.72} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${targetStart.x.toFixed(1)} ${targetStart.y.toFixed(1)} Q ${targetControl.x.toFixed(1)} ${targetControl.y.toFixed(1)} ${targetEnd.x.toFixed(1)} ${targetEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke="#64748b"
-                strokeWidth={hoveredKey === 'target' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={targetStart.x} cy={targetStart.y} r={hoveredKey === 'target' ? 3.2 : 2.5} fill="#64748b" />
-            </g>
-
-            <g opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.24 : hoveredKey === 'actual' ? 1 : 0.78} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${actualStart.x.toFixed(1)} ${actualStart.y.toFixed(1)} Q ${actualControl.x.toFixed(1)} ${actualControl.y.toFixed(1)} ${actualEnd.x.toFixed(1)} ${actualEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={actualStart.x} cy={actualStart.y} r={hoveredKey === 'actual' ? 3.2 : 2.5} fill={actualColor} />
-            </g>
-
-            <g opacity={hoveredKey !== null && hoveredKey !== 'pace' ? 0.24 : hoveredKey === 'pace' ? 1 : 0.72} style={{ transition: 'opacity 150ms ease' }}>
-              <path
-                d={`M ${paceStart.x.toFixed(1)} ${paceStart.y.toFixed(1)} Q ${paceControl.x.toFixed(1)} ${paceControl.y.toFixed(1)} ${paceEnd.x.toFixed(1)} ${paceEnd.y.toFixed(1)}`}
-                fill="none"
-                stroke="#0f172a"
-                strokeDasharray={hasPacingTick ? undefined : '2.5 2.5'}
-                strokeWidth={hoveredKey === 'pace' ? 1.85 : 1.35}
-                strokeLinecap="round"
-              />
-              <circle cx={paceStart.x} cy={paceStart.y} r={hoveredKey === 'pace' ? 3.2 : 2.5} fill="#0f172a" />
-            </g>
-
-            {/* Elevated Center Hub (must remain the last <circle> inside SVG) */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_HUB}
-              fill="#ffffff"
-              stroke="rgba(15, 23, 42, 0.08)"
-              strokeWidth="1"
-            />
-          </svg>
-
-          {/* Center Readout: Achievement % + Actual / Target pts + Left/Surplus */}
-          <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
-            style={{
-              left: `${(KT_CX / KT_VB_W) * 100}%`,
-              top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${((KT_R_HUB * 1.72) / KT_VB_W) * 100}%`,
-            }}
-          >
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase text-slate-500 max-w-full whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerReadout.dot }} />
-              <span>{centerReadout.top}</span>
-            </span>
-            <span className="text-[28px] sm:text-[32px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
-              {centerReadout.pct}
-            </span>
-            <span className="text-[10.5px] font-figure font-semibold text-slate-500 mt-1 tabular-nums whitespace-nowrap max-w-full">
-              {centerReadout.ratio}
-            </span>
-            <span
-              className="text-[9.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap max-w-full"
-              style={{ color: centerReadout.pill.color, backgroundColor: centerReadout.pill.bg }}
-            >
-              {centerReadout.pill.text}
-            </span>
+                {centerReadout.pct}
+              </text>
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY + 14}
+                textAnchor="middle"
+                className="fill-slate-500"
+                style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em' }}
+              >
+                {centerReadout.top}
+              </text>
+              <text
+                x={KT_RING_CX}
+                y={KT_RING_CY + 32}
+                textAnchor="middle"
+                fill={centerReadout.subColor}
+                style={{ fontSize: '11.5px', fontWeight: 700 }}
+              >
+                {centerReadout.sub}
+              </text>
+            </svg>
           </div>
 
-          {/* 1. Monthly Target Floating Pill Callout (Upper-Left) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="target"
-            onMouseEnter={() => setHoveredKey('target')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('target')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              right: `${((KT_VB_W - targetEnd.x) / KT_VB_W) * 100}%`,
-              top: `${(targetEnd.y / KT_VB_H) * 100}%`,
-              transform: 'translateY(-50%)',
-              ...(hoveredKey === 'target' ? { borderColor: '#64748b', backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-end text-right leading-tight ${
-              hoveredKey === 'target'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'target' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              <span>{targetTitle}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(safeTarget)} pts
-            </span>
-            <span className="text-[9px] sm:text-[9.5px] font-figure font-semibold text-slate-500 tabular-nums whitespace-nowrap">
-              100% · {isMet ? `+${fmtPts(surplusPts)} surplus` : `${fmtPts(gapPts)} left`}
-            </span>
-          </button>
+          {/* Right Side Ledger Stack */}
+          <div className="w-full @[425px]:w-auto @[425px]:ml-auto @[490px]:pr-2 @[570px]:pr-3 min-w-0 shrink-0 flex flex-col gap-3.5 @[490px]:gap-4.5 @[570px]:gap-5">
+            <button
+              type="button"
+              data-kpi-comparison-row="actual"
+              onMouseEnter={() => setHoveredKey('actual')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('actual')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+                isMet ? 'border-emerald-700' : 'border-[#155484]'
+              } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
+            >
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                Actual Achievement
+              </div>
+              <div className="font-figure text-[15px] @[490px]:text-[17px] @[570px]:text-[18.5px] font-extrabold text-slate-900 tabular-nums mt-0.5 whitespace-nowrap">
+                {fmtPts(safeActual)} <span className="text-[11px] @[490px]:text-[12px] font-semibold text-slate-500">pts</span>
+              </div>
+            </button>
 
-          {/* 2. Actual Achievement Floating Pill Callout (Upper-Right) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="actual"
-            onMouseEnter={() => setHoveredKey('actual')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('actual')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              left: `${(actualEnd.x / KT_VB_W) * 100}%`,
-              top: `${(actualEnd.y / KT_VB_H) * 100}%`,
-              transform: 'translateY(-50%)',
-              ...(hoveredKey === 'actual' ? { borderColor: actualColor, backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
-              hoveredKey === 'actual'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'actual' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: actualColor }} />
-              <span>Actual Achievement</span>
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(safeActual)} pts
-            </span>
-            <span className="text-[9px] sm:text-[9.5px] font-figure font-bold tabular-nums whitespace-nowrap" style={{ color: actualColor }}>
-              {achievementPct}% of target
-            </span>
-          </button>
+            <button
+              type="button"
+              data-kpi-comparison-row="pace"
+              onMouseEnter={() => setHoveredKey('pace')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('pace')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+                isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
+              } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
+            >
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
+              </div>
+              <div className={`font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold tabular-nums mt-0.5 whitespace-nowrap ${
+                isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
+              }`}>
+                {fmtPts(expectedPacePts)} <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
+              </div>
+            </button>
 
-          {/* 3. Pace Floating Pill Callout (Lower-Left or Lower-Right following Pace Needle) */}
-          <button
-            type="button"
-            data-kpi-comparison-row="pace"
-            onMouseEnter={() => setHoveredKey('pace')}
-            onMouseLeave={() => setHoveredKey(null)}
-            onFocus={() => setHoveredKey('pace')}
-            onBlur={() => setHoveredKey(null)}
-            style={{
-              ...(paceSide === 'left'
-                ? {
-                    right: `${((KT_VB_W - paceEnd.x) / KT_VB_W) * 100}%`,
-                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }
-                : {
-                    left: `${(paceEnd.x / KT_VB_W) * 100}%`,
-                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }),
-              ...(hoveredKey === 'pace' ? { borderColor: '#0f172a', backgroundColor: '#ffffff' } : undefined),
-            }}
-            className={`absolute px-2.5 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col leading-tight ${
-              paceSide === 'left' ? 'items-end text-right' : 'items-start text-left'
-            } ${
-              hoveredKey === 'pace'
-                ? 'shadow-sm'
-                : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-            } ${hoveredKey !== null && hoveredKey !== 'pace' ? 'opacity-40' : ''}`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-900 whitespace-nowrap">
-              {paceSide === 'right' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
-              <span>{showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Expected Pace'}</span>
-              {paceSide === 'left' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
-            </span>
-            <span className="text-[11px] sm:text-[11.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
-              {fmtPts(expectedPacePts)} pts{' '}
-              <span className="text-[9.5px] font-semibold text-slate-500">· {expectedPacePct}%</span>
-            </span>
-            <span
-              className={`text-[9px] sm:text-[9.5px] font-figure font-bold tabular-nums whitespace-nowrap ${
-                isAheadOfPace ? 'text-emerald-700' : 'text-amber-700'
+            <button
+              type="button"
+              data-kpi-comparison-row="target"
+              onMouseEnter={() => setHoveredKey('target')}
+              onMouseLeave={() => setHoveredKey(null)}
+              onFocus={() => setHoveredKey('target')}
+              onBlur={() => setHoveredKey(null)}
+              className={`text-left border-l-[3px] border-slate-300 pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+                hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
               }`}
             >
-              {paceAttainmentPct}% pace ({paceDeltaPts >= 0 ? `+${fmtPts(paceDeltaPts)}` : `-${fmtPts(Math.abs(paceDeltaPts))}`})
-            </span>
-          </button>
+              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
+              </div>
+              <div className="font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold text-slate-700 tabular-nums mt-0.5 whitespace-nowrap">
+                {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
+                <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -2628,7 +2414,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <div
-              className="inline-flex items-center p-1 rounded-xl bg-white border border-slate-200/90 shadow-2xs gap-0.5 shrink-0 whitespace-nowrap"
+              className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}
               role="tablist"
               aria-label="KPI metric mode"
             >
@@ -2644,18 +2430,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => handleMetricModeChange(m)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
-                      active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="kpi-metric-mode-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
-                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : accent}`} aria-hidden />
+                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${accent}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -2782,7 +2569,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       <section className="bg-white rounded-2xl border border-slate-200/90 px-3.5 py-2.5 shadow-2xs" aria-label="KPI Navigation and Filters">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
-            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 shrink-0 whitespace-nowrap" role="tablist" aria-label="KPI Views">
+            <div className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`} role="tablist" aria-label="KPI Views">
             {navTabs.map((t) => {
               const active = view === t.id;
               const Icon = t.Icon;
@@ -2793,23 +2580,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={active}
                   onClick={() => handleViewChange(t.id)}
-                  className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
-                    active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
+                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {active && (
                     <PillMotion
                       layoutId="kpi-view-pill"
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      aria-hidden
+                      className={CAPSULE_PILL_CLS}
                       transition={SPRING}
                     />
                   )}
-                  <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : t.accentColor}`} aria-hidden />
+                  <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${t.accentColor}`} aria-hidden />
                   <span className="relative z-10">{t.label}</span>
                   {t.count !== undefined && (
                     <span
-                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none font-medium ${
-                        active ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'
+                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none transition-colors ${
+                        active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                       }`}
                     >
                       {t.count.toLocaleString()}
@@ -2898,25 +2686,29 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Style 1 — Twin Smooth Area Spline + Active Staff Ribbon */}
+            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns + Emerald Active Staff Overlay */}
             <div
               data-testid="kpi-velocity-chart-card"
               className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
             >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-[13px] font-semibold text-slate-900">
                       {isTaskMode ? 'KPI Task Velocity & Active Staff' : 'KPI Point Velocity & Active Staff'}
                     </h3>
-                    <p className="text-[11px] text-slate-500">Executive velocity across selected granularity</p>
+                    <p className="text-[11px] text-slate-500">
+                      {granularity === 'daily'
+                        ? (isTaskMode ? 'Daily task bars with smooth active-staff overlay · shaded weekends' : 'Daily point bars with smooth active-staff overlay · shaded weekends')
+                        : (isTaskMode ? 'Task bars with smooth active-staff overlay across period' : 'Point bars with smooth active-staff overlay across period')}
+                    </p>
                   </div>
 
-                  <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
+                  <div className={`${CAPSULE_TRACK_CLS} shrink-0`} role="tablist" aria-label="Chart granularity">
                     {([
                       { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
                       { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
-                      { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                      { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#004e75]' },
                       { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
                     ]).map(({ g, label, dot }) => {
                       const active = granularity === g;
@@ -2928,18 +2720,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           aria-selected={active}
                           onClick={() => setGranularity(g)}
                           aria-pressed={active}
-                          className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
-                            active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                          className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                            active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                           }`}
                         >
                           {active && (
                             <PillMotion
                               layoutId="kpi-chart-granularity-pill"
+                              aria-hidden
                               transition={SPRING}
-                              className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                              className={CAPSULE_PILL_CLS}
                             />
                           )}
-                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
+                          <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dot}`} aria-hidden />
                           <span className="relative z-10">{label}</span>
                         </button>
                       );
@@ -2978,15 +2771,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
               <div className="px-4 sm:px-5 pt-3 pb-4">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-2.5 text-[11px] font-semibold text-slate-600">
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-                    <span className="inline-flex items-center gap-1.5 text-[#1e6091]">
-                      <span className="w-4 border-t-[2.5px] border-[#1e6091] inline-block rounded-full" aria-hidden />
-                      <span>{isTaskMode ? 'Total Tasks (left)' : 'Total Points (left)'}</span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 text-[#155484]">
+                      <span className="w-2.5 h-2.5 rounded-[3px] bg-[#155484] inline-block" aria-hidden />
+                      <span>{isTaskMode ? 'Total Tasks (bars)' : 'Total Points (bars)'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-[#334155]">
-                      <span className="w-4 border-t-2 border-dashed border-[#334155] inline-block" aria-hidden />
-                      <span>Active staff (right)</span>
+                    <span className="inline-flex items-center gap-1.5 text-amber-700">
+                      <svg className="w-5 h-2.5 shrink-0" viewBox="0 0 20 10" aria-hidden>
+                        <line x1="1" y1="5" x2="19" y2="5" stroke="#d97706" strokeWidth="2.2" strokeDasharray="4 3" strokeLinecap="round" />
+                        <circle cx="10" cy="5" r="2.3" fill="#ffffff" stroke="#d97706" strokeWidth="1.6" />
+                      </svg>
+                      <span>Active Staff (line)</span>
                     </span>
+                    {velocitySummary.peakLabel && (
+                      <span className="inline-flex items-center gap-1.5 text-teal-700">
+                        <span className="w-2.5 h-2.5 rounded-[3px] bg-teal-600 inline-block" aria-hidden />
+                        <span>Peak ({velocitySummary.peakLabel})</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -2997,18 +2799,35 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </div>
                   ) : (
                     <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 12, right: 6, left: -12, bottom: 0 }}>
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 24, right: 6, left: -12, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="kpiSplineAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1e6091" stopOpacity={0.34} />
-                            <stop offset="65%" stopColor="#1e6091" stopOpacity={0.1} />
-                            <stop offset="100%" stopColor="#1e6091" stopOpacity={0.01} />
+                          <linearGradient id="kpiVelocityBarGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#155484" />
+                            <stop offset="100%" stopColor="#5da9d9" />
                           </linearGradient>
-                          <linearGradient id="kpiStaffRibbonGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#334155" stopOpacity={0.08} />
-                            <stop offset="100%" stopColor="#334155" stopOpacity={0} />
+                          <linearGradient id="kpiVelocityPeakGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#0d9488" />
+                            <stop offset="100%" stopColor="#14b8a6" />
                           </linearGradient>
                         </defs>
+                        {granularity === 'daily' &&
+                          reversedTimeSeries.map((row) => {
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(row.period)) return null;
+                            const day = new Date(`${row.period}T00:00:00Z`).getUTCDay();
+                            if (day !== 0 && day !== 6) return null;
+                            return (
+                              <ReferenceArea
+                                key={`wknd-${row.period}`}
+                                yAxisId="left"
+                                x1={row.label}
+                                x2={row.label}
+                                fill="#f1f5f9"
+                                fillOpacity={0.85}
+                                strokeOpacity={0}
+                                ifOverflow="extendDomain"
+                              />
+                            );
+                          })}
                         <CartesianGrid strokeDasharray="3 4" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
                         <XAxis
                           dataKey="label"
@@ -3030,52 +2849,74 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           orientation="right"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 11, fill: '#334155' }}
+                          tick={{ fontSize: 11, fill: '#b45309' }}
                           width={32}
                         />
                         <Tooltip
                           content={<CustomTrendTooltip metricMode={metricMode} />}
-                          cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3', strokeWidth: 1.25 }}
+                          cursor={{ fill: 'rgba(21, 84, 132, 0.05)' }}
                           isAnimationActive={false}
                         />
-                        <Area
+                        <Bar
                           yAxisId="left"
-                          type="monotone"
                           dataKey={isTaskMode ? 'totalTasks' : 'totalPoints'}
                           name={isTaskMode ? 'Total Tasks' : 'Total Points'}
-                          stroke="#1e6091"
-                          strokeWidth={2.5}
-                          fill="url(#kpiSplineAreaGrad)"
-                          dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
-                            const val = Number(dotProps.value || 0);
-                            if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
-                              return <g key={`pt-empty-${dotProps.index}`} />;
-                            }
+                          barSize={granularity === 'daily' ? 18 : 26}
+                          radius={[4, 4, 2, 2]}
+                          isAnimationActive={false}
+                          label={(lblProps) => {
+                            const val = Number(lblProps.value || 0);
                             const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
+                            if (!isPeak || !velocitySummary.peakLabel) return <g key={`pk-none-${lblProps.index}`} />;
+                            const rawX = Number(lblProps.x || 0) + Number(lblProps.width || 0) / 2;
+                            const pillX = Math.max(46, Math.min(chartW - 46, rawX));
+                            const pillY = Math.max(2, Number(lblProps.y || 0) - 20);
+                            const pillText = `${velocitySummary.peakLabel} Peak`;
+                            const pillW = Math.max(62, pillText.length * 5.6 + 14);
                             return (
-                              <circle
-                                key={`pt-dot-${dotProps.index}`}
-                                cx={dotProps.cx}
-                                cy={dotProps.cy}
-                                r={isPeak ? 4.2 : 3}
-                                fill={isPeak ? '#1e6091' : '#ffffff'}
-                                stroke={isPeak ? '#ffffff' : '#1e6091'}
-                                strokeWidth={2}
-                              />
+                              <g key={`pk-lbl-${lblProps.index}`}>
+                                <rect
+                                  x={pillX - pillW / 2}
+                                  y={pillY}
+                                  width={pillW}
+                                  height={15}
+                                  rx={7.5}
+                                  fill="#0d9488"
+                                />
+                                <text
+                                  x={pillX}
+                                  y={pillY + 10.5}
+                                  textAnchor="middle"
+                                  fill="#ffffff"
+                                  fontSize="8.5"
+                                  fontWeight="700"
+                                >
+                                  {pillText}
+                                </text>
+                              </g>
                             );
                           }}
-                          activeDot={{ r: 5.5, fill: '#1e6091', stroke: '#ffffff', strokeWidth: 2.5 }}
-                          isAnimationActive={false}
-                        />
-                        <Area
+                        >
+                          {reversedTimeSeries.map((row) => {
+                            const val = isTaskMode ? row.totalTasks : row.totalPoints;
+                            const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
+                            const fill = val <= 0
+                              ? '#cbd5e1'
+                              : isPeak
+                                ? 'url(#kpiVelocityPeakGrad)'
+                                : 'url(#kpiVelocityBarGrad)';
+                            return <Cell key={`bar-${row.period}`} fill={fill} />;
+                          })}
+                        </Bar>
+                        <Line
                           yAxisId="right"
                           type="monotone"
                           dataKey="activeStaff"
                           name="Active Staff"
-                          stroke="#334155"
-                          strokeWidth={2}
-                          strokeDasharray="5 4"
-                          fill="url(#kpiStaffRibbonGrad)"
+                          stroke="#d97706"
+                          strokeWidth={2.2}
+                          strokeDasharray="6 4"
+                          strokeLinecap="round"
                           dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
                             const val = Number(dotProps.value || 0);
                             if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
@@ -3088,12 +2929,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 cy={dotProps.cy}
                                 r={3}
                                 fill="#ffffff"
-                                stroke="#334155"
+                                stroke="#d97706"
                                 strokeWidth={1.8}
                               />
                             );
                           }}
-                          activeDot={{ r: 5.2, fill: '#334155', stroke: '#ffffff', strokeWidth: 2.2 }}
+                          activeDot={{ r: 5.2, fill: '#d97706', stroke: '#ffffff', strokeWidth: 2.2 }}
                           isAnimationActive={false}
                         />
                       </ComposedChart>
@@ -3255,39 +3096,38 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <button
                             type="button"
                             onClick={() => setSubCatActiveOnly((v) => !v)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border shadow-2xs cursor-pointer transition ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-2xs cursor-pointer transition ${
                               subCatActiveOnly
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                             }`}
                             title={subCatActiveOnly ? 'Click to show all rules (including 0 pts)' : 'Click to hide 0-pt standby rules'}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${subCatActiveOnly ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            <span className={`w-2 h-2 rounded-full ${subCatActiveOnly ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                             <span>{subCatActiveOnly ? `Active Only (${activeSubCategoryCount})` : `All Rules (${totalInSelectedCategory})`}</span>
                           </button>
 
                           {/* View Mode Switcher */}
-                          <div className="relative inline-flex rounded-xl border border-slate-200/90 p-1 bg-slate-100/90 shadow-2xs gap-0.5" role="tablist" aria-label="View mode">
+                          <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="View mode">
                             <button
                               type="button"
                               role="tab"
                               aria-selected={subCatViewMode === 'cards'}
                               onClick={() => setSubCatViewMode('cards')}
-                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
-                                subCatViewMode === 'cards'
-                                  ? 'text-white font-semibold'
-                                  : 'text-slate-600 hover:text-slate-900'
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatViewMode === 'cards' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
                               title="Card Grid View"
                             >
                               {subCatViewMode === 'cards' && (
                                 <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  aria-hidden
                                   transition={SPRING_TAB_PILL}
-                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className={CAPSULE_PILL_CLS}
                                 />
                               )}
-                              <LayoutGrid className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'cards' ? 'text-white' : 'text-sky-600'}`} />
+                              <LayoutGrid className="w-3.5 h-3.5 relative z-10 text-sky-600" />
                               <span className="hidden sm:inline relative z-10">Cards</span>
                             </button>
                             <button
@@ -3295,21 +3135,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               role="tab"
                               aria-selected={subCatViewMode === 'table'}
                               onClick={() => setSubCatViewMode('table')}
-                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
-                                subCatViewMode === 'table'
-                                  ? 'text-white font-semibold'
-                                  : 'text-slate-700 hover:text-slate-900'
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatViewMode === 'table' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
                               title="Detailed Table View"
                             >
                               {subCatViewMode === 'table' && (
                                 <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  aria-hidden
                                   transition={SPRING_TAB_PILL}
-                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className={CAPSULE_PILL_CLS}
                                 />
                               )}
-                              <List className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'table' ? 'text-white' : 'text-emerald-600'}`} />
+                              <List className="w-3.5 h-3.5 relative z-10 text-emerald-600" />
                               <span className="hidden sm:inline relative z-10">Table</span>
                             </button>
                           </div>
@@ -3322,7 +3161,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <div
                           role="tablist"
                           aria-label="Filter tasks by category"
-                          className="relative inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs gap-0.5 select-none"
+                          className={`${CAPSULE_TRACK_CLS} flex-wrap`}
                         >
                           {([
                             { id: 'ALL' as const, label: 'All', catStyle: null, count: subCategoryBreakdown.length },
@@ -3343,30 +3182,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 role="tab"
                                 aria-selected={active}
                                 onClick={() => setCategoryFilter(active && id !== 'ALL' ? 'ALL' : id)}
-                                className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
-                                  active
-                                    ? 'text-white'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                className={`relative px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
+                                  active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                                 }`}
                               >
                                 {active && (
                                   <PillMotion
                                     layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_CATEGORY_PILL}
+                                    aria-hidden
                                     transition={SPRING_TAB_PILL}
-                                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                    className={CAPSULE_PILL_CLS}
                                   />
                                 )}
                                 <span
                                   className={`w-2 h-2 rounded-full relative z-10 shrink-0 transition-colors ${
-                                    active ? 'bg-white' : (catStyle ? catStyle.dot : 'bg-slate-400')
+                                    catStyle ? catStyle.dot : 'bg-[#004e75]'
                                   }`}
                                 />
                                 <span className="relative z-10">{label}</span>
                                 <span
-                                  className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-md font-mono font-medium transition-colors ${
-                                    active
-                                      ? 'bg-white/20 text-white font-bold'
-                                      : 'bg-white text-slate-600 border border-slate-200/80 shadow-2xs'
+                                  className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-full font-mono transition-colors ${
+                                    active ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS
                                   }`}
                                 >
                                   {count}
@@ -3636,26 +3472,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Switch View by Staff or Branch */}
-              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Leaderboard mode">
+              <div className={`${CAPSULE_TRACK_CLS} text-xs shrink-0 whitespace-nowrap`} role="tablist" aria-label="Leaderboard mode">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={leaderboardMode === 'staff'}
                   onClick={() => setLeaderboardMode('staff')}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    leaderboardMode === 'staff' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    leaderboardMode === 'staff' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {leaderboardMode === 'staff' && (
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'staff' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10 text-sky-600" aria-hidden />
                   <span className="relative z-10">Top 10 Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${leaderboardMode === 'staff' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {top10Data.staff.length}
                   </span>
                 </button>
@@ -3665,41 +3502,43 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={leaderboardMode === 'branch'}
                   onClick={() => setLeaderboardMode('branch')}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    leaderboardMode === 'branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    leaderboardMode === 'branch' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {leaderboardMode === 'branch' && (
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'branch' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10 text-emerald-600" aria-hidden />
                   <span className="relative z-10">Top 10 Branches</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${leaderboardMode === 'branch' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {top10Data.branches.length}
                   </span>
                 </button>
               </div>
 
               {/* Month Selector Pills */}
-              <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-slate-100 border border-slate-200/90" role="tablist" aria-label="Leaderboard month">
+              <div className={`${CAPSULE_TRACK_CLS} flex-wrap`} role="tablist" aria-label="Leaderboard month">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={selectedTopMonth === 'ALL'}
                   onClick={() => setSelectedTopMonth('ALL')}
-                  className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
-                    selectedTopMonth === 'ALL' ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
+                    selectedTopMonth === 'ALL' ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {selectedTopMonth === 'ALL' && (
                     <PillMotion
                       layoutId="kpi-top10-month-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
                   <span className="relative z-10">{KPI_PERIOD_LABEL[period]}</span>
@@ -3711,15 +3550,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={selectedTopMonth === m}
                     onClick={() => setSelectedTopMonth(m)}
-                    className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
-                      selectedTopMonth === m ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
+                      selectedTopMonth === m ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {selectedTopMonth === m && (
                       <PillMotion
                         layoutId="kpi-top10-month-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
                     <span className="relative z-10">{fmtMonth(m)}</span>
@@ -3751,172 +3591,134 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
 
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-              <table className="w-full text-left border-separate border-spacing-0 text-[13px]">
-                {leaderboardMode === 'staff' ? (
-                  <>
+              {(() => {
+                const top10ChannelCols = [
+                  { key: 'pos', Icon: Cpu, iconCls: 'text-[#5cc8ff]', taskLabel: 'POS Tasks', ptsLabel: 'POS Pts' },
+                  { key: 'sb', Icon: Volume2, iconCls: 'text-[#a2a5e0]', taskLabel: 'SB Tasks', ptsLabel: 'SB Pts' },
+                  { key: 'khqr', Icon: QrCode, iconCls: 'text-[#74b9ff]', taskLabel: 'KHQR Tasks', ptsLabel: 'KHQR Pts' },
+                  { key: 'cc', Icon: CreditCard, iconCls: 'text-amber-300', taskLabel: 'CC Tasks', ptsLabel: 'CC Pts' },
+                  { key: 'mv', Icon: ClipboardList, iconCls: 'text-[#52b788]', taskLabel: 'MV Tasks', ptsLabel: 'MV Pts' },
+                ] as const;
+
+                const renderMetricCell = (key: string, tasks: number, pts: number) => (
+                  <td key={key} className="py-2.5 px-1.5 text-right tabular-nums text-slate-700 font-medium whitespace-nowrap">
+                    {isTaskMode
+                      ? <>{fmtInt(tasks)} <span className="text-[11px] text-slate-400">tasks</span></>
+                      : <>{fmtPts(pts)} <span className="text-[11px] text-slate-400">pts</span></>}
+                  </td>
+                );
+
+                const colWidths = leaderboardMode === 'staff' ? TOP10_STAFF_COL_WIDTHS : TOP10_BRANCH_COL_WIDTHS;
+
+                return (
+                  <table className="top10-table w-full min-w-[1060px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
+                    <colgroup>
+                      {colWidths.map((w, idx) => (
+                        <col key={idx} style={{ width: w }} />
+                      ))}
+                    </colgroup>
                     <thead>
-                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
-                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Staff Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Staff ID</th>
-                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Branch Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#5cc8ff]" />
-                            <span>{isTaskMode ? 'POS Tasks' : 'POS Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#a2a5e0]" />
-                            <span>{isTaskMode ? 'SB Tasks' : 'SB Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <QrCode className="w-3.5 h-3.5 text-[#74b9ff]" />
-                            <span>{isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
-                            <span>{isTaskMode ? 'CC Tasks' : 'CC Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <ClipboardList className="w-3.5 h-3.5 text-[#52b788]" />
-                            <span>{isTaskMode ? 'MV Tasks' : 'MV Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
-                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
+                      <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wide select-none">
+                        <th className="text-center border-b border-white/20">No.</th>
+                        {leaderboardMode === 'staff' ? (
+                          <>
+                            <th className="text-left border-b border-white/20">Staff Name</th>
+                            <th className="text-center border-b border-white/20">Staff ID</th>
+                            <th className="text-left border-b border-white/20">Branch Name</th>
+                            <th className="text-center border-b border-white/20">Branch Code</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="text-left border-b border-white/20">Branch Name</th>
+                            <th className="text-center border-b border-white/20">Branch Code</th>
+                            <th className="text-center border-b border-white/20">Active Staff</th>
+                          </>
+                        )}
+                        {top10ChannelCols.map(({ key, Icon, iconCls, taskLabel, ptsLabel }) => (
+                          <th key={key} className="text-right border-b border-white/20">
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <Icon className={`w-3.5 h-3.5 ${iconCls} shrink-0`} aria-hidden />
+                              <span>{isTaskMode ? taskLabel : ptsLabel}</span>
+                            </span>
+                          </th>
+                        ))}
+                        <th className="text-center border-b border-white/20">Category Mix</th>
+                        {leaderboardMode === 'branch' && (
+                          <th className="text-right border-b border-white/20">{isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'}</th>
+                        )}
+                        <th className="text-right border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
+                        <th className="text-right border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      {top10Data.staff.length === 0 ? (
-                        <tr>
-                          <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
-                            No staff records in this period.
-                          </td>
-                        </tr>
-                      ) : (
-                        top10Data.staff.map((s, i) => (
-                          <tr key={s.staffId} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3 text-center">
-                              <div className="flex justify-center items-center">
-                                <RankBadge rank={i + 1} />
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-4">
-                              <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
-                                {s.staffName}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums">
-                                {s.staffId || '—'}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-4">
-                              <span className="text-[13px] text-slate-800 font-medium truncate block" title={cleanBranchName(s.branchName)}>
-                                {cleanBranchName(s.branchName)}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
-                                title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}
-                              >
-                                {fmtBranchCode(s.branchId)}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.posTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.posPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.sbTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.sbPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.khqrTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.ccTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.ccPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(s.mvTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(s.mvPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <div className="flex justify-center items-center">
-                                {isTaskMode ? (
-                                  <MiniMixBar pos={s.posTasks} sb={s.sbTasks} khqr={s.khqrTasks} cc={s.ccTasks} mv={s.mvTasks} total={s.totalTasks} />
-                                ) : (
-                                  <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} mv={s.mvPoints} total={s.totalPoints} />
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
-                              {isTaskMode ? <>{fmtPts(s.totalPoints)} pts</> : fmtInt(s.totalTasks)}
-                            </td>
-                            <td className="py-2.5 px-4 text-right tabular-nums">
-                              <span className="font-bold text-[#003857] text-[13.5px]">
-                                {isTaskMode ? <>{fmtInt(s.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
-                              </span>
+                      {leaderboardMode === 'staff' ? (
+                        top10Data.staff.length === 0 ? (
+                          <tr>
+                            <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
+                              No staff records in this period.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </>
-                ) : (
-                  <>
-                    <thead>
-                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
-                        <th className="py-2.5 px-4 text-left min-w-[220px] border-b border-white/20">Branch Name</th>
-                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Active Staff</th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#5cc8ff]" />
-                            <span>{isTaskMode ? 'POS Tasks' : 'POS Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#a2a5e0]" />
-                            <span>{isTaskMode ? 'SB Tasks' : 'SB Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <QrCode className="w-3.5 h-3.5 text-[#74b9ff]" />
-                            <span>{isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
-                            <span>{isTaskMode ? 'CC Tasks' : 'CC Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
-                          <span className="inline-flex items-center justify-end gap-1.5">
-                            <ClipboardList className="w-3.5 h-3.5 text-[#52b788]" />
-                            <span>{isTaskMode ? 'MV Tasks' : 'MV Pts'}</span>
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'}</th>
-                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
-                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      {top10Data.branches.length === 0 ? (
+                        ) : (
+                          top10Data.staff.map((s, i) => (
+                            <tr key={s.staffId} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2.5 px-1.5 text-center">
+                                <div className="flex justify-center items-center">
+                                  <RankBadge rank={i + 1} />
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-1.5">
+                                <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
+                                  {s.staffName}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-center">
+                                <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap">
+                                  {s.staffId || '—'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5">
+                                <span className="text-[13px] text-slate-800 font-medium truncate block" title={cleanBranchName(s.branchName)}>
+                                  {cleanBranchName(s.branchName)}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-center">
+                                <span
+                                  className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap"
+                                  title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}
+                                >
+                                  {fmtBranchCode(s.branchId)}
+                                </span>
+                              </td>
+                              {renderMetricCell('pos', s.posTasks, s.posPoints)}
+                              {renderMetricCell('sb', s.sbTasks, s.sbPoints)}
+                              {renderMetricCell('khqr', s.khqrTasks, s.khqrPoints)}
+                              {renderMetricCell('cc', s.ccTasks, s.ccPoints)}
+                              {renderMetricCell('mv', s.mvTasks, s.mvPoints)}
+                              <td className="py-2.5 px-1.5">
+                                <div className="flex justify-center items-center">
+                                  <MiniMixBar
+                                    pos={isTaskMode ? s.posTasks : s.posPoints}
+                                    sb={isTaskMode ? s.sbTasks : s.sbPoints}
+                                    khqr={isTaskMode ? s.khqrTasks : s.khqrPoints}
+                                    cc={isTaskMode ? s.ccTasks : s.ccPoints}
+                                    mv={isTaskMode ? s.mvTasks : s.mvPoints}
+                                    total={isTaskMode ? s.totalTasks : s.totalPoints}
+                                  />
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
+                                {isTaskMode ? <>{fmtPts(s.totalPoints)} pts</> : fmtInt(s.totalTasks)}
+                              </td>
+                              <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
+                                <span className="font-bold text-[#003857] text-[13.5px]">
+                                  {isTaskMode ? <>{fmtInt(s.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )
+                      ) : top10Data.branches.length === 0 ? (
                         <tr>
                           <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
                             No branch records in this period.
@@ -3925,60 +3727,53 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       ) : (
                         top10Data.branches.map((b, i) => (
                           <tr key={b.branchId} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <div className="flex justify-center items-center">
                                 <RankBadge rank={i + 1} />
                               </div>
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-1.5">
                               <span className="font-semibold text-slate-900 text-[13px] block truncate" title={cleanBranchName(b.branchName)}>
                                 {cleanBranchName(b.branchName)}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
+                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap"
                                 title={b.branchId === 'UNASSIGNED' ? 'Unassigned' : b.branchId}
                               >
                                 {fmtBranchCode(b.branchId)}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center">
+                            <td className="py-2.5 px-1.5 text-center">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-200/80 tabular-nums whitespace-nowrap">
                                 {b.staffCount} staff
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.posTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.posPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.sbTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.sbPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.khqrTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.ccTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.ccPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
-                              {isTaskMode ? <>{fmtInt(b.mvTasks)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.mvPoints)} <span className="text-[11px] text-slate-400">pts</span></>}
-                            </td>
-                            <td className="py-2.5 px-3">
+                            {renderMetricCell('pos', b.posTasks, b.posPoints)}
+                            {renderMetricCell('sb', b.sbTasks, b.sbPoints)}
+                            {renderMetricCell('khqr', b.khqrTasks, b.khqrPoints)}
+                            {renderMetricCell('cc', b.ccTasks, b.ccPoints)}
+                            {renderMetricCell('mv', b.mvTasks, b.mvPoints)}
+                            <td className="py-2.5 px-1.5">
                               <div className="flex justify-center items-center">
-                                {isTaskMode ? (
-                                  <MiniMixBar pos={b.posTasks} sb={b.sbTasks} khqr={b.khqrTasks} cc={b.ccTasks} mv={b.mvTasks} total={b.totalTasks} />
-                                ) : (
-                                  <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} mv={b.mvPoints} total={b.totalPoints} />
-                                )}
+                                <MiniMixBar
+                                  pos={isTaskMode ? b.posTasks : b.posPoints}
+                                  sb={isTaskMode ? b.sbTasks : b.sbPoints}
+                                  khqr={isTaskMode ? b.khqrTasks : b.khqrPoints}
+                                  cc={isTaskMode ? b.ccTasks : b.ccPoints}
+                                  mv={isTaskMode ? b.mvTasks : b.mvPoints}
+                                  total={isTaskMode ? b.totalTasks : b.totalPoints}
+                                />
                               </div>
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-700 font-medium whitespace-nowrap">
                               {isTaskMode ? <>{fmtPts(b.tasksPerStaff)} <span className="text-[11px] text-slate-400">tasks</span></> : <>{fmtPts(b.ptsPerStaff)} <span className="text-[11px] text-slate-400">pts</span></>}
                             </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
                               {isTaskMode ? <>{fmtPts(b.totalPoints)} pts</> : fmtInt(b.totalTasks)}
                             </td>
-                            <td className="py-2.5 px-4 text-right tabular-nums">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                               <span className="font-bold text-[#003857] text-[13.5px]">
                                 {isTaskMode ? <>{fmtInt(b.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(b.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
                               </span>
@@ -3987,9 +3782,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         ))
                       )}
                     </tbody>
-                  </>
-                )}
-              </table>
+                  </table>
+                );
+              })()}
             </div>
           </div>
         </section>
@@ -4035,11 +3830,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${timelineExpanded ? 'rotate-180' : ''}`} />
                 </button>
               )}
-              <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/90 text-[11px] gap-0.5" role="tablist" aria-label="Timeline granularity">
+              <div className={`${CAPSULE_TRACK_CLS} text-[11px]`} role="tablist" aria-label="Timeline granularity">
               {([
                 { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
                 { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
-                { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#004e75]' },
                 { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
               ]).map(({ g, label, dot }) => {
                 const active = granularity === g;
@@ -4050,18 +3845,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => setGranularity(g)}
-                    className={`relative px-3 py-1 rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
-                      active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-3 py-1 rounded-full cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="kpi-timeline-granularity-pill"
+                        aria-hidden
                         transition={SPRING}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
-                    <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
+                    <span className={`w-2 h-2 rounded-full relative z-10 shrink-0 ${dot}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -4173,26 +3969,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap xl:flex-nowrap items-center gap-2">
               <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
-                <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Matrix mode">
+                <div className={`${CAPSULE_TRACK_CLS} text-xs shrink-0 whitespace-nowrap`} role="tablist" aria-label="Matrix mode">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'summary'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'summary' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10 text-sky-600" aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {filteredStaff.length}
                   </span>
                 </button>
@@ -4201,20 +3998,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'summary'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'summary' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10 text-emerald-600" aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     {filteredBranches.length}
                   </span>
                 </button>
@@ -4223,20 +4021,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'daily'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'daily' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-amber-500'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10 text-amber-500" aria-hidden />
                   <span className="relative z-10">Staff Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -4245,20 +4044,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'daily'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'daily' && (
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
+                      aria-hidden
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-indigo-600'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10 text-indigo-600" aria-hidden />
                   <span className="relative z-10">Branch Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -4355,24 +4155,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {tableMode === 'staff' && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-500 font-medium">Level:</span>
-                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs gap-0.5" role="tablist" aria-label="Staff level filter">
+                    <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-xs`} role="tablist" aria-label="Staff level filter">
                       <button
                         type="button"
                         role="tab"
                         aria-selected={staffLevelFilter === 'all'}
                         onClick={() => setStaffLevelFilter('all')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'all' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'all' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                       >
                         {staffLevelFilter === 'all' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'all' ? 'bg-white' : 'bg-[#003857]'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
                         <span className="relative z-10">All ({enrichedStaff.length})</span>
                       </button>
                       <button
@@ -4380,18 +4181,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'field'}
                         onClick={() => setStaffLevelFilter('field')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'field' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'field' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                       >
                         {staffLevelFilter === 'field' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'field' ? 'bg-white' : 'bg-emerald-500'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-emerald-500" aria-hidden />
                         <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
                       </button>
                       <button
@@ -4399,19 +4201,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'management'}
                         onClick={() => setStaffLevelFilter('management')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
-                          staffLevelFilter === 'management' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                          staffLevelFilter === 'management' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                         }`}
                         title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
                       >
                         {staffLevelFilter === 'management' && (
                           <PillMotion
                             layoutId="kpi-staff-level-pill"
+                            aria-hidden
                             transition={SPRING}
-                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                            className={CAPSULE_PILL_CLS}
                           />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'management' ? 'bg-white' : 'bg-amber-500'}`} aria-hidden />
+                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-amber-500" aria-hidden />
                         <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
                       </button>
                     </div>
