@@ -642,7 +642,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         role: profile?.role || 'SUPER_ADMIN',
         branchId: profile?.branch_id || '100',
         branchName: profile?.branch_id === '100' ? 'Head Office' : `Branch Code ${profile?.branch_id || '100'}`,
-        activeTab: 'inventory',
+        activeTab: 'inventory_pos',
         onlineAt: stampSecPP(),
         location: 'Phnom Penh',
       },
@@ -1202,18 +1202,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return '';
   });
+  // Drop legacy 'inventory' tab requests directly into POS Terminal (standalone Stock Inventory page removed)
+  const normalizeTab = (tab: string) => (tab === 'inventory' ? 'inventory_pos' : tab);
   const [activeTab, setActiveTabRaw] = useState<string>(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
       const hashTab = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
       if (hashTab && VALID_TABS.has(hashTab)) {
-        return hashTab;
+        return normalizeTab(hashTab);
       }
     }
     if (typeof localStorage !== 'undefined') {
       try {
         const savedTab = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
         if (savedTab && VALID_TABS.has(savedTab)) {
-          return savedTab;
+          return normalizeTab(savedTab);
         }
       } catch {}
     }
@@ -1224,7 +1226,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // (13 Nov 2026, speed) a page change is a background (transition) render: React draws the new page in short slices between
   // frames instead of one long block inside the tap, so the tap answers in the next frame (the sidebar / tab bar already show
   // the chosen page, see navPending) and scrolling or a second tap are never held up by a page being built
-  const setActiveTab = useCallback((tab: string) => { startTransition(() => setActiveTabRaw(tab)); }, []);
+  const setActiveTab = useCallback((tab: string) => { startTransition(() => setActiveTabRaw(normalizeTab(tab))); }, []);
   // (23 Oct 2026) the menu highlight moves at once; the new page is prepared in the background (React keeps drawing
   // frames meanwhile, so nothing freezes) and glides in when ready
   const shownTab = useDeferredValue(activeTab);
@@ -1240,7 +1242,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return 'policy';
   });
 
-  const handleSelectTab = (tabId: string, subTab?: string) => {
+  const handleSelectTab = (rawTabId: string, subTab?: string) => {
+    const tabId = normalizeTab(rawTabId);
     if ((tabId === 'settings' || tabId === 'brand_logo') && role !== 'SUPER_ADMIN') {
       triggerToast('Access Restricted: Settings is only accessible by Super Admin.');
       return;
@@ -1259,8 +1262,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setTypeFilter('POS Terminal');
     } else if (tabId === 'inventory_sb') {
       setTypeFilter('Sound Box');
-    } else if (tabId === 'inventory' && (activeTab === 'inventory_pos' || activeTab === 'inventory_sb')) {
-      setTypeFilter('ALL');
     }
     // (31 Oct 2026, native-like) On a phone the drawer closes on this tap at once; the new page is drawn from the next
     // frames on (the page itself is a background render, see shownTab), so the tap answers immediately instead of waiting for the whole page to render.
@@ -1361,9 +1362,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     // (5 Nov 2026) Push Configuring lives inside the POS Terminal / Sound Box pages: old links (notifications) open it there
     if (activeTab === 'push_configuring') { setProductView('PUSH'); setActiveTab('inventory_pos'); return; }
+    if (activeTab === 'inventory') { setActiveTab('inventory_pos'); return; }
     if (activeTab === 'inventory_pos') setTypeFilter('POS Terminal');
     else if (activeTab === 'inventory_sb') setTypeFilter('Sound Box');
-    else if (activeTab === 'inventory' && (lastStockTab.current === 'inventory_pos' || lastStockTab.current === 'inventory_sb')) setTypeFilter('ALL');
     if (activeTab.startsWith('inventory')) lastStockTab.current = activeTab;
   }, [activeTab]);
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
@@ -2091,8 +2092,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return { all, hq, reserve, config, complete, faulty, lost };
   }, [scopedDevices, serverStageSummary, productType, useRawServerSummary]);
-  /** a stage chosen on the stock strip opens the unit list of the same product (all units elsewhere) */
-  const stockTabForStage = productType === 'POS Terminal' ? 'inventory_pos' : productType === 'Sound Box' ? 'inventory_sb' : 'inventory';
+  /** a stage chosen on the stock strip opens the unit list of the same product (defaulting to POS Terminal elsewhere) */
+  const stockTabForStage = productType === 'Sound Box' ? 'inventory_sb' : 'inventory_pos';
 
   // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
   // waiting to be pushed, per product (the POS Terminal / Sound Box menu numbers and their Push Configuring tabs)
@@ -2493,7 +2494,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
       `POS Terminal ${serial} battery changed to ${newBatterySerial} by ${actor}. 24-month lifespan reset to fresh standing.`,
       'HEALTH',
       selectedBranch,
-      'inventory'
+      'inventory_pos'
     );
 
     triggerOptimisticSync([serial], `Battery replaced for ${serial} with SN ${newBatterySerial}`);
@@ -2562,7 +2563,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         }).`,
         'STOCK',
         targetBranchCode,
-        'inventory'
+        'inventory_pos'
       );
     }
     triggerOptimisticSync(serials, `Transferred ${serials.length} unit(s) to Branch Code ${targetBranchCode}`);
@@ -3109,7 +3110,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         `Assigned By: ${operator}. Configure By: ${staffTarget}. Push Tracking ID: ${pushId}. Please power ON and open ${dev.type} (${mName}) to wait for app push.`,
         'REQUEST',
         dev.branchId,
-        'inventory'
+        dev.type === 'Sound Box' ? 'inventory_sb' : 'inventory_pos'
       );
 
       const singleStaffTg =
@@ -4578,7 +4579,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
               onSelectStage={(st) => {
                 setStageFilter(st);
                 if (activeTab !== stockTabForStage && st !== 'ALL') {
-                  if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                  setProductView('UNITS');
                   setActiveTab(stockTabForStage);
                 }
               }}
@@ -4603,7 +4604,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                 onSelectStage={(st) => {
                   setStageFilter(st);
                   if (activeTab !== stockTabForStage && st !== 'ALL') {
-                    if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                    setProductView('UNITS');
                     setActiveTab(stockTabForStage);
                   }
                 }}
@@ -4722,14 +4723,14 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   )}
 
 
-                  {(shownTab === 'inventory' || shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
+                  {(shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
                     const renderUnitsNode = (ctx?: {
                       stockScopeControl?: React.ReactNode;
                       materialSummaryStrip?: React.ReactNode | null;
                       heroControlsContainer?: HTMLElement | null;
                     }) => (
                     <InventoryTab
-                      lockType={shownTab !== 'inventory'}
+                      lockType={true}
                       stockScopeControl={ctx?.stockScopeControl}
                       materialSummaryStrip={ctx?.materialSummaryStrip}
                       heroControlsContainer={ctx?.heroControlsContainer}
@@ -4783,7 +4784,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onFetchServerPage={handleFetchInventoryPage}
                     />
                     );
-                    if (shownTab === 'inventory') return renderUnitsNode();
 
                     const pipelineBarNode = (
                       <PipelineBar
@@ -4794,7 +4794,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         onSelectStage={(st) => {
                           setStageFilter(st);
                           if (activeTab !== stockTabForStage && st !== 'ALL') {
-                            if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                            setProductView('UNITS');
                             setActiveTab(stockTabForStage);
                           }
                         }}
@@ -4891,7 +4891,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       activeBranchId={selectedBranch}
                       onSelectBranchFilter={(bCode) => {
                         setBranchFilter(bCode);
-                        setActiveTab('inventory');
+                        setActiveTab('inventory_pos');
                       }}
                       onOpenNewBranchModal={() => {
                         setEditingBranch(null);

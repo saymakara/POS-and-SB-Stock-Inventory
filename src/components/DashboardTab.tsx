@@ -3286,15 +3286,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div
             role={onNavigateTab ? 'button' : undefined}
             tabIndex={onNavigateTab ? 0 : undefined}
-            onClick={() => onNavigateTab?.('inventory')}
+            onClick={() => onNavigateTab?.('inventory_pos')}
             onKeyDown={(e) => {
               if (!onNavigateTab) return;
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onNavigateTab('inventory');
+                onNavigateTab('inventory_pos');
               }
             }}
-            title="Open Stock Inventory"
+            title="Open POS Terminal"
             className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}
           >
             <div>
@@ -3939,7 +3939,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {onNavigateTab && (
                       <button
                         type="button"
-                        onClick={() => onNavigateTab('inventory')}
+                        onClick={() => onNavigateTab('inventory_pos')}
                         className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                           isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
                         }`}
@@ -3952,7 +3952,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="grid grid-cols-3 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('inventory')}
+                      onClick={() => onNavigateTab?.('inventory_pos')}
                       title={`HQ ${fmtNum(hardwareSummary.hq)} · Branches ${fmtNum(hardwareSummary.reserve)} (POS ${fmtNum(readyPos)} · SB ${fmtNum(readySb)})`}
                       className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
@@ -4086,7 +4086,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('inventory')}
+                      onClick={() => onNavigateTab?.('inventory_pos')}
                       title={`Adaptors & Kits: ${fmtNum(adaptorsKitsTotal)} · SIMs: ${fmtNum(materialsSummary.simTotal)}`}
                       className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
