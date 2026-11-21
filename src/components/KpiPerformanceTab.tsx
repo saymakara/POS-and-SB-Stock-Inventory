@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
+  Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, ReferenceArea,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -25,7 +25,7 @@ import {
   KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, getCachedKpiSummary,
   KpiDailyBranchRaw, KpiDailyStaffRaw, KpiTimeBucketRaw,
 } from '../services/kpiService';
-import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
+import { getCambodiaHoliday, getMonthWorkDaysSummary, isWeekendDay } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS, ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import {
@@ -1610,6 +1610,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         ...computeKpiPoints(row, ruleMap),
       }));
     }
+    const workingDaysMode = data?.targets?.workingDaysMode;
+    const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
     const mapped = enriched.map((row, idx) => {
       const prev = enriched[idx + 1];
       const curMetric = isTaskMode ? row.totalTasks : row.totalPoints;
@@ -1622,11 +1624,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         granularity === 'weekly' ? `Wk ${fmtShortDate(row.period)}` :
         granularity === 'daily' ? fmtShortDate(row.period) :
         row.period;
+      const parsedMs = granularity === 'daily' && row.period.length >= 10 ? Date.parse(`${row.period.slice(0, 10)}T00:00:00Z`) : NaN;
+      const utcDay = Number.isNaN(parsedMs) ? -1 : new Date(parsedMs).getUTCDay();
+      const holidayName = granularity === 'daily' ? getCambodiaHoliday(row.period.slice(0, 10)) : null;
+      const isHoliday = Boolean(holidayName);
+      const isWeekend =
+        granularity === 'daily' && utcDay >= 0
+          ? workingDaysMode === 'mon_sat'
+            ? utcDay === 0
+            : isWeekendDay(row.period.slice(0, 10))
+          : false;
       return {
         ...row,
         label: shortLabel,
         fullPeriod: row.period,
         growthPct,
+        isWeekend,
+        isHoliday,
+        holidayName,
+        dayOfWeek: utcDay >= 0 ? weekdayNames[utcDay] : undefined,
         ptsPerStaff: row.activeStaff > 0 ? Math.round((row.totalPoints / row.activeStaff) * 10) / 10 : 0,
         tasksPerStaff: row.activeStaff > 0 ? Math.round((row.totalTasks / row.activeStaff) * 10) / 10 : 0,
       };
@@ -2389,6 +2405,70 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return { total, avgStaff, peakVal, peakLabel };
   }, [reversedTimeSeries, isTaskMode]);
 
+  const velocityCalendar = useMemo(() => {
+    const bandsByStartIdx = new Map<
+      number,
+      { kind: 'weekend' | 'holiday'; startIdx: number; endIdx: number; spanCount: number; holidayName?: string | null }
+    >();
+    const holidayDetails: string[] = [];
+    let weekendCount = 0;
+    let holidayCount = 0;
+
+    if (granularity === 'daily' && reversedTimeSeries.length > 0) {
+      let i = 0;
+      while (i < reversedTimeSeries.length) {
+        const cur = reversedTimeSeries[i];
+        const kind: 'work' | 'weekend' | 'holiday' = cur.isHoliday
+          ? 'holiday'
+          : cur.isWeekend
+            ? 'weekend'
+            : 'work';
+        if (cur.isHoliday) {
+          holidayCount++;
+          if (cur.holidayName) holidayDetails.push(`${cur.label}: ${cur.holidayName}`);
+        } else if (cur.isWeekend) {
+          weekendCount++;
+        }
+        if (kind === 'work') {
+          i++;
+          continue;
+        }
+        let j = i;
+        while (j + 1 < reversedTimeSeries.length) {
+          const nxt = reversedTimeSeries[j + 1];
+          const nxtKind: 'work' | 'weekend' | 'holiday' = nxt.isHoliday
+            ? 'holiday'
+            : nxt.isWeekend
+              ? 'weekend'
+              : 'work';
+          if (nxtKind !== kind) break;
+          if (nxt.isHoliday) {
+            holidayCount++;
+            if (nxt.holidayName) holidayDetails.push(`${nxt.label}: ${nxt.holidayName}`);
+          } else if (nxt.isWeekend) {
+            weekendCount++;
+          }
+          j++;
+        }
+        bandsByStartIdx.set(i, {
+          kind,
+          startIdx: i,
+          endIdx: j,
+          spanCount: j - i + 1,
+          holidayName: cur.holidayName,
+        });
+        i = j + 1;
+      }
+    }
+
+    return {
+      weekendCount,
+      holidayCount,
+      holidayTitle: holidayDetails.join(' · '),
+      bandsByStartIdx,
+    };
+  }, [reversedTimeSeries, granularity]);
+
   return (
     <div className="flex flex-col gap-6 sm:gap-7 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
@@ -2771,7 +2851,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
               <div className="px-4 sm:px-5 pt-3 pb-4">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-2.5 text-[11px] font-semibold text-slate-600">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
                     <span className="inline-flex items-center gap-1.5 text-[#155484]">
                       <span className="w-2.5 h-2.5 rounded-[3px] bg-[#155484] inline-block" aria-hidden />
                       <span>{isTaskMode ? 'Total Tasks (bars)' : 'Total Points (bars)'}</span>
@@ -2780,6 +2860,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <span className="inline-flex items-center gap-1.5 text-teal-700">
                         <span className="w-2.5 h-2.5 rounded-[3px] bg-teal-600 inline-block" aria-hidden />
                         <span>Peak ({velocitySummary.peakLabel})</span>
+                      </span>
+                    )}
+                    {granularity === 'daily' && velocityCalendar.weekendCount > 0 && (
+                      <span
+                        data-kpi-legend="weekend"
+                        className="inline-flex items-center gap-1.5 text-slate-600"
+                        title="Weekend columns (Saturday & Sunday)"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-[3px] bg-slate-400/20 border border-slate-400/50 border-t-2 border-t-slate-500 inline-block" aria-hidden />
+                        <span>Weekend ({velocityCalendar.weekendCount}d)</span>
+                      </span>
+                    )}
+                    {granularity === 'daily' && velocityCalendar.holidayCount > 0 && (
+                      <span
+                        data-kpi-legend="holiday"
+                        className="inline-flex items-center gap-1.5 text-amber-700"
+                        title={velocityCalendar.holidayTitle || 'Cambodian Official Public Holiday'}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-[3px] bg-amber-500/15 border border-dashed border-amber-500/70 border-t-2 border-t-amber-600 inline-block" aria-hidden />
+                        <span>Holiday ({velocityCalendar.holidayCount}d)</span>
                       </span>
                     )}
                   </div>
@@ -2802,15 +2902,53 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <stop offset="0%" stopColor="#0d9488" />
                             <stop offset="100%" stopColor="#14b8a6" />
                           </linearGradient>
+                          <linearGradient id="kpiVelocityWkndGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(100, 116, 139, 0.085)" />
+                            <stop offset="100%" stopColor="rgba(100, 116, 139, 0.02)" />
+                          </linearGradient>
+                          <linearGradient id="kpiVelocityHolGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.13)" />
+                            <stop offset="100%" stopColor="rgba(245, 158, 11, 0.03)" />
+                          </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 4" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
                         <XAxis
                           dataKey="label"
                           axisLine={{ stroke: '#cbd5e1' }}
                           tickLine={false}
-                          tick={{ fontSize: 10, fill: '#64748b' }}
-                          dy={4}
                           interval={granularity === 'daily' ? 0 : Math.max(0, Math.ceil(chronologicalTimeSeries.length / 15) - 1)}
+                          tick={(tickProps: { x?: number | string; y?: number | string; payload?: { value?: string | number; index?: number } }) => {
+                            const tx = Number(tickProps.x || 0);
+                            const ty = Number(tickProps.y || 0);
+                            const idx = Number(tickProps.payload?.index ?? -1);
+                            const row = idx >= 0 ? reversedTimeSeries[idx] : undefined;
+                            const isHol = granularity === 'daily' && Boolean(row?.isHoliday);
+                            const isWknd = granularity === 'daily' && Boolean(row?.isWeekend) && !isHol;
+                            const fill = isHol ? '#d97706' : isWknd ? '#475569' : '#64748b';
+                            return (
+                              <g transform={`translate(${tx},${ty})`}>
+                                {(isHol || isWknd) && (
+                                  <circle
+                                    cx={0}
+                                    cy={-8}
+                                    r={isHol ? 2.2 : 1.8}
+                                    fill={isHol ? '#d97706' : 'rgba(100, 116, 139, 0.6)'}
+                                  />
+                                )}
+                                <text
+                                  x={0}
+                                  y={4}
+                                  dy={8}
+                                  textAnchor="middle"
+                                  fill={fill}
+                                  fontSize={10}
+                                  fontWeight={isHol ? 700 : 600}
+                                >
+                                  {tickProps.payload?.value}
+                                </text>
+                              </g>
+                            );
+                          }}
                         />
                         <YAxis
                           yAxisId="left"
@@ -2824,6 +2962,101 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           cursor={{ fill: 'rgba(21, 84, 132, 0.05)' }}
                           isAnimationActive={false}
                         />
+                        {granularity === 'daily' && velocityCalendar.bandsByStartIdx.size > 0 && reversedTimeSeries.length > 0 && (
+                          <ReferenceArea
+                            yAxisId="left"
+                            x1={reversedTimeSeries[0].label}
+                            x2={reversedTimeSeries[reversedTimeSeries.length - 1].label}
+                            shape={(raProps: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => {
+                              const plotX = Number(raProps.viewBox?.x ?? 46);
+                              const plotY = Number(raProps.viewBox?.y ?? 24);
+                              const plotW = Number(raProps.viewBox?.width ?? Math.max(200, chartW - 50));
+                              const plotH = Number(raProps.viewBox?.height ?? 214);
+                              const count = Math.max(1, reversedTimeSeries.length);
+                              const slotW = plotW / count;
+                              const bandInset = slotW >= 14 ? 1.5 : 0.75;
+
+                              return (
+                                <g className="pointer-events-none">
+                                  {Array.from(velocityCalendar.bandsByStartIdx.values()).map((band) => {
+                                    const bandX = plotX + band.startIdx * slotW + bandInset;
+                                    const bandW = Math.max(6, band.spanCount * slotW - bandInset * 2);
+                                    const isHol = band.kind === 'holiday';
+
+                                    const hasPeakInside = (() => {
+                                      if (!velocitySummary.peakLabel || velocitySummary.peakVal <= 0) return false;
+                                      for (let k = band.startIdx; k <= band.endIdx; k++) {
+                                        if (reversedTimeSeries[k]?.label === velocitySummary.peakLabel) return true;
+                                      }
+                                      return false;
+                                    })();
+
+                                    const badgeLabel = isHol
+                                      ? (bandW >= 78 && band.holidayName
+                                          ? band.holidayName.replace(/\s*\(.*?\)/g, '').trim().slice(0, 14)
+                                          : bandW >= 48
+                                            ? 'Holiday'
+                                            : bandW >= 28
+                                              ? 'Hol'
+                                              : 'H')
+                                      : (bandW >= 54 ? 'Weekend' : bandW >= 36 ? 'Wknd' : 'W');
+                                    const badgeW = Math.min(bandW + 6, badgeLabel.length * 5.2 + 10);
+                                    const badgeX = bandX + bandW / 2 - badgeW / 2;
+                                    const badgeY = Math.max(2, plotY - 18);
+
+                                    return (
+                                      <g key={`band-${band.kind}-${band.startIdx}`} data-kpi-band={band.kind}>
+                                        <rect
+                                          x={bandX}
+                                          y={plotY}
+                                          width={bandW}
+                                          height={plotH}
+                                          rx={4}
+                                          fill={isHol ? 'url(#kpiVelocityHolGrad)' : 'url(#kpiVelocityWkndGrad)'}
+                                          stroke={isHol ? 'rgba(217, 119, 6, 0.36)' : 'rgba(148, 163, 184, 0.24)'}
+                                          strokeWidth={isHol ? 1 : 0.75}
+                                          strokeDasharray={isHol ? '2.5 2.5' : undefined}
+                                        />
+                                        <rect
+                                          x={bandX + 0.5}
+                                          y={plotY}
+                                          width={Math.max(2, bandW - 1)}
+                                          height={isHol ? 2.5 : 2}
+                                          rx={1.25}
+                                          fill={isHol ? 'rgba(217, 119, 6, 0.85)' : 'rgba(100, 116, 139, 0.45)'}
+                                        />
+                                        {!hasPeakInside && (
+                                          <g>
+                                            <rect
+                                              x={badgeX}
+                                              y={badgeY}
+                                              width={badgeW}
+                                              height={14}
+                                              rx={4}
+                                              fill={isHol ? 'rgba(255, 251, 235, 0.96)' : 'rgba(248, 250, 252, 0.96)'}
+                                              stroke={isHol ? 'rgba(245, 158, 11, 0.5)' : 'rgba(148, 163, 184, 0.42)'}
+                                              strokeWidth={0.85}
+                                            />
+                                            <text
+                                              x={bandX + bandW / 2}
+                                              y={badgeY + 10}
+                                              textAnchor="middle"
+                                              fill={isHol ? '#b45309' : '#475569'}
+                                              fontSize="8.5"
+                                              fontWeight="700"
+                                            >
+                                              {badgeLabel}
+                                            </text>
+                                          </g>
+                                        )}
+                                      </g>
+                                    );
+                                  })}
+                                </g>
+                              );
+                            }}
+                          />
+                        )}
                         <Bar
                           yAxisId="left"
                           dataKey={isTaskMode ? 'totalTasks' : 'totalPoints'}
@@ -5044,6 +5277,25 @@ const CustomTrendTooltip: React.FC<any> = React.memo(({ active, payload, label, 
           {isTasks ? `${fmtInt(row.totalTasks)} tasks` : `${fmtPts(row.totalPoints)} pts`}
         </span>
       </div>
+      {(row.holidayName || row.isWeekend) && (
+        <div
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 mb-2 rounded-md border text-[10.5px] font-semibold ${
+            row.holidayName
+              ? 'bg-amber-50 border-amber-200/90 text-amber-800'
+              : 'bg-slate-100/90 border-slate-200/90 text-slate-600'
+          }`}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: row.holidayName ? '#d97706' : '#64748b' }}
+          />
+          <span>
+            {row.holidayName
+              ? `Holiday${row.dayOfWeek ? ` (${row.dayOfWeek})` : ''} · ${row.holidayName}${row.isWeekend ? ' · Weekend' : ''}`
+              : `Weekend${row.dayOfWeek ? ` · ${row.dayOfWeek}` : ''}`}
+          </span>
+        </div>
+      )}
       <KpiTooltipCategories row={row} isTasks={isTasks} />
       <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] text-slate-500">
         <span>{row.activeStaff} active staff · {row.activeBranches} branches</span>

@@ -3462,6 +3462,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   ? channelActivity.totalTasks
                   : channelTotals[velocityChannel];
               const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
+              const weekendDaysCount = velocitySeries.filter((p) => p.isWeekend && !p.holidayName).length;
+              const holidayPoints = velocitySeries.filter((p) => Boolean(p.holidayName));
+              const holidayDaysCount = holidayPoints.length;
+              const holidayListTitle = holidayPoints
+                .map((p) => `${p.fullLabel || p.label}: ${p.holidayName}`)
+                .join(' · ');
 
               return (
                 <>
@@ -3521,6 +3527,36 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         </span>
                         Active staff
                       </span>
+
+                      {weekendDaysCount > 0 && (
+                        <span
+                          data-dash-legend="weekend"
+                          title="Weekend columns (Saturday & Sunday)"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                            isLight
+                              ? 'bg-slate-50/95 border-slate-200/85 text-slate-600'
+                              : 'bg-slate-800/75 border-slate-700/80 text-slate-300'
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-[3px] bg-slate-400/20 border border-slate-400/50 border-t-2 border-t-slate-500 inline-block shrink-0" aria-hidden="true" />
+                          <span>Weekend ({weekendDaysCount}d)</span>
+                        </span>
+                      )}
+
+                      {holidayDaysCount > 0 && (
+                        <span
+                          data-dash-legend="holiday"
+                          title={holidayListTitle || 'Cambodian Official Public Holiday'}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                            isLight
+                              ? 'bg-amber-50/90 border-amber-200/85 text-amber-800'
+                              : 'bg-amber-950/50 border-amber-700/60 text-amber-300'
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-[3px] bg-amber-500/15 border border-dashed border-amber-500/75 border-t-2 border-t-amber-600 inline-block shrink-0" aria-hidden="true" />
+                          <span>Holiday ({holidayDaysCount}d)</span>
+                        </span>
+                      )}
 
                       {velocityChannel !== 'ALL' && (
                         <button
