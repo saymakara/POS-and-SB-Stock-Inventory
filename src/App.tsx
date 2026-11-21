@@ -66,7 +66,7 @@ import {
 
 import { useKeptMemo } from './utils/useKeptMemo';
 import { clearInventoryCache } from './services/inventoryCache';
-import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError } from './services/materialsService';
+import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError, materialName } from './services/materialsService';
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Building2, Users } from 'lucide-react';
 import {
   RightDrawerFrame,
@@ -117,6 +117,48 @@ import {
   loadServerAuditLogs, staffToUser, INITIAL_NOTIFICATIONS, AppProfile, sessionFromProfile,
 } from './app/appSetup';
 
+
+function buildRequisitionNotification(req: Requisition): SystemNotification {
+  const matParts = Object.entries(req.materials || {})
+    .filter(([, q]) => Number(q) > 0)
+    .map(([code, q]) => `${Number(q)}x ${materialName(code)}`);
+  const qtyParts: string[] = [];
+  if (req.posQty > 0) qtyParts.push(`${req.posQty}x POS`);
+  if (req.sbQty > 0) qtyParts.push(`${req.sbQty}x Sound Box`);
+  if (req.type === 'STOCK_RETURN' && qtyParts.length === 0 && (req.returnSerials?.length || 0) > 0) {
+    qtyParts.push(`${req.returnSerials!.length} unit(s)`);
+  }
+  const summaryParts = [...qtyParts, ...matParts];
+  const summary = summaryParts.length ? summaryParts.join(', ') : 'stock replenishment';
+  const branchLabel = req.branchName
+    ? `Branch Code ${req.branchId} — ${req.branchName}`
+    : `Branch Code ${req.branchId}`;
+  const isReturn = req.type === 'STOCK_RETURN';
+  const title = isReturn
+    ? `Return Request from Branch Staff • ${req.reqId}`
+    : `Request from Branch Staff • ${req.reqId}`;
+  const serialSuffix = isReturn && req.returnSerials?.length ? ` (${req.returnSerials.join(', ')})` : '';
+  const message = isReturn
+    ? `Branch Staff ${req.staff} (${branchLabel}) requested return of ${summary}${serialSuffix}: "${req.reason}"`
+    : `${req.staff} (${branchLabel}) requested ${summary}: "${req.reason}"`;
+  const rawDate = String(req.date || '').trim();
+  const timestamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(rawDate)
+    ? `${rawDate}:00`
+    : /^\d{4}-\d{2}-\d{2}/.test(rawDate)
+    ? rawDate
+    : stampSecPP();
+
+  return {
+    id: `REQ:${req.reqId}`,
+    title,
+    message,
+    category: 'REQUEST',
+    timestamp,
+    read: false,
+    branchId: req.branchId,
+    targetTab: 'requisitions',
+  };
+}
 
 export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // (22 Oct 2026) with the shared database the session is the server profile (never the browser's stored copy)
@@ -1365,6 +1407,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }, duration);
   }, []);
 
+  const reqAlertTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerReqAlertBanner = useCallback((notif: SystemNotification) => {
+    setActiveAlertNotif(notif);
+    if (reqAlertTimerRef.current) clearTimeout(reqAlertTimerRef.current);
+    reqAlertTimerRef.current = setTimeout(() => {
+      setActiveAlertNotif((prev) => (prev?.id === notif.id ? null : prev));
+    }, 7000);
+  }, []);
+
   const addNotification = useCallback(
     (
       title: string,
@@ -1389,13 +1440,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         targetTab: targetTab || 'requisitions',
       };
       setNotifications((prev) => [notif, ...prev.slice(0, 59)]);
-      setActiveAlertNotif(notif);
-      setTimeout(() => {
-        setActiveAlertNotif((prev) => (prev?.id === notif.id ? null : prev));
-      }, 7000);
+      triggerReqAlertBanner(notif);
     },
-    []
+    [triggerReqAlertBanner]
   );
+
+  useEffect(() => {
+    return () => {
+      if (reqAlertTimerRef.current) clearTimeout(reqAlertTimerRef.current);
+    };
+  }, []);
 
   // (22 Oct 2026) the signed-in person, and what a branch account may act on (its own branch only)
   const operatorLabel = role === 'BRANCH' ? selectedStaffUser : activeAdminStaff || authUsername;
@@ -2116,6 +2170,82 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     return inScope.filter((r) => r.branchId === selectedBranch);
   }, [requisitions, ppDirectoryScope, role, selectedBranch]);
 
+  // Sync pending stock requests (from Merchant Visit app via Supabase Realtime, server loads, and local submits)
+  // directly into portal Bell notifications and trigger the live floating alert banner for brand new arrivals.
+  const reqSyncInitRef = React.useRef(false);
+  const knownPendingReqIdsRef = React.useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (isSupabaseConfigured && !serverReady) return;
+
+    const allPendingIds = requisitions.filter((r) => r.status === 'PENDING_ADMIN').map((r) => r.reqId);
+    const pendingReqs = scopedRequisitions
+      .filter((r) => r.status === 'PENDING_ADMIN')
+      .slice()
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || b.reqId.localeCompare(a.reqId));
+    const builtList = pendingReqs.map(buildRequisitionNotification);
+    const builtByNotifId = new Map(builtList.map((n) => [n.id, n]));
+
+    let newestArrival: SystemNotification | null = null;
+    if (reqSyncInitRef.current) {
+      for (let i = 0; i < pendingReqs.length; i++) {
+        if (!knownPendingReqIdsRef.current.has(pendingReqs[i].reqId)) {
+          newestArrival = builtList[i];
+          break;
+        }
+      }
+    } else {
+      reqSyncInitRef.current = true;
+    }
+    knownPendingReqIdsRef.current = new Set(allPendingIds);
+
+    setNotifications((prev) => {
+      const prevReadById = new Map<string, boolean>();
+      const nonReqNotifs: SystemNotification[] = [];
+      for (const n of prev) {
+        if (n.id.startsWith('REQ:')) {
+          prevReadById.set(n.id, n.read);
+          continue;
+        }
+        const m = n.title.match(/\b((?:REQ|RET)-[A-Z0-9-]+)\b/);
+        if (m) {
+          prevReadById.set(`REQ:${m[1]}`, n.read);
+          continue;
+        }
+        nonReqNotifs.push(n);
+      }
+
+      const mergedReqNotifs = builtList.map((n) =>
+        prevReadById.has(n.id) ? { ...n, read: prevReadById.get(n.id)! } : n
+      );
+      const next = [...mergedReqNotifs, ...nonReqNotifs].slice(0, 60);
+      if (
+        next.length === prev.length &&
+        next.every(
+          (n, idx) =>
+            n.id === prev[idx].id &&
+            n.read === prev[idx].read &&
+            n.title === prev[idx].title &&
+            n.message === prev[idx].message &&
+            n.timestamp === prev[idx].timestamp
+        )
+      ) {
+        return prev;
+      }
+      return next;
+    });
+
+    setActiveAlertNotif((prev) => {
+      if (prev && prev.id.startsWith('REQ:') && !builtByNotifId.has(prev.id)) {
+        return null;
+      }
+      return prev;
+    });
+
+    if (newestArrival) {
+      triggerReqAlertBanner(newestArrival);
+    }
+  }, [requisitions, scopedRequisitions, serverReady, triggerReqAlertBanner]);
+
   // Fast O(1) serial index map for instant lookups
   const deviceBySerialMap = useMemo(() => {
     const map = new Map<string, Device>();
@@ -2535,14 +2665,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     addAuditLog(
       'Stock Return Request Submitted',
       `Submitted return request ${newReq.reqId} for ${serials.length} unit(s) (${serials.join(', ')}) from Branch Code ${targetBranchId}`
-    );
-
-    addNotification(
-      `Return Request from Branch Staff • ${newReq.reqId}`,
-      `Branch Staff ${actor} (Branch Code ${targetBranchId} — ${newReq.branchName}) requested return of ${serials.length} unit(s) (${serials.join(', ')}) to Admin HQ Stock: "${reason}"`,
-      'REQUEST',
-      targetBranchId,
-      'requisitions'
     );
 
     triggerToast(`Return Request ${newReq.reqId} submitted! Notified Admin HQ & Super Admin`);
@@ -3428,14 +3550,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     addAuditLog(
       'Stock Request Submitted',
       `Submitted ${newReq.reqId} for ${newReq.posQty}x POS & ${newReq.sbQty}x Sound Box${matText ? ` + ${matText}` : ''} (Branch Code ${reqData.branchId})`
-    );
-
-    addNotification(
-      `Request from Branch Staff • ${newReq.reqId}`,
-      `Branch Staff ${newReq.staff} (Branch Code ${reqData.branchId} — ${newReq.branchName}) requested ${newReq.posQty}x POS & ${newReq.sbQty}x Sound Box: "${newReq.reason}"`,
-      'REQUEST',
-      reqData.branchId,
-      'requisitions'
     );
 
     triggerToast(`Alert Sent! Request ${newReq.reqId} notified to Admin HQ & Super Admin`);

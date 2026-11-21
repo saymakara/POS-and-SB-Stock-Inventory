@@ -8,6 +8,7 @@ import {
   Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
+import { todayPP } from '../utils/time';
 import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
@@ -540,6 +541,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
   const formatNotifTime = (timestamp: string) => {
     if (!timestamp) return '';
+    const today = todayPP();
+    const mDate = timestamp.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const datePrefix =
+      mDate && `${mDate[1]}-${mDate[2]}-${mDate[3]}` !== today
+        ? `${Number(mDate[3])} ${MONTHS[Number(mDate[2]) - 1] || mDate[2]}, `
+        : '';
     try {
       const d = new Date(timestamp);
       if (!isNaN(d.getTime())) {
@@ -547,7 +555,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         const mm = String(d.getMinutes()).padStart(2, '0');
         const ampm = hh >= 12 ? 'PM' : 'AM';
         hh = hh % 12 || 12;
-        return `${hh}:${mm} ${ampm}`;
+        return `${datePrefix}${hh}:${mm} ${ampm}`;
       }
     } catch {
       // fallback to manual string parsing
@@ -563,7 +571,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       const mm = parts[1]?.slice(0, 2);
       const ampm = hh >= 12 ? 'PM' : 'AM';
       const hour12 = hh % 12 || 12;
-      return `${hour12}:${mm} ${ampm}`;
+      return `${datePrefix}${hour12}:${mm} ${ampm}`;
     }
     return timePart;
   };
@@ -996,9 +1004,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     ) : (
                       notifications.map((n) => {
                         const cleanTitle = n.title.replace(
-                          /^Request from Branch Staff\s*[•·-]\s*/i,
+                          /^(?:Return )?Request from Branch Staff\s*[•·-]\s*/i,
                           ''
                         );
+                        const badgeLabel = /^Return Request/i.test(n.title)
+                          ? 'Stock Return'
+                          : /App Push/i.test(n.title)
+                          ? 'App Push'
+                          : 'Stock Request';
                         return (
                           <button
                             key={n.id}
@@ -1037,7 +1050,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                     {cleanTitle}
                                   </span>
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-900/8 text-zinc-800 border border-zinc-200 shrink-0">
-                                    Stock Request
+                                    {badgeLabel}
                                   </span>
                                 </div>
                                 <span className="text-[11px] font-mono text-slate-400 shrink-0">

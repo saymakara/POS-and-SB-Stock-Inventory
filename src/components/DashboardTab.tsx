@@ -10,7 +10,6 @@ import {
   LifecycleStage,
   getBatteryLifecycleStatus,
 } from '../types';
-import { STAGE_META } from '../data/initialData';
 import {
   CrossChannelVelocityChart,
   CrossChannelDayPoint,
@@ -67,7 +66,6 @@ import {
   BatteryCharging,
   FileSpreadsheet,
   Building2,
-  ScrollText,
   Package,
   RefreshCw,
   Boxes,
@@ -3906,764 +3904,291 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </section>
       </div>
 
-      {/* ───────────── 5. ROW 3: SYSTEM WORKFLOW QUEUES, FLEET & COVERAGE, PLATFORM TELEMETRY ───────────── */}
-      <div
-        className="grid grid-cols-1 lg:grid-cols-12 gap-5"
-        aria-label="System Operations & Telemetry"
-      >
-        {/* Card 3A: Hardware Readiness (3-Bucket Warehouse to Live Visualization) */}
-        <section
-          data-stock-card="hardware"
-          className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
-        >
-          {(() => {
-            const readyTotal = hardwareSummary.hq + hardwareSummary.reserve;
-            const readyPos = hardwareSummary.posHq + hardwareSummary.posReserve;
-            const readySb = hardwareSummary.sbHq + hardwareSummary.sbReserve;
-            const issueCount = hardwareSummary.faulty + hardwareSummary.lost;
-            const pipelineTotal = Math.max(0, readyTotal + hardwareSummary.config + hardwareSummary.installed);
-            const fmtShare = (n: number, denom: number) => {
-              if (denom <= 0 || n <= 0) return '0%';
-              const pct = (n / denom) * 100;
-              if (pct < 0.1) return '<0.1%';
-              if (pct >= 99 && pct < 100) return `${pct.toFixed(1)}%`;
-              return pct >= 10 ? `${Math.round(pct)}%` : `${pct.toFixed(1)}%`;
-            };
-            const pipelineSegs = [
-              { key: 'BUF', label: 'Buffer', count: readyTotal, color: '#155484' },
-              { key: 'SET', label: 'Setup', count: hardwareSummary.config, color: CHANNEL_COLORS.cc },
-              { key: 'LIV', label: 'Live', count: hardwareSummary.installed, color: CHANNEL_COLORS.mv },
-            ];
-            const pillPosClass = isLight
-              ? 'bg-[#184e77]/[0.08] border border-[#184e77]/15 text-[#184e77]'
-              : 'bg-[#184e77]/30 border border-[#5cc8ff]/20 text-sky-200';
-            const pillSbClass = isLight
-              ? 'bg-[#4F518C]/[0.08] border border-[#4F518C]/15 text-[#4F518C]'
-              : 'bg-[#4F518C]/30 border border-[#a2a5e0]/20 text-indigo-200';
-
-            return (
-              <>
-                <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                        isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'
-                      }`}
-                    >
-                      <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        Hardware Readiness
-                      </h3>
-                      <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {fmtNum(hardwareSummary.total)} units · {fmtShare(readyTotal, pipelineTotal)} Ready · {fmtShare(hardwareSummary.installed, pipelineTotal)} Live
-                      </p>
-                    </div>
-                  </div>
-                  {onNavigateTab && (
-                    <button
-                      type="button"
-                      onClick={() => onNavigateTab('inventory')}
-                      className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
-                        isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                      }`}
-                    >
-                      Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-2.5">
-                  {/* Proportional 3-Stage Pipeline Readiness Track */}
-                  <div
-                    className={`${kpiCardClass} rounded-[12px] px-3 py-2 space-y-1.5`}
-                    aria-label="Pipeline readiness mix"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[10.5px]">
-                      <span className={`font-semibold ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                        Pipeline Mix
-                      </span>
-                      <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-figure tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {pipelineSegs.map((seg) => (
-                          <span key={seg.key} className="inline-flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                            <span>{seg.label}</span>
-                            <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>
-                              {fmtShare(seg.count, pipelineTotal)}
-                            </strong>
-                          </span>
-                        ))}
+      {/* ───────────── 5. ROW 3: CLEAN MINIMAL STOCK SUMMARY + COMPACT PLATFORM TELEMETRY ───────────── */}
+      <div className="space-y-5" aria-label="System Operations & Telemetry">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Card 3A: Hardware Summary */}
+          <section
+            data-stock-card="hardware"
+            className={`${iosCardClass} overflow-hidden flex flex-col justify-between p-5 gap-3.5`}
+          >
+            {(() => {
+              const readyTotal = hardwareSummary.hq + hardwareSummary.reserve;
+              const readyPos = hardwareSummary.posHq + hardwareSummary.posReserve;
+              const readySb = hardwareSummary.sbHq + hardwareSummary.sbReserve;
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                          isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'
+                        }`}
+                      >
+                        <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className={`text-[14px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          Hardware Summary
+                        </h3>
+                        <p className={`text-[11.5px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Warehouse vs deployed overview
+                        </p>
                       </div>
                     </div>
-                    <div className={`h-2 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${isLight ? 'bg-slate-200/75' : 'bg-slate-800'}`}>
-                      {pipelineTotal > 0 &&
-                        pipelineSegs.map(
-                          (seg) =>
-                            seg.count > 0 && (
-                              <div
-                                key={seg.key}
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{
-                                  width: `${Math.max(1.5, (seg.count / pipelineTotal) * 100)}%`,
-                                  backgroundColor: seg.color,
-                                }}
-                                title={`${seg.label}: ${fmtNum(seg.count)} (${fmtShare(seg.count, pipelineTotal)})`}
-                              />
-                            )
-                        )}
-                    </div>
+                    {onNavigateTab && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('inventory')}
+                        className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
+                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                        }`}
+                      >
+                        Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex flex-col gap-2 flex-1 justify-center" aria-label="Hardware readiness buckets">
-                    {/* Bucket 1: Ready Stock Buffer (HQ + Branches) */}
+                  <div className="grid grid-cols-3 gap-2.5">
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('inventory')}
-                      title={`Ready Stock Buffer: ${fmtNum(hardwareSummary.hq)} HQ · ${fmtNum(hardwareSummary.reserve)} Branches (POS ${fmtNum(readyPos)} · SB ${fmtNum(readySb)})`}
-                      className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                      title={`HQ ${fmtNum(hardwareSummary.hq)} · Branches ${fmtNum(hardwareSummary.reserve)} (POS ${fmtNum(readyPos)} · SB ${fmtNum(readySb)})`}
+                      className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      <div className="min-w-0 flex items-start gap-2.5">
-                        <span
-                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
-                            isLight ? 'bg-[#155484]/12 text-[#155484]' : 'bg-[#155484]/40 text-sky-200'
-                          }`}
-                        >
-                          1
-                        </span>
-                        <div className="min-w-0">
-                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                            Ready Stock Buffer
-                          </div>
-                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            HQ <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.hq)}</strong> · Branches{' '}
-                            <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.reserve)}</strong>
-                          </div>
-                        </div>
+                      <div className={`text-[10.5px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Ready Stock
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {fmtNum(readyTotal)}
-                        </div>
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
-                            POS {fmtNum(readyPos)}
-                          </span>
-                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
-                            SB {fmtNum(readySb)}
-                          </span>
-                        </div>
+                      <div className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {fmtNum(readyTotal)}
                       </div>
                     </button>
 
-                    {/* Bucket 2: Configuring / Push Setup */}
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('push_configuring')}
-                      title={`Configuring / Push Setup: POS ${fmtNum(hardwareSummary.posConfig)} · SB ${fmtNum(hardwareSummary.sbConfig)}`}
-                      className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                      title={`Configuring / Push: POS ${fmtNum(hardwareSummary.posConfig)} · SB ${fmtNum(hardwareSummary.sbConfig)}`}
+                      className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
                         isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      <div className="min-w-0 flex items-start gap-2.5">
-                        <span
-                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
-                            hardwareSummary.config > 0
-                              ? isLight
-                                ? 'bg-amber-500/15 text-amber-700'
-                                : 'bg-amber-500/25 text-amber-300'
-                              : isLight
-                                ? 'bg-slate-200/80 text-slate-500'
-                                : 'bg-slate-700 text-slate-400'
-                          }`}
-                        >
-                          2
-                        </span>
-                        <div className="min-w-0">
-                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                            Configuring / Push
-                          </div>
-                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            {queues.pushPend > 0
-                              ? `${fmtNum(queues.pushPend)} awaiting push dispatch`
-                              : 'In transit to merchant activation'}
-                          </div>
-                        </div>
+                      <div className={`text-[10.5px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Setup
                       </div>
-                      <div className="text-right shrink-0">
-                        <div
-                          className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${
-                            hardwareSummary.config > 0
-                              ? isLight
-                                ? 'text-amber-700'
-                                : 'text-amber-300'
-                              : isLight
-                                ? 'text-slate-400'
-                                : 'text-slate-500'
-                          }`}
-                        >
-                          {fmtNum(hardwareSummary.config)}
-                        </div>
-                        {(hardwareSummary.posConfig > 0 || hardwareSummary.sbConfig > 0) && (
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            {hardwareSummary.posConfig > 0 && (
-                              <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
-                                POS {fmtNum(hardwareSummary.posConfig)}
-                              </span>
-                            )}
-                            {hardwareSummary.sbConfig > 0 && (
-                              <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
-                                SB {fmtNum(hardwareSummary.sbConfig)}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                      <div
+                        className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${
+                          hardwareSummary.config > 0
+                            ? isLight ? 'text-amber-700' : 'text-amber-300'
+                            : isLight ? 'text-slate-500' : 'text-slate-400'
+                        }`}
+                      >
+                        {fmtNum(hardwareSummary.config)}
                       </div>
                     </button>
 
-                    {/* Bucket 3: Deployed Live */}
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('merchants')}
-                      title={`Deployed Live: POS ${fmtNum(hardwareSummary.posInstalled)} · SB ${fmtNum(hardwareSummary.sbInstalled)} across ${fmtNum(hardwareSummary.liveUniqueMerchants)} active merchant MIDs`}
-                      className={`w-full text-left rounded-[14px] px-3.5 py-2.5 border flex items-center justify-between gap-3 cursor-pointer transition ${
+                      title={`Deployed Live: POS ${fmtNum(hardwareSummary.posInstalled)} · SB ${fmtNum(hardwareSummary.sbInstalled)} across ${fmtNum(hardwareSummary.liveUniqueMerchants)} active MIDs`}
+                      className={`text-left rounded-[14px] px-3.5 py-2.5 border cursor-pointer transition ${
                         isLight
-                          ? 'bg-[#2d6a4f]/[0.05] border-[#2d6a4f]/25 hover:border-[#2d6a4f]/45'
+                          ? 'bg-emerald-50/75 border-emerald-200/80 hover:border-emerald-300 hover:bg-emerald-50'
                           : 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50'
                       }`}
                     >
-                      <div className="min-w-0 flex items-start gap-2.5">
-                        <span
-                          className={`mt-0.5 w-5 h-5 rounded-full text-[10px] font-bold font-figure flex items-center justify-center shrink-0 ${
-                            isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/25 text-emerald-200'
+                      <div className={`text-[10.5px] font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                        Live MIDs
+                      </div>
+                      <div className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                        {fmtNum(hardwareSummary.installed)}
+                      </div>
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </section>
+
+          {/* Card 3B: Accessories & SIMs */}
+          <section
+            data-stock-card="materials"
+            className={`${iosCardClass} overflow-hidden flex flex-col justify-between p-5 gap-3.5`}
+          >
+            {(() => {
+              const batteriesTotal = materialsSummary.kitSkus.find((s) => s.code === 'BATTERY')?.total ?? 0;
+              const adaptorsKitsTotal = materialsSummary.kitSkus
+                .filter((s) => s.code !== 'BATTERY')
+                .reduce((acc, s) => acc + s.total, 0);
+              const openReqsCount = reqStats.pending.length;
+
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                          isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/20 text-emerald-300'
+                        }`}
+                      >
+                        <Package className="w-3.5 h-3.5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className={`text-[14px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          Accessories &amp; SIMs
+                        </h3>
+                        <p className={`text-[11.5px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Clean count summary
+                        </p>
+                      </div>
+                    </div>
+                    {onNavigateTab && (
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => onNavigateTab('sim_cards')}
+                          className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                            isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
                           }`}
                         >
-                          3
-                        </span>
-                        <div className="min-w-0">
-                          <div className={`text-[12px] font-bold truncate ${isLight ? 'text-[#1b4332]' : 'text-emerald-200'}`}>
-                            Deployed Live
-                          </div>
-                          <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                            Active at <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.liveUniqueMerchants)}</strong> merchant MIDs
-                          </div>
-                        </div>
+                          SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateTab('requisitions')}
+                          className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                            isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                          }`}
+                        >
+                          Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}`}>
-                          {fmtNum(hardwareSummary.installed)}
-                        </div>
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillPosClass}`}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
-                            POS {fmtNum(hardwareSummary.posInstalled)}
-                          </span>
-                          <span className={`text-[10px] font-bold font-figure px-1.5 py-[2px] rounded-full inline-flex items-center gap-1 ${pillSbClass}`}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
-                            SB {fmtNum(hardwareSummary.sbInstalled)}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
+                    )}
                   </div>
 
-                  {/* Faulty / Lost health strip */}
-                  <div className={`pt-2 border-t flex items-center justify-between gap-2 text-[11px] ${kpiFooterBorderClass}`}>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('inventory_pos')}
+                      title={`Batteries total: ${fmtNum(batteriesTotal)}`}
+                      className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
+                      }`}
+                    >
+                      <div className={`text-[10.5px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Batteries
+                      </div>
+                      <div className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {fmtNum(batteriesTotal)}
+                      </div>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('inventory')}
-                      className={`inline-flex items-center gap-3 cursor-pointer transition ${
-                        isLight ? 'text-slate-600 hover:text-[#004e75]' : 'text-slate-300 hover:text-sky-300'
+                      title={`Adaptors & Kits: ${fmtNum(adaptorsKitsTotal)} · SIMs: ${fmtNum(materialsSummary.simTotal)}`}
+                      className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      <span>
-                        Faulty:{' '}
-                        <strong className={`font-figure ${hardwareSummary.faulty > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : (isLight ? 'text-slate-900' : 'text-white')}`}>
-                          {fmtNum(hardwareSummary.faulty)}
-                        </strong>
-                      </span>
-                      <span>
-                        Lost:{' '}
-                        <strong className={`font-figure ${hardwareSummary.lost > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : (isLight ? 'text-slate-900' : 'text-white')}`}>
-                          {fmtNum(hardwareSummary.lost)}
-                        </strong>
-                      </span>
+                      <div className={`text-[10.5px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Adaptors/Kits
+                      </div>
+                      <div className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {fmtNum(adaptorsKitsTotal)}
+                      </div>
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('inventory')}
-                      className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition shrink-0 ${
-                        issueCount === 0
-                          ? isLight
-                            ? 'bg-emerald-100/90 text-emerald-700 hover:bg-emerald-200/80'
-                            : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                          : isLight
-                            ? 'bg-rose-100 text-rose-700 hover:bg-rose-200/80'
-                            : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
+                      onClick={() => onNavigateTab?.('requisitions')}
+                      title={`Pending: ${fmtNum(openReqsCount)} · Received: ${fmtNum(reqStats.received)} · Rejected: ${fmtNum(reqStats.rejected)}`}
+                      className={`text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300 hover:bg-slate-100/70' : 'hover:border-slate-600'
                       }`}
                     >
-                      {issueCount === 0 ? 'All Units Healthy' : `${fmtNum(issueCount)} Units Flagged`}
+                      <div className={`text-[10.5px] font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Open Reqs
+                      </div>
+                      <div className={`text-[20px] font-extrabold font-figure tabular-nums leading-tight mt-0.5 ${isLight ? 'text-[#155484]' : 'text-sky-300'}`}>
+                        {fmtNum(openReqsCount)}
+                      </div>
                     </button>
                   </div>
-                </div>
-              </>
-            );
-          })()}
-        </section>
+                </>
+              );
+            })()}
+          </section>
+        </div>
 
-        {/* Card 3B: SIM Card Fleet, Kit Materials & Stock Requisitions Visualization */}
-        <section
-          data-stock-card="materials"
-          className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
-        >
-          {(() => {
-            const simSegs = [
-              { key: 'HQ', label: 'HQ', count: materialsSummary.simHq, color: CHANNEL_COLORS.pos },
-              { key: 'RES', label: 'Res', count: materialsSummary.simReserve, color: CHANNEL_COLORS.sb },
-              { key: 'TR', label: 'Transit', count: materialsSummary.simInTransit, color: CHANNEL_COLORS.cc },
-              { key: 'MCH', label: 'Merchant', count: materialsSummary.simAtMerchant, color: CHANNEL_COLORS.mv },
-              { key: 'BAD', label: 'Lost/Faulty', count: materialsSummary.simBad, color: '#e11d48' },
-            ];
-            const simMerchantPct =
-              materialsSummary.simTotal > 0
-                ? Math.round((materialsSummary.simAtMerchant / materialsSummary.simTotal) * 100)
-                : 0;
-            const maxKitSku = Math.max(1, ...materialsSummary.kitSkus.map((s) => s.total));
-            const reqPendingCount = reqStats.pending.length;
-
-            return (
-              <>
-                <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                        isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/20 text-emerald-300'
-                      }`}
-                    >
-                      <Package className="w-3.5 h-3.5" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        SIM &amp; Materials Stock
-                      </h3>
-                      <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {fmtNum(materialsSummary.simTotal)} SIMs · {fmtNum(materialsSummary.kitTotal)} kit units · {fmtNum(reqStats.total)} reqs
-                      </p>
-                    </div>
-                  </div>
-                  {onNavigateTab && (
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab('sim_cards')}
-                        className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                        }`}
-                      >
-                        SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab('requisitions')}
-                        className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                        }`}
-                      >
-                        Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-2.5">
-                  {/* SIM Card Fleet Stacked Distribution */}
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab?.('sim_cards')}
-                    className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-1.5 transition cursor-pointer ${
-                      isLight ? 'hover:border-slate-300 hover:bg-slate-100/75' : 'hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                        SIM Card Fleet · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.simTotal)}</strong> serials
-                      </span>
-                      <span
-                        className={`text-[10.5px] font-figure font-bold px-2 py-[1px] rounded-full shrink-0 ${
-                          simMerchantPct > 0
-                            ? isLight
-                              ? 'bg-[#2d6a4f]/12 text-[#2d6a4f]'
-                              : 'bg-emerald-500/20 text-emerald-300'
-                            : isLight
-                              ? 'bg-slate-200/75 text-slate-600'
-                              : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {simMerchantPct}% Live
-                      </span>
-                    </div>
-                    <div
-                      data-stock-bar="sim-fleet"
-                      className={`h-2 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
-                        isLight ? 'bg-slate-200/75' : 'bg-slate-800'
-                      }`}
-                    >
-                      {materialsSummary.simTotal > 0 &&
-                        simSegs.map(
-                          (seg) =>
-                            seg.count > 0 && (
-                              <div
-                                key={seg.key}
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{
-                                  width: `${Math.max(2, (seg.count / materialsSummary.simTotal) * 100)}%`,
-                                  backgroundColor: seg.color,
-                                }}
-                                title={`${seg.label}: ${fmtNum(seg.count)}`}
-                              />
-                            )
-                        )}
-                    </div>
-                    <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] font-figure tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {simSegs.map((seg) => (
-                        <span key={seg.key} className="inline-flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                          <span>{seg.label}</span>
-                          <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{fmtNum(seg.count)}</strong>
-                        </span>
-                      ))}
-                    </div>
-                  </button>
-
-                  {/* Kit Materials Stock by SKU (5 SKUs) inside clean hairline frame */}
-                  <div
-                    className={`${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-1.5 flex-1 flex flex-col justify-between`}
-                    aria-label="Kit materials stock chart"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[10.5px]">
-                      <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                        Kit Materials · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitTotal)}</strong> units
-                      </span>
-                      <span className={`inline-flex items-center gap-2 shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.pos }} /> Stock
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.cc }} /> Transit
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.mv }} /> Merchant
-                        </span>
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      {materialsSummary.kitSkus.map((sku) => {
-                        const targetTab = sku.deviceType === 'SB' ? 'inventory_sb' : 'inventory_pos';
-                        // Power-scaled bar span (max 100%, min 8% when > 0) preserves visibility of smaller SKUs alongside Batteries while showing relative volume
-                        const spanPct =
-                          sku.total > 0
-                            ? Math.max(8, Math.min(100, Math.round(Math.pow(sku.total / maxKitSku, 0.38) * 100)))
-                            : 0;
-                        return (
-                          <button
-                            key={sku.code}
-                            type="button"
-                            onClick={() => onNavigateTab?.(targetTab)}
-                            title={`${sku.name} (${sku.deviceType}): ${fmtNum(sku.onHand)} stock · ${fmtNum(sku.inTransit)} transit · ${fmtNum(sku.atMerchant)} merchant`}
-                            className={`w-full text-left rounded-lg px-2 py-1 transition cursor-pointer ${
-                              isLight ? 'hover:bg-white/90' : 'hover:bg-slate-800/60'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="inline-flex items-center gap-1.5 min-w-0">
-                                <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                                  {sku.name}
-                                </span>
-                                <span
-                                  className={`text-[9px] font-bold px-1.5 py-[1px] rounded uppercase shrink-0 ${
-                                    sku.deviceType === 'SB'
-                                      ? isLight
-                                        ? 'bg-[#4F518C]/12 text-[#4F518C]'
-                                        : 'bg-[#4F518C]/30 text-[#a2a5e0]'
-                                      : isLight
-                                        ? 'bg-[#184e77]/12 text-[#184e77]'
-                                        : 'bg-[#184e77]/30 text-[#5cc8ff]'
-                                  }`}
-                                >
-                                  {sku.deviceType}
-                                </span>
-                              </span>
-                              <span className="inline-flex items-center gap-2 shrink-0 tabular-nums font-figure">
-                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  {sku.total > 0
-                                    ? `${fmtNum(sku.onHand)} · ${fmtNum(sku.inTransit)} tr · ${fmtNum(sku.atMerchant)} mch`
-                                    : 'No units'}
-                                </span>
-                                <span
-                                  className={`min-w-[36px] text-right font-bold ${
-                                    sku.total === 0
-                                      ? isLight
-                                        ? 'text-slate-400'
-                                        : 'text-slate-500'
-                                      : isLight
-                                        ? 'text-slate-900'
-                                        : 'text-white'
-                                  }`}
-                                >
-                                  {fmtNum(sku.total)}
-                                </span>
-                              </span>
-                            </div>
-                            <div
-                              data-material-sku-bar={sku.code}
-                              className={`mt-1 h-[5.5px] w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
-                                isLight ? 'bg-slate-200/75' : 'bg-slate-800'
-                              }`}
-                            >
-                              {sku.total > 0 && (
-                                <>
-                                  {sku.onHand > 0 && (
-                                    <div
-                                      className="h-full rounded-full transition-all duration-300"
-                                      style={{
-                                        width: `${Math.max(2, (sku.onHand / sku.total) * spanPct)}%`,
-                                        backgroundColor: CHANNEL_COLORS.pos,
-                                      }}
-                                    />
-                                  )}
-                                  {sku.inTransit > 0 && (
-                                    <div
-                                      className="h-full rounded-full transition-all duration-300"
-                                      style={{
-                                        width: `${Math.max(2, (sku.inTransit / sku.total) * spanPct)}%`,
-                                        backgroundColor: CHANNEL_COLORS.cc,
-                                      }}
-                                    />
-                                  )}
-                                  {sku.atMerchant > 0 && (
-                                    <div
-                                      className="h-full rounded-full transition-all duration-300"
-                                      style={{
-                                        width: `${Math.max(2, (sku.atMerchant / sku.total) * spanPct)}%`,
-                                        backgroundColor: CHANNEL_COLORS.mv,
-                                      }}
-                                    />
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Stock Requisitions Pipeline Sub-Card */}
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab?.('requisitions')}
-                    className={`w-full text-left ${kpiCardClass} rounded-[12px] px-3.5 py-2 space-y-1.5 cursor-pointer group transition ${
-                      isLight ? 'hover:border-slate-300 hover:bg-slate-100/75' : 'hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700 group-hover:text-[#004e75]' : 'text-slate-200 group-hover:text-sky-300'}`}>
-                        <ScrollText className="w-3 h-3 shrink-0" aria-hidden="true" />
-                        Stock Requisitions ({fmtNum(reqStats.total)})
-                      </span>
-                      <span className={`font-figure text-[10.5px] tabular-nums shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        <strong className={reqPendingCount > 0 ? (isLight ? 'text-amber-700' : 'text-amber-300') : ''}>{fmtNum(reqPendingCount)}</strong> pend ·{' '}
-                        <strong className={isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}>{fmtNum(reqStats.received)}</strong> recv ·{' '}
-                        <strong className={reqStats.rejected > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : ''}>{fmtNum(reqStats.rejected)}</strong> rej
-                      </span>
-                    </div>
-                    <div
-                      data-stock-bar="requisitions"
-                      className={`h-1.5 w-full rounded-full overflow-hidden flex items-center gap-[1.5px] ${
-                        isLight ? 'bg-slate-200/75' : 'bg-slate-800'
-                      }`}
-                    >
-                      {reqStats.total > 0 && (
-                        <>
-                          {reqPendingCount > 0 && (
-                            <div
-                              className="h-full rounded-full transition-all duration-300"
-                              style={{
-                                width: `${Math.max(3, (reqPendingCount / reqStats.total) * 100)}%`,
-                                backgroundColor: CHANNEL_COLORS.cc,
-                              }}
-                            />
-                          )}
-                          {reqStats.received > 0 && (
-                            <div
-                              className="h-full rounded-full transition-all duration-300"
-                              style={{
-                                width: `${Math.max(3, (reqStats.received / reqStats.total) * 100)}%`,
-                                backgroundColor: CHANNEL_COLORS.mv,
-                              }}
-                            />
-                          )}
-                          {reqStats.rejected > 0 && (
-                            <div
-                              className="h-full rounded-full transition-all duration-300"
-                              style={{
-                                width: `${Math.max(3, (reqStats.rejected / reqStats.total) * 100)}%`,
-                                backgroundColor: '#e11d48',
-                              }}
-                            />
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              </>
-            );
-          })()}
-        </section>
-
-        {/* Card 3C: Platform Telemetry & Recent Activity */}
-        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
+        {/* Compact Platform Health & Activity Strip */}
+        <section className={`${iosCardClass} px-5 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3`}>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 min-w-0">
+            <div className="flex items-center gap-2.5">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                   systemTelemetry.errorCount === 0
-                    ? isLight
-                      ? 'bg-emerald-500/15 text-emerald-600'
-                      : 'bg-emerald-500/20 text-emerald-300'
-                    : isLight
-                      ? 'bg-rose-500/15 text-rose-600'
-                      : 'bg-rose-500/20 text-rose-300'
+                    ? isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'
+                    : isLight ? 'bg-rose-500/15 text-rose-600' : 'bg-rose-500/20 text-rose-300'
                 }`}
               >
                 <Activity className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <div className="min-w-0">
-                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <div>
+                <h3 className={`text-[13px] font-bold leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   Platform Health &amp; Activity
                 </h3>
-                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Session speed, kits &amp; live events
+                <p className={`text-[11px] leading-tight ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {isSupabaseConfigured ? 'Cloud Live' : 'Local'} · {fmtNum(systemTelemetry.apiCallsCount)} calls ·{' '}
+                  {systemTelemetry.apiMedianMs !== null ? `${systemTelemetry.apiMedianMs} ms` : 'Cached'} ·{' '}
+                  <span className={systemTelemetry.errorCount === 0 ? (isLight ? 'text-emerald-700 font-semibold' : 'text-emerald-300 font-semibold') : (isLight ? 'text-rose-600 font-semibold' : 'text-rose-400 font-semibold')}>
+                    {systemTelemetry.errorCount} err
+                  </span>
                 </p>
               </div>
             </div>
-            {onNavigateTab && isAdminLike && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab(role === 'SUPER_ADMIN' ? 'settings' : 'audit_log')}
-                className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
-                  isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
-                }`}
-              >
-                {role === 'SUPER_ADMIN' ? 'Health' : 'Audit'} <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
 
-          <div className="px-6 pb-5 space-y-3 flex-1 flex flex-col justify-between">
-            <div className="grid grid-cols-3 gap-2">
-              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Backend</div>
-                <div className={`text-xs font-bold mt-0.5 inline-flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  {isSupabaseConfigured ? 'Cloud Live' : 'Local'}
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-                  {fmtNum(systemTelemetry.apiCallsCount)} calls
-                </div>
-              </div>
+            <div className={`hidden sm:block h-6 w-px ${isLight ? 'bg-slate-200/80' : 'bg-slate-700/70'}`} />
 
-              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">API Speed</div>
-                <div className={`text-xs font-bold font-figure tabular-nums mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {systemTelemetry.apiMedianMs !== null ? `${systemTelemetry.apiMedianMs} ms` : 'Cached'}
-                </div>
-                <div className="text-[10px] font-figure text-slate-400 mt-0.5 truncate">
-                  P95 {systemTelemetry.apiP95Ms !== null ? `${systemTelemetry.apiP95Ms} ms` : '—'}
-                </div>
-              </div>
-
-              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Errors / LCP</div>
-                <div className={`text-xs font-bold font-figure tabular-nums mt-0.5 ${
-                  systemTelemetry.errorCount === 0
-                    ? isLight ? 'text-emerald-700' : 'text-emerald-300'
-                    : isLight ? 'text-rose-600' : 'text-rose-400'
-                }`}>
-                  {systemTelemetry.errorCount} err
-                </div>
-                <div className="text-[10px] font-figure text-slate-400 mt-0.5 truncate">
-                  {systemTelemetry.lcpMs !== null ? `${(systemTelemetry.lcpMs / 1000).toFixed(2)}s LCP` : 'Healthy'}
-                </div>
-              </div>
-            </div>
-
-            <div className={`${kpiCardClass} rounded-[14px] px-3 py-2 flex items-center justify-between gap-2 text-[11px]`}>
-              <span className={`font-medium truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                QR Kits ({materialsSummary.activeTypesCount} SKUs): <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitOnHand)}</strong> stock · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitAtMerchant)}</strong> merchant
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] min-w-0">
+              <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>
+                SIMs <strong className={`font-figure ${isLight ? 'text-slate-800' : 'text-white'}`}>{fmtNum(materialsSummary.simTotal)}</strong>
               </span>
-              <span className={`font-figure font-semibold shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                {fmtNum(materialsSummary.kitInTransit)} transit
-              </span>
-            </div>
-
-            <div className={`divide-y ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
               {systemTelemetry.auditRows.length > 0 ? (
-                systemTelemetry.auditRows.map((ev) => (
-                  <div key={ev.id} className="py-2 first:pt-0.5 last:pb-0 flex items-center justify-between gap-2.5">
-                    <div className="min-w-0">
-                      <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-                        {ev.title || ev.action || 'System event'}
-                      </div>
-                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {ev.actorName || ev.actorEmp || 'System'}{ev.branchId ? ` · Code ${ev.branchId}` : ''}{ev.target ? ` · ${ev.target}` : ''}
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-mono shrink-0 px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-slate-800 text-slate-400'}`}>
-                      {ev.createdAt ? ev.createdAt.slice(0, 10) : 'Audit'}
-                    </span>
-                  </div>
-                ))
+                <span className={`truncate max-w-[380px] ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Latest:{' '}
+                  <strong className={isLight ? 'text-slate-900' : 'text-white'}>
+                    {systemTelemetry.auditRows[0].title || systemTelemetry.auditRows[0].action || 'System event'}
+                  </strong>
+                  {systemTelemetry.auditRows[0].actorName ? ` · ${systemTelemetry.auditRows[0].actorName}` : ''}
+                </span>
               ) : recentDevices.length > 0 ? (
-                recentDevices.slice(0, 3).map((dev) => (
-                  <button
-                    key={dev.serial}
-                    type="button"
-                    onClick={() => onSelectDevice(dev.serial)}
-                    className={`w-full text-left py-2 first:pt-0.5 last:pb-0 flex items-center justify-between gap-2.5 cursor-pointer group ${
-                      isLight ? 'hover:bg-slate-50/70' : 'hover:bg-slate-800/30'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className={`text-xs font-mono font-bold truncate transition ${
-                        isLight ? 'text-slate-900 group-hover:text-[#004e75]' : 'text-white group-hover:text-sky-400'
-                      }`}>
-                        {dev.serial} · {dev.type}
-                      </div>
-                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        Code {dev.branchId}{dev.merchantName ? ` · ${dev.merchantName}` : ` · ${dev.model}`}
-                      </div>
-                    </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${STAGE_META[dev.stage]?.badgeClassLight || ''}`}>
-                      {STAGE_META[dev.stage]?.short || dev.stage}
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <div className="py-4 text-center text-xs text-slate-400">
-                  No recent system activity recorded yet.
-                </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => onSelectDevice(recentDevices[0].serial)}
+                  className={`truncate max-w-[380px] text-left cursor-pointer transition ${
+                    isLight ? 'text-slate-600 hover:text-[#004e75]' : 'text-slate-300 hover:text-sky-300'
+                  }`}
+                >
+                  Latest unit:{' '}
+                  <strong className="font-mono">{recentDevices[0].serial}</strong> · {recentDevices[0].type} (Code {recentDevices[0].branchId})
+                </button>
+              ) : null}
             </div>
           </div>
+
+          {onNavigateTab && isAdminLike && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab(role === 'SUPER_ADMIN' ? 'settings' : 'audit_log')}
+              className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition self-start lg:self-auto ${
+                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+              }`}
+            >
+              {role === 'SUPER_ADMIN' ? 'Health' : 'Audit'} <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          )}
         </section>
       </div>
     </div>
