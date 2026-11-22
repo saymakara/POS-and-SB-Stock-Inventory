@@ -31,9 +31,13 @@ import { getCachedAudit } from '../services/auditCache';
 import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
 import {
   fetchMonthlyInstallFieldEvents,
+  getCachedMonthlyInstallBuckets,
   getCachedMonthlyInstallFieldEvents,
+  getCachedMonthlyInstallFieldEventsCoveredDays,
+  setCachedMonthlyInstallBuckets,
   subscribeToFieldEvents,
   type FieldInstallSummaryRow,
+  type MonthlyInstallSessionBucket,
   type StaffAccount,
 } from '../services/supabaseService';
 import {
@@ -440,8 +444,10 @@ interface MonthlyInstallComparisonData {
   sb: number[];
   priorPos?: number;
   priorSb?: number;
-  latestMomPct: number | null;
-  latestMomText: string;
+  latestPosMomPct: number | null;
+  latestPosMomText: string;
+  latestSbMomPct: number | null;
+  latestSbMomText: string;
   totalPos: number;
   totalSb: number;
   totalInstalls: number;
@@ -451,6 +457,7 @@ interface MonthlyInstallComparisonData {
   latestSb: number;
   peakMonthLabel: string;
   peakMonthTotal: number;
+  allBuckets?: MonthlyInstallSessionBucket[];
 }
 
 function fieldEventMonthPP(recordedAt?: string | null, receivedAt?: string | null): string {
@@ -1014,58 +1021,65 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
         >
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
                 isLight
                   ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
                   : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
               }`}
             >
-              <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
+              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
               <span>POS Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalPos)}
               </span>
+              {!loading && data.latestPosMomText && (
+                <span
+                  className={`inline-flex items-center gap-1 font-figure font-semibold text-[10px] pl-1 ml-0.5 border-l ${
+                    isLight ? 'border-slate-200' : 'border-slate-700'
+                  } ${
+                    data.latestPosMomPct === null
+                      ? isLight ? 'text-sky-700' : 'text-sky-300'
+                      : data.latestPosMomPct > 0
+                        ? isLight ? 'text-emerald-700' : 'text-emerald-400'
+                        : data.latestPosMomPct < 0
+                          ? isLight ? 'text-rose-700' : 'text-rose-400'
+                          : isLight ? 'text-slate-600' : 'text-slate-300'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLight ? 'bg-sky-600' : 'bg-sky-400'}`} aria-hidden="true" />
+                  {data.latestPosMomText}
+                </span>
+              )}
             </span>
 
             <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
                 isLight
                   ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
                   : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
               }`}
             >
-              <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
+              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
               <span>Sound Box Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalSb)}
               </span>
-            </span>
-
-            <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
-                isLight
-                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
-                  : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
-              }`}
-            >
-              <span className="inline-flex items-center shrink-0" aria-hidden="true">
-                <span className={`w-3 h-0.5 rounded-full ${isLight ? 'bg-amber-600' : 'bg-amber-400'}`} />
-                <span className={`w-1.5 h-1.5 rounded-full -ml-1.5 ${isLight ? 'bg-amber-600' : 'bg-amber-400'}`} />
-              </span>
-              <span>MoM</span>
-              {!loading && data.latestMomText && (
+              {!loading && data.latestSbMomText && (
                 <span
-                  className={`font-figure font-bold tabular-nums ${
-                    data.latestMomPct === null
-                      ? isLight ? 'text-amber-700' : 'text-amber-300'
-                      : data.latestMomPct > 0
+                  className={`inline-flex items-center gap-1 font-figure font-semibold text-[10px] pl-1 ml-0.5 border-l ${
+                    isLight ? 'border-slate-200' : 'border-slate-700'
+                  } ${
+                    data.latestSbMomPct === null
+                      ? isLight ? 'text-violet-700' : 'text-violet-300'
+                      : data.latestSbMomPct > 0
                         ? isLight ? 'text-emerald-700' : 'text-emerald-400'
-                        : data.latestMomPct < 0
+                        : data.latestSbMomPct < 0
                           ? isLight ? 'text-rose-700' : 'text-rose-400'
-                          : isLight ? 'text-slate-700' : 'text-slate-200'
+                          : isLight ? 'text-slate-600' : 'text-slate-300'
                   }`}
                 >
-                  {data.latestMomText}
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLight ? 'bg-violet-600' : 'bg-violet-400'}`} aria-hidden="true" />
+                  {data.latestSbMomText}
                 </span>
               )}
             </span>
@@ -1614,11 +1628,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [simFallbackCounts, setSimFallbackCounts] = useState<Record<SerialStatus, number> | null>(
     () => getCachedSerialStatusCounts('SIM', branchScopedId || undefined) || null
   );
+  const neededInstallDays = installHorizon === '12M' ? 430 : 220;
+  const installScopeKey = `${branchScopedId || 'PP'}:${ppDirectoryScope.hasDirectory ? 'dir' : 'raw'}`;
+
   const [fieldInstalls, setFieldInstalls] = useState<FieldInstallSummaryRow[] | null>(
     () => getCachedMonthlyInstallFieldEvents()
   );
   const [fieldInstallsLoading, setFieldInstallsLoading] = useState<boolean>(
-    () => isSupabaseConfigured && getCachedMonthlyInstallFieldEvents() === null
+    () =>
+      isSupabaseConfigured &&
+      getCachedMonthlyInstallFieldEvents() === null &&
+      getCachedMonthlyInstallBuckets(installScopeKey, neededInstallDays) === null
   );
   const [syncing, setSyncing] = useState(false);
 
@@ -1681,23 +1701,30 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [branchScopedId]
   );
 
-  const loadFieldInstalls = useCallback(async (force = false) => {
+  const loadFieldInstalls = useCallback(async (force = false, minDays = neededInstallDays, silent = false) => {
     const seq = ++fieldInstallsSeqRef.current;
-    if (!getCachedMonthlyInstallFieldEvents()) {
+    const cachedRows = getCachedMonthlyInstallFieldEvents();
+    const cachedDays = getCachedMonthlyInstallFieldEventsCoveredDays();
+    const hasSession = getCachedMonthlyInstallBuckets(installScopeKey, minDays) !== null;
+    if (!silent && !hasSession && (!cachedRows || cachedDays < minDays)) {
       setFieldInstallsLoading(true);
     }
-    const rows = await fetchMonthlyInstallFieldEvents(force);
+    const rows = await fetchMonthlyInstallFieldEvents(force, minDays);
     if (seq === fieldInstallsSeqRef.current) {
       if (rows !== null) setFieldInstalls(rows);
       setFieldInstallsLoading(false);
     }
-  }, []);
+  }, [installScopeKey, neededInstallDays]);
 
   const handleSyncAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPeriodMetrics(true), loadInventoryAndSims(true), loadFieldInstalls(true)]);
+    await Promise.allSettled([
+      loadPeriodMetrics(true),
+      loadInventoryAndSims(true),
+      loadFieldInstalls(true, neededInstallDays, true),
+    ]);
     setSyncing(false);
-  }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls]);
+  }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls, neededInstallDays]);
 
   useEffect(() => {
     void loadPeriodMetrics(false);
@@ -1708,8 +1735,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   }, [loadInventoryAndSims]);
 
   useEffect(() => {
-    void loadFieldInstalls(false);
-  }, [loadFieldInstalls]);
+    void loadFieldInstalls(false, neededInstallDays);
+  }, [loadFieldInstalls, neededInstallDays]);
+
+  // Quietly upgrade 220-day fast initial window to full 430-day history once Dashboard settles
+  useEffect(() => {
+    if (!isSupabaseConfigured || fieldInstalls === null) return;
+    if (getCachedMonthlyInstallFieldEventsCoveredDays() >= 430) return;
+    const t = window.setTimeout(() => {
+      void loadFieldInstalls(false, 430, true);
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [fieldInstalls, loadFieldInstalls]);
 
   // Live refresh when a staff member submits or updates an INSTALL record in the Merchant Visit app
   useEffect(() => {
@@ -1719,14 +1756,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       if (ev.kind !== 'INSTALL') return;
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        void loadFieldInstalls(true);
+        void loadFieldInstalls(true, neededInstallDays, true);
       }, 900);
     });
     return () => {
       window.clearTimeout(timer);
       unsub();
     };
-  }, [loadFieldInstalls]);
+  }, [loadFieldInstalls, neededInstallDays]);
 
   // Idle sequential background warm-up of Today, All time, and previous month after initial load settles
   useEffect(() => {
@@ -2360,6 +2397,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [scopedKpiTotals, ccCounts, hardwareSummary.sb, hardwareSummary.pos, queues]);
 
+  const sessionInstallBuckets = useMemo(
+    () => (fieldInstalls === null ? getCachedMonthlyInstallBuckets(installScopeKey, neededInstallDays) : null),
+    [fieldInstalls, installScopeKey, neededInstallDays]
+  );
+
   // Monthly POS Installation vs Sound Box Installation from Merchant Visit app (approved + pending updates)
   const monthlyInstallComparison = useMemo<MonthlyInstallComparisonData>(() => {
     const months = lastMonthsPP(13);
@@ -2416,6 +2458,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           if (e.status === 'PENDING') bucket.pendingPos++;
         }
       });
+    } else if (sessionInstallBuckets) {
+      for (const b of sessionInstallBuckets.buckets) {
+        const bucket = map.get(b.key);
+        if (!bucket) continue;
+        bucket.pos = b.pos;
+        bucket.sb = b.sb;
+        bucket.pendingPos = b.pendingPos;
+        bucket.pendingSb = b.pendingSb;
+      }
     } else if (!fieldInstallsLoading && kpiData?.monthlyStaff?.length) {
       // Fallback only if field_events fetch failed: aggregate strictly scoped Phnom Penh Staff Directory rows
       for (const ms of kpiData.monthlyStaff) {
@@ -2457,28 +2508,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     }
     const latest = sliced[sliced.length - 1];
     const prevLatest = sliced.length >= 2 ? sliced[sliced.length - 2] : priorEntry;
-    const latestTot = (latest?.pos || 0) + (latest?.sb || 0);
-    const prevTot = (prevLatest?.pos || 0) + (prevLatest?.sb || 0);
-    let latestMomPct: number | null = null;
-    let latestMomText = '';
-    if (prevTot > 0) {
-      latestMomPct = ((latestTot - prevTot) / prevTot) * 100;
-      const rounded =
-        Math.abs(latestMomPct) > 0 && Math.abs(latestMomPct) < 10
-          ? Number(latestMomPct.toFixed(1))
-          : Math.round(latestMomPct);
-      latestMomText = rounded > 0 ? `+${fmtNum(rounded)}%` : rounded < 0 ? `-${fmtNum(Math.abs(rounded))}%` : '0%';
-    } else if (latestTot > 0) {
-      latestMomText = 'New';
-    }
+    const calcSeriesMom = (cur: number, prev: number) => {
+      if (prev > 0) {
+        const pct = ((cur - prev) / prev) * 100;
+        const rounded = Math.abs(pct) > 0 && Math.abs(pct) < 10 ? Number(pct.toFixed(1)) : Math.round(pct);
+        return {
+          pct,
+          text: rounded > 0 ? `+${fmtNum(rounded)}%` : rounded < 0 ? `-${fmtNum(Math.abs(rounded))}%` : '0%',
+        };
+      }
+      return { pct: null, text: cur > 0 ? 'New' : '' };
+    };
+    const posMom = calcSeriesMom(latest?.pos || 0, prevLatest?.pos || 0);
+    const sbMom = calcSeriesMom(latest?.sb || 0, prevLatest?.sb || 0);
     return {
       labels: sliced.map((x) => x.label),
       pos: sliced.map((x) => x.pos),
       sb: sliced.map((x) => x.sb),
       priorPos: priorEntry?.pos,
       priorSb: priorEntry?.sb,
-      latestMomPct,
-      latestMomText,
+      latestPosMomPct: posMom.pct,
+      latestPosMomText: posMom.text,
+      latestSbMomPct: sbMom.pct,
+      latestSbMomText: sbMom.text,
       totalPos,
       totalSb,
       totalInstalls: totalPos + totalSb,
@@ -2488,8 +2540,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       latestSb: latest?.sb || 0,
       peakMonthLabel,
       peakMonthTotal,
+      allBuckets: list.map(({ key, pos, sb, pendingPos, pendingSb }) => ({ key, pos, sb, pendingPos, pendingSb })),
     };
-  }, [fieldInstalls, fieldInstallsLoading, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
+  }, [fieldInstalls, fieldInstallsLoading, sessionInstallBuckets, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
+
+  useEffect(() => {
+    if (fieldInstalls === null) return;
+    const covered = getCachedMonthlyInstallFieldEventsCoveredDays();
+    if (covered >= 220 && monthlyInstallComparison.allBuckets) {
+      setCachedMonthlyInstallBuckets(installScopeKey, covered, monthlyInstallComparison.allBuckets);
+    }
+  }, [fieldInstalls, installScopeKey, monthlyInstallComparison]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
@@ -3607,7 +3668,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           horizon={installHorizon}
           onChangeHorizon={setInstallHorizon}
           data={monthlyInstallComparison}
-          loading={fieldInstalls === null && fieldInstallsLoading}
+          loading={
+            (fieldInstalls === null && sessionInstallBuckets === null && fieldInstallsLoading) ||
+            (neededInstallDays > getCachedMonthlyInstallFieldEventsCoveredDays() && fieldInstallsLoading)
+          }
           onNavigateTab={onNavigateTab}
         />
 

@@ -1992,10 +1992,33 @@ export interface FieldInstallSummaryRow {
 const FIELD_INSTALL_SUMMARY_COLUMNS =
   'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,recorded_at,received_at';
 
+export interface MonthlyInstallSessionBucket {
+  key: string;
+  pos: number;
+  sb: number;
+  pendingPos: number;
+  pendingSb: number;
+}
+
+const INSTALL_SESSION_CACHE_PREFIX = 'dash_monthly_installs_v1:';
+const INSTALL_SESSION_TTL_MS = 10 * 60_000;
+
 let fieldInstallsCache: FieldInstallSummaryRow[] | null = null;
 let fieldInstallsCacheAt = 0;
+let fieldInstallsCoveredDays = 0;
 let fieldInstallsInflight: Promise<FieldInstallSummaryRow[] | null> | null = null;
+let fieldInstallsInflightDays = 0;
 let fieldInstallsOwner: string | null | undefined;
+
+function clearMonthlyInstallSessionStorage(): void {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(INSTALL_SESSION_CACHE_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch { /* ignore storage restrictions */ }
+}
 
 if (isSupabaseConfigured) {
   try {
@@ -2004,7 +2027,10 @@ if (isSupabaseConfigured) {
       if (fieldInstallsOwner !== undefined && uid !== fieldInstallsOwner) {
         fieldInstallsCache = null;
         fieldInstallsCacheAt = 0;
+        fieldInstallsCoveredDays = 0;
         fieldInstallsInflight = null;
+        fieldInstallsInflightDays = 0;
+        clearMonthlyInstallSessionStorage();
       }
       fieldInstallsOwner = uid;
     });
@@ -2015,80 +2041,195 @@ export function getCachedMonthlyInstallFieldEvents(): FieldInstallSummaryRow[] |
   return fieldInstallsCache;
 }
 
+export function getCachedMonthlyInstallFieldEventsCoveredDays(): number {
+  return fieldInstallsCoveredDays;
+}
+
+export function getCachedMonthlyInstallBuckets(
+  scopeKey: string,
+  minDays: number
+): { buckets: MonthlyInstallSessionBucket[]; coveredDays: number } | null {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(`${INSTALL_SESSION_CACHE_PREFIX}${scopeKey}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      at?: number;
+      uid?: string | null;
+      coveredDays?: number;
+      buckets?: MonthlyInstallSessionBucket[];
+    };
+    if (!parsed || !Array.isArray(parsed.buckets)) return null;
+    if (typeof parsed.at !== 'number' || Date.now() - parsed.at > INSTALL_SESSION_TTL_MS) return null;
+    if ((parsed.coveredDays || 0) < minDays) return null;
+    if (fieldInstallsOwner !== undefined && parsed.uid !== fieldInstallsOwner) return null;
+    return { buckets: parsed.buckets, coveredDays: parsed.coveredDays || 0 };
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedMonthlyInstallBuckets(
+  scopeKey: string,
+  coveredDays: number,
+  buckets: MonthlyInstallSessionBucket[]
+): void {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(
+      `${INSTALL_SESSION_CACHE_PREFIX}${scopeKey}`,
+      JSON.stringify({
+        at: Date.now(),
+        uid: fieldInstallsOwner ?? null,
+        coveredDays,
+        buckets,
+      })
+    );
+  } catch { /* ignore storage quota errors */ }
+}
+
 export function clearMonthlyInstallFieldEventsCache(): void {
   fieldInstallsCache = null;
   fieldInstallsCacheAt = 0;
+  fieldInstallsCoveredDays = 0;
+  clearMonthlyInstallSessionStorage();
+}
+
+async function fetchFieldInstallStatusStream(
+  status: 'APPROVED' | 'PENDING',
+  sinceIso: string
+): Promise<Array<Record<string, any>>> {
+  const PAGE = 1000;
+  const WAVE_PAGES = 3;
+  const collected: Array<Record<string, any>> = [];
+  const seenIds = new Set<number>();
+
+  const fetchPage = async (offset: number): Promise<Array<Record<string, any>>> => {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select(FIELD_INSTALL_SUMMARY_COLUMNS)
+      .eq('status', status)
+      .eq('kind', 'INSTALL')
+      .gte('received_at', sinceIso)
+      .order('received_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(PAGE)
+      .range(offset, offset + PAGE - 1);
+    if (error) throw error;
+    return (data || []) as Array<Record<string, any>>;
+  };
+
+  const ingest = (rows: Array<Record<string, any>>): number => {
+    let added = 0;
+    for (const r of rows) {
+      const id = Number(r.id);
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        added++;
+        collected.push(r);
+      }
+    }
+    return added;
+  };
+
+  const first = await fetchPage(0);
+  const firstAdded = ingest(first);
+  if (firstAdded === 0 || first.length < PAGE) return collected;
+
+  for (let base = PAGE; base < 50000; base += PAGE * WAVE_PAGES) {
+    const offsets: number[] = [];
+    for (let i = 0; i < WAVE_PAGES && base + i * PAGE < 50000; i++) {
+      offsets.push(base + i * PAGE);
+    }
+    const wave = await Promise.all(offsets.map((off) => fetchPage(off)));
+    let waveAdded = 0;
+    let shouldContinue = true;
+    for (const page of wave) {
+      waveAdded += ingest(page);
+      if (page.length < PAGE) {
+        shouldContinue = false;
+        break;
+      }
+    }
+    if (!shouldContinue || waveAdded === 0) break;
+  }
+
+  return collected;
 }
 
 /**
  * Fetches Merchant Visit app INSTALL submissions (`APPROVED` and `PENDING` — unapproved updates
- * still count) for the trailing 14 months so the Dashboard monthly comparison reflects live app activity.
+ * still count) using parallel index-aligned status streams and batched parallel pagination.
+ * Defaults to 220 days (~7 months for fast default 6M/3M paint) and expands up to 430 days on demand.
  */
-export async function fetchMonthlyInstallFieldEvents(force = false): Promise<FieldInstallSummaryRow[] | null> {
+export async function fetchMonthlyInstallFieldEvents(
+  force = false,
+  minDays = 220
+): Promise<FieldInstallSummaryRow[] | null> {
   if (!isSupabaseConfigured) return null;
-  if (!force && fieldInstallsCache && Date.now() - fieldInstallsCacheAt < 45_000) {
+  const targetDays = Math.max(220, minDays);
+  if (
+    !force &&
+    fieldInstallsCache &&
+    fieldInstallsCoveredDays >= targetDays &&
+    Date.now() - fieldInstallsCacheAt < 45_000
+  ) {
     return fieldInstallsCache;
   }
-  if (!force && fieldInstallsInflight) return fieldInstallsInflight;
+  if (!force && fieldInstallsInflight && fieldInstallsInflightDays >= targetDays) {
+    return fieldInstallsInflight;
+  }
 
-  const task = (async () => {
+  let task!: Promise<FieldInstallSummaryRow[] | null>;
+  task = (async () => {
     try {
-      const sinceIso = new Date(Date.now() - 430 * 86400000).toISOString();
+      const sinceIso = new Date(Date.now() - targetDays * 86400000).toISOString();
+      const [approvedRows, pendingRows] = await Promise.all([
+        fetchFieldInstallStatusStream('APPROVED', sinceIso),
+        fetchFieldInstallStatusStream('PENDING', sinceIso),
+      ]);
+
       const out: FieldInstallSummaryRow[] = [];
       const seenIds = new Set<number>();
-
-      for (let offset = 0; offset < 50000; offset += 1000) {
-        const { data, error } = await supabase
-          .from('field_events')
-          .select(FIELD_INSTALL_SUMMARY_COLUMNS)
-          .eq('kind', 'INSTALL')
-          .in('status', ['APPROVED', 'PENDING'])
-          .gte('received_at', sinceIso)
-          .order('received_at', { ascending: false })
-          .order('id', { ascending: false })
-          .limit(1000)
-          .range(offset, offset + 999);
-        if (error) throw error;
-        const rows = data || [];
-        let added = 0;
-        for (const r of rows as Array<Record<string, any>>) {
-          const id = Number(r.id);
-          if (!seenIds.has(id)) {
-            seenIds.add(id);
-            added++;
-            if (r.kind !== 'INSTALL') continue;
-            if (r.status !== 'APPROVED' && r.status !== 'PENDING') continue;
-            out.push({
-              id,
-              sourceRecordId: String(r.source_record_id || ''),
-              unitNo: Number(r.unit_no) || 1,
-              revision: Number(r.revision) || 1,
-              deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
-              status: r.status,
-              branchId: r.branch_id ?? null,
-              branchText: String(r.branch_text || ''),
-              staffId: String(r.staff_id || ''),
-              staffName: String(r.staff_name || ''),
-              recordedAt: String(r.recorded_at || ''),
-              receivedAt: String(r.received_at || ''),
-            });
-          }
-        }
-        if (added === 0 || rows.length < 1000) break;
+      for (const r of [...pendingRows, ...approvedRows]) {
+        const id = Number(r.id);
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+        if (r.kind !== 'INSTALL') continue;
+        if (r.status !== 'APPROVED' && r.status !== 'PENDING') continue;
+        out.push({
+          id,
+          sourceRecordId: String(r.source_record_id || ''),
+          unitNo: Number(r.unit_no) || 1,
+          revision: Number(r.revision) || 1,
+          deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
+          status: r.status,
+          branchId: r.branch_id ?? null,
+          branchText: String(r.branch_text || ''),
+          staffId: String(r.staff_id || ''),
+          staffName: String(r.staff_name || ''),
+          recordedAt: String(r.recorded_at || ''),
+          receivedAt: String(r.received_at || ''),
+        });
       }
 
       fieldInstallsCache = out;
       fieldInstallsCacheAt = Date.now();
+      fieldInstallsCoveredDays = targetDays;
       return out;
     } catch (err) {
       await reportCaughtError('fetchMonthlyInstallFieldEvents', err, { showPopup: false });
       return null;
     } finally {
-      fieldInstallsInflight = null;
+      if (fieldInstallsInflight === task) {
+        fieldInstallsInflight = null;
+        fieldInstallsInflightDays = 0;
+      }
     }
   })();
 
   fieldInstallsInflight = task;
+  fieldInstallsInflightDays = targetDays;
   return task;
 }
 

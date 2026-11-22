@@ -206,28 +206,31 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       const v2 = series2Data[idx] || 0;
       const p1 = idx === 0 ? priorSeries1Value : series1Data[idx - 1] || 0;
       const p2 = idx === 0 ? priorSeries2Value : series2Data[idx - 1] || 0;
-      const pTot = p1 !== undefined && p2 !== undefined ? p1 + p2 : undefined;
       return {
-        total: calcMomDelta(v1 + v2, pTot),
         s1: calcMomDelta(v1, p1),
         s2: calcMomDelta(v2, p2),
       };
     });
-    const numericPcts = momPoints
-      .map((m) => m.total.pct)
-      .filter((v): v is number => v !== null);
-    const pctScale = nicePercentScale(numericPcts, scale.steps);
+    const numericPcts: number[] = [];
     let maxGainIdx = -1;
     let maxDropIdx = -1;
+    let maxGainVal = -Infinity;
+    let maxDropVal = Infinity;
     momPoints.forEach((m, i) => {
-      if (m.total.pct === null) return;
-      if (m.total.pct > 0 && (maxGainIdx === -1 || m.total.pct > (momPoints[maxGainIdx].total.pct ?? -Infinity))) {
-        maxGainIdx = i;
-      }
-      if (m.total.pct < 0 && (maxDropIdx === -1 || m.total.pct < (momPoints[maxDropIdx].total.pct ?? Infinity))) {
-        maxDropIdx = i;
+      for (const d of [m.s1, m.s2]) {
+        if (d.pct === null) continue;
+        numericPcts.push(d.pct);
+        if (d.pct > 0 && d.pct > maxGainVal) {
+          maxGainVal = d.pct;
+          maxGainIdx = i;
+        }
+        if (d.pct < 0 && d.pct < maxDropVal) {
+          maxDropVal = d.pct;
+          maxDropIdx = i;
+        }
       }
     });
+    const pctScale = nicePercentScale(numericPcts, scale.steps);
     return {
       scale,
       pctScale,
@@ -306,8 +309,10 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     const hasMomOverlay =
       showMomChangeLine &&
       hasData &&
-      momPoints.some((m) => m.total.pct !== null || m.total.isNew);
-    const momAccent = isLight ? '#d97706' : '#fbbf24';
+      momPoints.some((m) => m.s1.pct !== null || m.s1.isNew || m.s2.pct !== null || m.s2.isNew);
+    const s1LineColor = isLight ? '#0284c7' : '#38bdf8';
+    const s2LineColor = isLight ? '#7c3aed' : '#a78bfa';
+    const momZeroAccent = isLight ? '#64748b' : '#94a3b8';
 
     ctx.font = `600 10.5px ${chartFont}`;
     const maxAxisW = ctx.measureText(fmt(maxVal)).width;
@@ -356,7 +361,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       const vs = fmt(val);
       ctx.fillText(vs, Math.max(2, padLeft - 7 - ctx.measureText(vs).width), y + 3);
       if (hasMomOverlay && rightLabels[i]) {
-        ctx.fillStyle = isZeroPctLine ? momAccent : axisTextColor;
+        ctx.fillStyle = isZeroPctLine ? momZeroAccent : axisTextColor;
         ctx.fillText(rightLabels[i], width - padRight + 8, y + 3);
       }
     }
@@ -453,98 +458,118 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 8);
     });
 
-    // Style 1 Overlay: Dual-Axis Smooth MoM % Trend Line + Green/Red Pill Callouts
+    // Dual Separate MoM % Lines (POS % Line & Sound Box % Line) with collision-free pill badges
     if (hasMomOverlay) {
       const pctRange = Math.max(1, pctScale.max - pctScale.min);
       const pctToY = (pv: number) => baseY - ((pv - pctScale.min) / pctRange) * plotH;
-      const nodes: Array<{
+      const haloStroke = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.94)';
+
+      interface TrendNode {
+        seriesIdx: 1 | 2;
+        lineColor: string;
         idx: number;
         x: number;
         y: number;
         pct: number | null;
         isNew: boolean;
         text: string;
-      }> = momPoints.map((m, idx) => {
-        const cx = padLeft + (idx + 0.5) * groupW;
-        if (m.total.pct !== null) {
-          return { idx, x: cx, y: pctToY(m.total.pct), pct: m.total.pct, isNew: false, text: m.total.text };
-        }
-        if (m.total.isNew) {
-          return { idx, x: cx, y: pctToY(0), pct: null, isNew: true, text: m.total.text };
-        }
-        return { idx, x: cx, y: baseY, pct: null, isNew: false, text: '' };
-      });
+      }
 
-      // Split into contiguous active runs so empty zero-gaps don't connect artificially
-      const runs: Array<typeof nodes> = [];
-      let curRun: typeof nodes = [];
-      nodes.forEach((n) => {
-        if (n.pct !== null || n.isNew) {
-          curRun.push(n);
-        } else if (curRun.length > 0) {
-          runs.push(curRun);
-          curRun = [];
-        }
-      });
-      if (curRun.length > 0) runs.push(curRun);
+      const seriesSpecs: Array<{ seriesIdx: 1 | 2; lineColor: string; pick: (m: (typeof momPoints)[number]) => MomDelta }> = [
+        { seriesIdx: 1, lineColor: s1LineColor, pick: (m) => m.s1 },
+        { seriesIdx: 2, lineColor: s2LineColor, pick: (m) => m.s2 },
+      ];
 
-      // Draw connecting segments (dashed amber for starter 'New -> pct', smooth solid amber curve for numeric pcts)
-      runs.forEach((run) => {
-        if (run.length < 2) return;
-        for (let i = 1; i < run.length; i++) {
-          const prev = run[i - 1];
-          const curr = run[i];
-          const isStarter = prev.isNew || curr.isNew;
+      const allNodes: TrendNode[] = [];
+
+      seriesSpecs.forEach(({ seriesIdx, lineColor, pick }) => {
+        const nodes: TrendNode[] = momPoints.map((m, idx) => {
+          const d = pick(m);
+          const gx = padLeft + idx * groupW + (groupW - barW * 2 - barGap) / 2;
+          const cx = seriesIdx === 1 ? gx + barW / 2 : gx + barW + barGap + barW / 2;
+          if (d.pct !== null) {
+            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(d.pct), pct: d.pct, isNew: false, text: d.text };
+          }
+          if (d.isNew) {
+            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(0), pct: null, isNew: true, text: d.text };
+          }
+          return { seriesIdx, lineColor, idx, x: cx, y: baseY, pct: null, isNew: false, text: '' };
+        });
+
+        const runs: TrendNode[][] = [];
+        let curRun: TrendNode[] = [];
+        nodes.forEach((n) => {
+          if (n.pct !== null || n.isNew) {
+            curRun.push(n);
+          } else if (curRun.length > 0) {
+            runs.push(curRun);
+            curRun = [];
+          }
+        });
+        if (curRun.length > 0) runs.push(curRun);
+
+        runs.forEach((run) => {
+          if (run.length < 2) return;
+          for (let i = 1; i < run.length; i++) {
+            const prev = run[i - 1];
+            const curr = run[i];
+            const isStarter = prev.isNew || curr.isNew;
+            const midX = (prev.x + curr.x) / 2;
+
+            // Crisp halo stroke so line stays readable over dark bar fills
+            ctx.save();
+            ctx.strokeStyle = haloStroke;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            if (isStarter) ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(prev.x, prev.y);
+            ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.save();
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = isStarter ? 1.8 : 2.2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            if (isStarter) ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(prev.x, prev.y);
+            ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+
+        nodes.forEach((n) => {
+          if (n.pct === null && !n.isNew) return;
+          const isHov = hover?.idx === n.idx;
+          const r = isHov ? 4.8 : 3.6;
           ctx.save();
-          ctx.strokeStyle = momAccent;
-          ctx.lineWidth = isStarter ? 1.8 : 2.35;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          if (isStarter) ctx.setLineDash([4, 4]);
+          ctx.fillStyle = lineColor;
+          ctx.strokeStyle = haloStroke;
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.moveTo(prev.x, prev.y);
-          const midX = (prev.x + curr.x) / 2;
-          // Gentle horizontal-tangent S-curve between monthly MoM nodes
-          ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
           ctx.restore();
-        }
+          allNodes.push(n);
+        });
       });
 
-      // Draw circular node markers
-      const haloStroke = isLight ? '#ffffff' : '#0f172a';
-      nodes.forEach((n) => {
-        if (n.pct === null && !n.isNew) return;
-        const isHov = hover?.idx === n.idx;
-        const fill = n.isNew
-          ? momAccent
-          : (n.pct ?? 0) > 0
-            ? isLight ? '#059669' : '#10b981'
-            : (n.pct ?? 0) < 0
-              ? isLight ? '#e11d48' : '#fb7185'
-              : momAccent;
-        const r = isHov ? 5.2 : 4.0;
-        ctx.save();
-        ctx.fillStyle = fill;
-        ctx.strokeStyle = haloStroke;
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      // Draw green/red/neutral pill callouts with collision avoidance
-      const priorityOrder = nodes
+      const priorityOrder = allNodes
         .filter((n) => n.text)
         .sort((a, b) => {
-          const rank = (n: typeof a) =>
+          const rank = (n: TrendNode) =>
             (hover?.idx === n.idx ? 1000 : 0) +
             (n.idx === lastIdx ? 400 : 0) +
             (n.idx === maxGainIdx ? 200 : 0) +
             (n.idx === maxDropIdx ? 150 : 0) +
             (n.pct !== null ? 50 : 10) +
+            n.seriesIdx * 2 +
             n.idx;
           return rank(b) - rank(a);
         });
@@ -555,50 +580,51 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
       priorityOrder.forEach((n) => {
         const tw = ctx.measureText(n.text).width;
-        const pillW = Math.ceil(tw + 12);
+        const dotSpace = 10;
+        const pillW = Math.ceil(tw + dotSpace + 11);
         const minX = padLeft + 2;
         const maxX = Math.max(minX, width - padRight - pillW - 2);
-        const px = Math.min(maxX, Math.max(minX, Math.round(n.x - pillW / 2)));
+        const preferredX = n.x - pillW / 2;
+        const pxCandidates = [
+          Math.min(maxX, Math.max(minX, Math.round(preferredX))),
+          Math.min(maxX, Math.max(minX, Math.round(n.x - pillW + 4))),
+          Math.min(maxX, Math.max(minX, Math.round(n.x - 4))),
+        ];
 
         const isUp = (n.pct ?? 0) > 0;
         const isDown = (n.pct ?? 0) < 0;
-        const preferAbove = !isDown;
-        const offsets = preferAbove
-          ? [-(pillH + 8), 9, -(pillH + 22), 23, -(pillH + 34)]
-          : [9, -(pillH + 8), 23, -(pillH + 22), -(pillH + 34)];
+        const dyCandidates = isDown
+          ? [9, -(pillH + 8), 23, -(pillH + 22), -(pillH + 34)]
+          : [-(pillH + 8), 9, -(pillH + 22), 23, -(pillH + 34)];
 
-        let chosenY: number | null = null;
-        for (const dy of offsets) {
+        let chosenPos: { x: number; y: number } | null = null;
+        outer: for (const dy of dyCandidates) {
           const cy = Math.round(n.y + dy);
           if (cy < 4 || cy + pillH > baseY - 3) continue;
-          const cand: BoxRect = { x: px, y: cy, w: pillW, h: pillH };
-          const hitsPlaced = placedPills.some((r) => rectsOverlap(cand, r, 3));
-          const hitsBarLabel = occupiedLabelRects.some((r) => rectsOverlap(cand, r, 2));
-          if (!hitsPlaced && !hitsBarLabel) {
-            chosenY = cy;
-            break;
+          for (const cx of pxCandidates) {
+            const cand: BoxRect = { x: cx, y: cy, w: pillW, h: pillH };
+            const hitsPlaced = placedPills.some((r) => rectsOverlap(cand, r, 3));
+            const hitsBarLabel = occupiedLabelRects.some((r) => rectsOverlap(cand, r, 2));
+            if (!hitsPlaced && !hitsBarLabel) {
+              chosenPos = { x: cx, y: cy };
+              break outer;
+            }
           }
         }
-        if (chosenY === null) return;
+        if (!chosenPos) return;
 
-        placedPills.push({ x: px, y: chosenY, w: pillW, h: pillH });
+        placedPills.push({ x: chosenPos.x, y: chosenPos.y, w: pillW, h: pillH });
 
-        const bg = n.isNew
-          ? isLight ? 'rgba(255, 251, 235, 0.96)' : 'rgba(120, 53, 15, 0.92)'
-          : isUp
-            ? isLight ? 'rgba(236, 253, 245, 0.96)' : 'rgba(6, 78, 59, 0.92)'
-            : isDown
-              ? isLight ? 'rgba(255, 241, 242, 0.96)' : 'rgba(136, 19, 55, 0.92)'
-              : isLight ? 'rgba(248, 250, 252, 0.96)' : 'rgba(30, 41, 59, 0.92)';
+        const bg = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.94)';
         const border = n.isNew
-          ? isLight ? 'rgba(245, 158, 11, 0.45)' : 'rgba(251, 191, 36, 0.45)'
+          ? isLight ? 'rgba(148, 163, 184, 0.55)' : 'rgba(148, 163, 184, 0.45)'
           : isUp
-            ? isLight ? 'rgba(16, 185, 129, 0.42)' : 'rgba(52, 211, 153, 0.45)'
+            ? isLight ? 'rgba(16, 185, 129, 0.48)' : 'rgba(52, 211, 153, 0.45)'
             : isDown
-              ? isLight ? 'rgba(244, 63, 94, 0.42)' : 'rgba(251, 113, 133, 0.45)'
-              : isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(148, 163, 184, 0.35)';
+              ? isLight ? 'rgba(244, 63, 94, 0.48)' : 'rgba(251, 113, 133, 0.45)'
+              : isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.35)';
         const txtColor = n.isNew
-          ? isLight ? '#b45309' : '#fcd34d'
+          ? isLight ? '#475569' : '#cbd5e1'
           : isUp
             ? isLight ? '#047857' : '#6ee7b7'
             : isDown
@@ -609,11 +635,18 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         ctx.fillStyle = bg;
         ctx.strokeStyle = border;
         ctx.lineWidth = 1;
-        roundRectPath(ctx, px, chosenY, pillW, pillH, 999);
+        roundRectPath(ctx, chosenPos.x, chosenPos.y, pillW, pillH, 999);
         ctx.fill();
         ctx.stroke();
+
+        // Series color dot inside pill identifies POS (sky) vs Sound Box (violet)
+        ctx.fillStyle = n.lineColor;
+        ctx.beginPath();
+        ctx.arc(chosenPos.x + 8, chosenPos.y + pillH / 2, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = txtColor;
-        ctx.fillText(n.text, px + 6, chosenY + 12);
+        ctx.fillText(n.text, chosenPos.x + 14, chosenPos.y + 12);
         ctx.restore();
       });
     }
@@ -671,13 +704,6 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       </canvas>
       {hover && hasData && labels[hover.idx] !== undefined && (() => {
         const m = chartStats.momPoints[hover.idx];
-        const badgeCls = (d?: MomDelta) => {
-          if (!d || (!d.isNew && d.pct === null)) return '';
-          if (d.isNew) return isLight ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/20 text-amber-300';
-          if ((d.pct ?? 0) > 0) return isLight ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-500/20 text-emerald-300';
-          if ((d.pct ?? 0) < 0) return isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-500/20 text-rose-300';
-          return isLight ? 'bg-slate-100 text-slate-600' : 'bg-slate-800 text-slate-300';
-        };
         const deltaTextCls = (d?: MomDelta) => {
           if (!d || (!d.isNew && d.pct === null)) return 'text-slate-400';
           if (d.isNew) return isLight ? 'text-amber-600' : 'text-amber-300';
@@ -703,9 +729,9 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
           >
             <div className={`flex items-center justify-between gap-3 font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
               <span>{labels[hover.idx]}</span>
-              {showMomChangeLine && m?.total.text && (
-                <span className={`font-figure font-semibold text-[10px] px-1.5 py-0.5 rounded-full ${badgeCls(m.total)}`}>
-                  {m.total.text} MoM
+              {showMomChangeLine && (
+                <span className={`font-figure font-medium text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
+                  MoM %
                 </span>
               )}
             </div>

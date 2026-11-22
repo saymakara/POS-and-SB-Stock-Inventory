@@ -572,6 +572,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
   
   const [staffLevelFilter, setStaffLevelFilter] = useState<'all' | 'field' | 'management'>('all');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | KpiRating>('ALL');
   const [dailyMatrixMonth, setDailyMatrixMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -615,6 +616,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     } else if (mode === 'branch') {
       setTableMode('branch');
       setBranchSubView('summary');
+      setStatusFilter((prev) => (prev === 'Management (Exempt)' ? 'ALL' : prev));
     } else if (mode === 'staff') {
       setTableMode('staff');
       setStaffSubView('summary');
@@ -1363,6 +1365,32 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       return staffSortDir === 'asc' ? numA - numB : numB - numA;
     });
   }, [enrichedStaff, isAdmin, userBranchId, branchFilter, categoryFilter, deferredQuery, staffSortKey, staffSortDir, staffLevelFilter]);
+
+  const statusFilteredBranches = useMemo(
+    () => (statusFilter === 'ALL' ? filteredBranches : filteredBranches.filter((b) => b.rating === statusFilter)),
+    [filteredBranches, statusFilter]
+  );
+
+  const statusFilteredStaff = useMemo(
+    () => (statusFilter === 'ALL' ? filteredStaff : filteredStaff.filter((s) => s.rating === statusFilter)),
+    [filteredStaff, statusFilter]
+  );
+
+  const matrixStatusCounts = useMemo(() => {
+    const base = tableMode === 'branch' ? filteredBranches : filteredStaff;
+    const counts: Record<'ALL' | KpiRating, number> = {
+      ALL: base.length,
+      Outstanding: 0,
+      'Meet Target': 0,
+      'Near/Below Target': 0,
+      'Needs Improvement': 0,
+      'Management (Exempt)': 0,
+    };
+    for (const row of base) {
+      counts[row.rating] = (counts[row.rating] || 0) + 1;
+    }
+    return counts;
+  }, [tableMode, filteredBranches, filteredStaff]);
 
   const totals = useMemo(() => {
     const raw: KpiRawCounts = {
@@ -2317,48 +2345,49 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     };
   }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap, ppDirectoryScope, isTaskMode]);
 
-  const branchPg = usePager(filteredBranches.length, [period, branchFilter, categoryFilter, deferredQuery]);
-  const staffPg = usePager(filteredStaff.length, [period, branchFilter, categoryFilter, deferredQuery]);
+  const branchPg = usePager(statusFilteredBranches.length, [period, branchFilter, categoryFilter, deferredQuery, statusFilter]);
+  const staffPg = usePager(statusFilteredStaff.length, [period, branchFilter, categoryFilter, deferredQuery, staffLevelFilter, statusFilter]);
 
-  const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query;
+  const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query || statusFilter !== 'ALL';
   const clearAll = () => {
     setPeriod('ALL');
     setBranchFilter('');
     setCategoryFilter('ALL');
+    setStatusFilter('ALL');
     setQuery('');
   };
 
   const exportBranchCsv = async () => {
-    if (!filteredBranches.length) return 0;
+    if (!statusFilteredBranches.length) return 0;
     const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Branch_Performance_${pTag}`,
       ['Rank', 'Branch Name', 'Branch Code', 'Active Staff', 'POS Tasks', 'POS Points', 'Sound Box Tasks', 'Sound Box Points',
         'KHQR Tasks', 'QR Materials', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Pts / Staff', 'Total KPI Points', 'Achievement %', 'Performance'],
-      filteredBranches.map((b, i) => [
+      statusFilteredBranches.map((b, i) => [
         i + 1, cleanBranchName(b.branchName), b.branchId, b.staffCount, b.posTasks, b.posPoints, b.sbTasks, b.sbPoints,
         b.khqrTasks, b.khqrMaterials, b.khqrPoints, b.ccTasks, b.ccPoints, b.mvTasks, b.mvPoints, b.totalTasks, b.ptsPerStaff, b.totalPoints, `${b.targetPct}%`, b.rating,
       ])
     );
-    return filteredBranches.length;
+    return statusFilteredBranches.length;
   };
 
   const exportStaffCsv = async () => {
-    if (!filteredStaff.length) return 0;
+    if (!statusFilteredStaff.length) return 0;
     const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Individual_Staff_${pTag}`,
       ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Operational Support', 'POS Points',
         'SB Install', 'SB Replace', 'SB Operational Support', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
         'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
-      filteredStaff.map((s, i) => [
+      statusFilteredStaff.map((s, i) => [
         i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId,
         s.posInstall, s.posReplace, s.posBattery, Number(s.extra?.['POS_MAINT']) || Number(s.posMaint) || 0, s.posPoints,
         s.sbInstall, s.sbReplace, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
         s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
     );
-    return filteredStaff.length;
+    return statusFilteredStaff.length;
   };
   
 
@@ -4164,7 +4193,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <Users className="w-3.5 h-3.5 relative z-10 text-sky-600" aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
-                    {filteredStaff.length}
+                    {statusFilteredStaff.length}
                   </span>
                 </button>
                 <button
@@ -4187,7 +4216,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <Building2 className="w-3.5 h-3.5 relative z-10 text-emerald-600" aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
-                    {filteredBranches.length}
+                    {statusFilteredBranches.length}
                   </span>
                 </button>
                 <button
@@ -4312,91 +4341,129 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 >
                   {tableMode === 'branch' ? (
                     <>
-                      <strong className="font-semibold text-slate-800 tabular-nums">{filteredBranches.length}</strong> branches
+                      <strong className="font-semibold text-slate-800 tabular-nums">{statusFilteredBranches.length}</strong> branches
+                      {statusFilter !== 'ALL' && (
+                        <span className="text-slate-400 font-normal"> of {filteredBranches.length}</span>
+                      )}
                       <span className="mx-1.5 text-slate-300">·</span>
                       Target <strong className="font-semibold text-slate-800 tabular-nums">{fmtPts(activeTargets.staff)}</strong> pts/staff × active officers
                       <span className="text-slate-400 font-normal"> ({monthWorkDaysSummary.workDays} work days)</span>
                     </>
                   ) : (
                     <>
-                      <strong className="font-semibold text-slate-800 tabular-nums">{filteredStaff.length}</strong> staff
+                      <strong className="font-semibold text-slate-800 tabular-nums">{statusFilteredStaff.length}</strong> staff
+                      {statusFilter !== 'ALL' && (
+                        <span className="text-slate-400 font-normal"> of {filteredStaff.length}</span>
+                      )}
                       <span className="mx-1.5 text-slate-300">·</span>
                       Target <strong className="font-semibold text-slate-800 tabular-nums">{fmtPts(activeTargets.staff)}</strong> pts/staff
                       <span className="text-slate-400 font-normal"> ({monthWorkDaysSummary.workDays} work days)</span>
                     </>
                   )}
                 </span>
-                {tableMode === 'staff' && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-slate-500 font-medium">Level:</span>
-                    <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-xs`} role="tablist" aria-label="Staff level filter">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-500 font-medium">Status:</span>
+                    <select
+                      aria-label="Filter by performance status"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as 'ALL' | KpiRating)}
+                      className={`text-xs rounded-xl border px-2.5 py-1 cursor-pointer font-medium outline-none transition ${
+                        statusFilter !== 'ALL'
+                          ? 'border-[#004e75]/40 bg-sky-50/90 text-[#003857]'
+                          : 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <option value="ALL">All Statuses ({matrixStatusCounts.ALL})</option>
+                      <option value="Outstanding">Outstanding ({matrixStatusCounts.Outstanding})</option>
+                      <option value="Meet Target">Meet Target ({matrixStatusCounts['Meet Target']})</option>
+                      <option value="Near/Below Target">Near/Below Target ({matrixStatusCounts['Near/Below Target']})</option>
+                      <option value="Needs Improvement">Needs Improvement ({matrixStatusCounts['Needs Improvement']})</option>
+                      {tableMode === 'staff' && (
+                        <option value="Management (Exempt)">Management (Exempt) ({matrixStatusCounts['Management (Exempt)']})</option>
+                      )}
+                    </select>
+                    {statusFilter !== 'ALL' && (
                       <button
                         type="button"
-                        role="tab"
-                        aria-selected={staffLevelFilter === 'all'}
-                        onClick={() => setStaffLevelFilter('all')}
-                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-                          staffLevelFilter === 'all' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
-                        }`}
+                        onClick={() => setStatusFilter('ALL')}
+                        title="Clear status filter"
+                        aria-label="Clear status filter"
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
                       >
-                        {staffLevelFilter === 'all' && (
-                          <PillMotion
-                            layoutId="kpi-staff-level-pill"
-                            aria-hidden
-                            transition={SPRING}
-                            className={CAPSULE_PILL_CLS}
-                          />
-                        )}
-                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
-                        <span className="relative z-10">All ({enrichedStaff.length})</span>
+                        <X className="w-3.5 h-3.5" aria-hidden />
                       </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={staffLevelFilter === 'field'}
-                        onClick={() => setStaffLevelFilter('field')}
-                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-                          staffLevelFilter === 'field' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
-                        }`}
-                      >
-                        {staffLevelFilter === 'field' && (
-                          <PillMotion
-                            layoutId="kpi-staff-level-pill"
-                            aria-hidden
-                            transition={SPRING}
-                            className={CAPSULE_PILL_CLS}
-                          />
-                        )}
-                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-emerald-500" aria-hidden />
-                        <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={staffLevelFilter === 'management'}
-                        onClick={() => setStaffLevelFilter('management')}
-                        className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-                          staffLevelFilter === 'management' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
-                        }`}
-                        title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
-                      >
-                        {staffLevelFilter === 'management' && (
-                          <PillMotion
-                            layoutId="kpi-staff-level-pill"
-                            aria-hidden
-                            transition={SPRING}
-                            className={CAPSULE_PILL_CLS}
-                          />
-                        )}
-                        <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-amber-500" aria-hidden />
-                        <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
-                      </button>
-                    </div>
+                    )}
                   </div>
-                )}
-                {tableMode === 'branch' && (
-                  <span className="text-slate-400 text-[11px]">Click any branch row to view full details</span>
-                )}
+                  {tableMode === 'staff' && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-500 font-medium">Level:</span>
+                      <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-xs`} role="tablist" aria-label="Staff level filter">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={staffLevelFilter === 'all'}
+                          onClick={() => setStaffLevelFilter('all')}
+                          className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                            staffLevelFilter === 'all' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                          }`}
+                        >
+                          {staffLevelFilter === 'all' && (
+                            <PillMotion
+                              layoutId="kpi-staff-level-pill"
+                              aria-hidden
+                              transition={SPRING}
+                              className={CAPSULE_PILL_CLS}
+                            />
+                          )}
+                          <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
+                          <span className="relative z-10">All ({enrichedStaff.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={staffLevelFilter === 'field'}
+                          onClick={() => setStaffLevelFilter('field')}
+                          className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                            staffLevelFilter === 'field' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                          }`}
+                        >
+                          {staffLevelFilter === 'field' && (
+                            <PillMotion
+                              layoutId="kpi-staff-level-pill"
+                              aria-hidden
+                              transition={SPRING}
+                              className={CAPSULE_PILL_CLS}
+                            />
+                          )}
+                          <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-emerald-500" aria-hidden />
+                          <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={staffLevelFilter === 'management'}
+                          onClick={() => setStaffLevelFilter('management')}
+                          className={`relative px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                            staffLevelFilter === 'management' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                          }`}
+                          title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
+                        >
+                          {staffLevelFilter === 'management' && (
+                            <PillMotion
+                              layoutId="kpi-staff-level-pill"
+                              aria-hidden
+                              transition={SPRING}
+                              className={CAPSULE_PILL_CLS}
+                            />
+                          )}
+                          <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-amber-500" aria-hidden />
+                          <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -4697,10 +4764,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  {filteredBranches.length === 0 ? (
+                  {statusFilteredBranches.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No branches match the current filters.</div>
                   ) : (
-                    filteredBranches.slice(branchPg.start, branchPg.end).map((b, i) => {
+                    statusFilteredBranches.slice(branchPg.start, branchPg.end).map((b, i) => {
                       const rank = branchPg.start + i + 1;
                       const isOpen = openBranch === b.branchId;
                       return (
@@ -5115,10 +5182,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  {filteredStaff.length === 0 ? (
+                  {statusFilteredStaff.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
                   ) : (
-                    filteredStaff.slice(staffPg.start, staffPg.end).map((s, i) => {
+                    statusFilteredStaff.slice(staffPg.start, staffPg.end).map((s, i) => {
                       const rank = staffPg.start + i + 1;
                       const isOpen = openStaff === s.staffId;
                       return (
