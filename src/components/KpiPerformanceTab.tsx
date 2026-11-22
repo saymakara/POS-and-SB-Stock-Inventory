@@ -1285,6 +1285,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         prev.khqrMaterials += s.khqrMaterials;
         prev.ccPrimary += s.ccPrimary;
         prev.ccSupp += s.ccSupp;
+        prev.adjPts = (prev.adjPts || 0) + (s.adjPts || 0);
         prev.posSubmitted += s.posSubmitted;
         prev.posRejected += s.posRejected;
         prev.sbSubmitted += s.sbSubmitted;
@@ -1443,6 +1444,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.khqrMaterials += s.khqrMaterials;
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
+      b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
       addExtraCounts(b.raw, s);
       b.totalSubmitted += s.posSubmitted + s.sbSubmitted + s.khqrTasks + s.ccSubmitted;
       b.totalIssues += s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
@@ -1738,6 +1740,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       raw.khqrMaterials += b.raw.khqrMaterials;
       raw.ccPrimary += b.raw.ccPrimary;
       raw.ccSupp += b.raw.ccSupp;
+      raw.adjPts = (raw.adjPts || 0) + (b.raw.adjPts || 0);
       addExtraCounts(raw, b.raw);
       submitted += b.totalSubmitted;
       issues += b.totalIssues;
@@ -1858,6 +1861,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         b.raw.khqrMaterials += ms.khqrMaterials;
         b.raw.ccPrimary += ms.ccPrimary;
         b.raw.ccSupp += ms.ccSupp;
+        b.raw.adjPts = (b.raw.adjPts || 0) + (ms.adjPts || 0);
         addExtraCounts(b.raw, ms);
       }
       enriched = Array.from(buckets.values())
@@ -2153,6 +2157,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const unit = rule?.unit || 'visits';
       items.push({ code, category, label, count, unitPts, points, unit });
     }
+    // (22 Nov 2026) Booth Event / Standby VIP: the points that make each booth day follow the Settings rule (shared by tag,
+    // or the higher of the booth points and own points). Negative when the tasks done at the booth were already counted above.
+    const adj = Math.round((Number(r.adjPts) || 0) * 100) / 100;
+    if (adj) items.push({ code: 'BOOTH_STANDBY_ADJ', category: 'Merchant Visit', label: 'Booth / Standby VIP sharing adjustment', count: 0, unitPts: 0, points: adj, unit: 'points' });
     return items
       .map((it) => ({ ...it, points: Math.round(it.points * 100) / 100 }))
       .sort((a, b) => b.points - a.points || b.count - a.count);
@@ -2162,7 +2170,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const list = categoryFilter === 'ALL'
       ? subCategoryBreakdown
       : subCategoryBreakdown.filter((sc) => sc.category === categoryFilter);
-    return list.filter((sc) => sc.points > 0 || sc.count > 0).length;
+    return list.filter((sc) => sc.points !== 0 || sc.count > 0).length;
   }, [subCategoryBreakdown, categoryFilter]);
 
   const totalInSelectedCategory = useMemo(() => {
@@ -2177,7 +2185,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       list = list.filter((sc) => sc.category === categoryFilter);
     }
     if (subCatActiveOnly) {
-      list = list.filter((sc) => sc.points > 0 || sc.count > 0);
+      list = list.filter((sc) => sc.points !== 0 || sc.count > 0);
     }
     const q = subCatSearch.trim().toLowerCase();
     if (q) {
@@ -2659,6 +2667,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.khqrMaterials += s.khqrMaterials;
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
+      b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
       addExtraCounts(b.raw, s);
     });
 

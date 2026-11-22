@@ -16,10 +16,13 @@ const fresh = [
   { code: 'MV_RETURN_TERMINATE_QR', activity: 'Return & Terminate QR', sub_category: 'Return & Terminate QR', category: 'Merchant Visit', visits: 1, last_seen: '2026-11-17T08:00:00Z' },
 ];
 const calls = [];
+let eventSettings = { id: 1, install_per_submission: true, booth_mode: 'shared', standby_mode: 'higher', half_day_weight: 0.5 };
 const json = (route, code, o) => route.fulfill({ status: code, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range' }, body: JSON.stringify(o) });
 async function api(route) {
   const req = route.request(), path = new URL(req.url()).pathname, body = req.postData() ? JSON.parse(req.postData()) : null;
   if (path === '/rest/v1/rpc/kpi_get_settings_fast') return json(route, 200, { rules, targets: {} });
+  if (path === '/rest/v1/kpi_event_settings') return json(route, 200, eventSettings);
+  if (path === '/rest/v1/rpc/kpi_save_event_settings') { calls.push(['event', body.p]); eventSettings = Object.assign({}, eventSettings, body.p, { updated_by: 'SAY Chanmakara' }); return json(route, 200, eventSettings); }
   if (path === '/rest/v1/kpi_point_rules') return json(route, 200, rules);
   if (path === '/rest/v1/rpc/kpi_delete_rule') {
     calls.push(['delete', body.p_code]);
@@ -108,6 +111,21 @@ async function api(route) {
   await p.locator('[data-kpi-sync]').click(); await sleep(300);
   await p.waitForFunction(() => /Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(document.body.innerText), null, { timeout: 4000 }).catch(() => {});
   ok(/Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(await text()) && !(await p.locator('[data-kpi-sync-apply]').count()) && calls.filter((c) => c[0] === 'sync').length === before + 1, 'when nothing is missing, Sync just says it is up to date');
+
+  // ---- Booth Event / Standby VIP / per-submission settings card
+  const card = p.locator('[data-kpi-event-settings]');
+  ok(await card.isVisible(), 'the Booth Event, Standby VIP & per-submission card is shown to Super Admin');
+  ok(await card.locator('[data-booth-mode="shared"]').isChecked() && await card.locator('[data-standby-mode="higher"]').isChecked() && await card.locator('[data-per-submission]').isChecked(),
+    'it shows the saved rules (shared by tag, standby higher, once per submission)');
+  ok(await card.locator('[data-kpi-event-save]').isDisabled(), 'Save is off until something changes');
+  await card.locator('[data-half-weight]').selectOption('1'); await card.locator('[data-standby-mode="fixed"]').check(); await sleep(200);
+  await card.locator('[data-kpi-event-save]').click(); await sleep(1200);
+  const ev = calls.find((c) => c[0] === 'event');
+  ok(ev && ev[1].booth_mode === 'shared' && ev[1].standby_mode === 'fixed' && ev[1].half_day_weight === 1 && ev[1].install_per_submission === true,
+    'Save sends kpi_save_event_settings with the new rules (' + JSON.stringify(ev && ev[1]) + ')');
+  ok(/Booth \/ Standby KPI rules saved/.test(await text()), 'a message confirms the save');
+  await card.locator('[data-booth-mode="higher"]').check(); await sleep(150);
+  ok(!(await card.locator('[data-half-weight]').count()), 'the half-day share setting only shows for "Shared by Booth Tag"');
 
   ok(errs.length === 0, 'no page errors ' + errs.slice(0, 3).join(' | '));
   await b.close(); console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);

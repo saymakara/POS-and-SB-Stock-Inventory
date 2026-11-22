@@ -49,6 +49,7 @@ import {
   CAPSULE_BTN_INACTIVE_CLS,
 } from './PillMotion';
 import { SPRING_TAB_PILL } from '../utils/animationRules';
+import { KpiEventSettingsCard } from './KpiEventSettingsCard';
 
 export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
@@ -623,6 +624,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       </div>
 
       <div className="p-4 flex flex-col gap-3.5">
+        {isAdmin && <KpiEventSettingsCard toast={toast} />}
         {isAdmin && showAdd && (
           <form onSubmit={handleAddRule} className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-end">
             <div>

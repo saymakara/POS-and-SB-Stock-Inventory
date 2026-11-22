@@ -244,6 +244,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   target.khqrMaterials += src.khqrMaterials;
   target.ccPrimary += src.ccPrimary;
   target.ccSupp += src.ccSupp;
+  target.adjPts = (target.adjPts || 0) + (src.adjPts || 0);
   addExtraCounts(target, src);
 }
 

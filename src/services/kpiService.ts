@@ -113,6 +113,9 @@ export interface KpiRawCounts {
   khqrMaterials: number;
   ccPrimary: number;
   ccSupp: number;
+  /** (22 Nov 2026) Booth Event / Standby VIP: points the server adds or takes away so the day follows the booth rules
+   *  (shared by Booth Tag, or the higher of the booth points and the staff member's own) - Settings > KPI. */
+  adjPts?: number;
   /** (4 Nov 2026) tasks of the rules added for the Merchant Visit app (POS_MAINT, POS_INACTIVE, POS_RETURN, MV_<activity>):
    *  { rule code: count }. The server counts only active rules. */
   extra?: Record<string, number>;
@@ -302,6 +305,9 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
     }
   }
 
+  // (22 Nov 2026) Booth Event / Standby VIP adjustment (points only, counted with Merchant Visit)
+  mvPoints += Number(c.adjPts) || 0;
+
   const totalTasks = posTasks + xPosTasks + sbTasks + xSbTasks + khqrTasks + xKhqrTasks + ccTasks + xCcTasks + mvTasks + xOtherTasks;
   const totalPoints = Math.round((posPoints + xPosPoints + sbPoints + xSbPoints + khqrPoints + xKhqrPoints + ccPoints + xCcPoints + mvPoints + xOtherPoints) * 100) / 100;
 
@@ -336,8 +342,8 @@ interface KpiSeriesBundle {
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v4_';
-const SESSION_SERIES_PREFIX = 'kpi_series_cache_v4_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v5_';
+const SESSION_SERIES_PREFIX = 'kpi_series_cache_v5_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
 let pendingStorageTimer: number | null = null;
@@ -726,6 +732,7 @@ function mapRawCounts(r: any): KpiRawCounts {
     khqrMaterials: Number(r.khqr_materials) || 0,
     ccPrimary: Number(r.cc_primary) || 0,
     ccSupp: Number(r.cc_supp) || 0,
+    adjPts: Number(r.adj_pts) || 0,
     extra: r.extra && typeof r.extra === 'object'
       ? Object.fromEntries(Object.entries(r.extra).map(([k, v]) => [k, Number(v) || 0]))
       : {},
@@ -1044,4 +1051,46 @@ export function prefetchKpi(force = false): Promise<KpiDashboardData | null> {
       inflight = null;
     });
   return inflight;
+}
+
+// ───────────── (22 Nov 2026) Booth Event / Standby VIP rules and per-submission counting (Settings > KPI, Super Admin) ─────────────
+export type BoothMode = 'fixed' | 'higher' | 'shared';
+export type StandbyMode = 'fixed' | 'higher';
+export interface KpiEventSettings {
+  installPerSubmission: boolean;
+  boothMode: BoothMode;
+  standbyMode: StandbyMode;
+  halfDayWeight: number;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+export const DEFAULT_KPI_EVENT_SETTINGS: KpiEventSettings = {
+  installPerSubmission: true, boothMode: 'shared', standbyMode: 'higher', halfDayWeight: 0.5, updatedBy: null, updatedAt: null,
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapEventSettings(d: any): KpiEventSettings {
+  if (!d) return DEFAULT_KPI_EVENT_SETTINGS;
+  return {
+    installPerSubmission: d.install_per_submission !== false,
+    boothMode: (['fixed', 'higher', 'shared'].includes(d.booth_mode) ? d.booth_mode : 'shared') as BoothMode,
+    standbyMode: (d.standby_mode === 'fixed' ? 'fixed' : 'higher') as StandbyMode,
+    halfDayWeight: Number(d.half_day_weight) || 0.5,
+    updatedBy: d.updated_by || null,
+    updatedAt: d.updated_at || null,
+  };
+}
+/** null when the server has no such setting yet (SQL 20261122_03 not run). */
+export async function fetchKpiEventSettings(): Promise<KpiEventSettings | null> {
+  if (!isSupabaseConfigured) return DEFAULT_KPI_EVENT_SETTINGS;
+  const { data, error } = await supabase.from('kpi_event_settings').select('*').eq('id', 1).maybeSingle();
+  if (error) return null;
+  return mapEventSettings(data);
+}
+export async function saveKpiEventSettings(s: Omit<KpiEventSettings, 'updatedBy' | 'updatedAt'>): Promise<KpiEventSettings> {
+  const { data, error } = await supabase.rpc('kpi_save_event_settings', {
+    p: { install_per_submission: s.installPerSubmission, booth_mode: s.boothMode, standby_mode: s.standbyMode, half_day_weight: s.halfDayWeight },
+  });
+  if (error) throw new Error(/PGRST202|42883|does not exist|Could not find the function/i.test(error.message) ? 'the server is not updated yet (run SQL 20261122_03)' : error.message);
+  summaryCache.clear();
+  return mapEventSettings(data);
 }
