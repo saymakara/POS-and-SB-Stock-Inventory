@@ -256,8 +256,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       showMomChangeLine &&
       hasData &&
       momPoints.some((m) => m.s1.pct !== null || m.s2.pct !== null);
-    const s1LineColor = isLight ? '#0284c7' : '#38bdf8';
-    const s2LineColor = isLight ? '#7c3aed' : '#a78bfa';
+    const s1LineColor = isLight ? '#4b5563' : '#94a3b8';
+    const s2LineColor = isLight ? '#374151' : '#cbd5e1';
 
     ctx.font = `600 10.5px ${chartFont}`;
     const maxAxisW = ctx.measureText(fmt(maxVal)).width;
@@ -401,14 +401,18 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         text: string;
       }
 
-      const seriesSpecs: Array<{ seriesIdx: 1 | 2; lineColor: string; pick: (m: (typeof momPoints)[number]) => MomDelta }> = [
-        { seriesIdx: 1, lineColor: s1LineColor, pick: (m) => m.s1 },
-        { seriesIdx: 2, lineColor: s2LineColor, pick: (m) => m.s2 },
+      const s1HasCurve = momPoints.some((m) => m.s1.pct !== null);
+      const s2HasCurve = momPoints.some((m) => m.s2.pct !== null);
+      const bothCurvesActive = s1HasCurve && s2HasCurve;
+
+      const seriesSpecs: Array<{ seriesIdx: 1 | 2; lineColor: string; dashed: boolean; pick: (m: (typeof momPoints)[number]) => MomDelta }> = [
+        { seriesIdx: 1, lineColor: s1LineColor, dashed: true, pick: (m) => m.s1 },
+        { seriesIdx: 2, lineColor: s2LineColor, dashed: !bothCurvesActive, pick: (m) => m.s2 },
       ];
 
       const allNodes: TrendNode[] = [];
 
-      seriesSpecs.forEach(({ seriesIdx, lineColor, pick }) => {
+      seriesSpecs.forEach(({ seriesIdx, lineColor, dashed, pick }) => {
         const nodes: TrendNode[] = momPoints.map((m, idx) => {
           const d = pick(m);
           const g = groupGeom[idx] || { gx: padLeft, y1: baseY, y2: baseY, h1: 0, h2: 0 };
@@ -448,12 +452,13 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
             const curr = run[i];
             const midX = (prev.x + curr.x) / 2;
 
-            // Crisp halo stroke so line stays readable over bars and gridlines
+            // Crisp halo stroke so thin charcoal hairline stays readable over dark bar fills
             ctx.save();
             ctx.strokeStyle = haloStroke;
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 3.4;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+            if (dashed) ctx.setLineDash([4, 3.5]);
             ctx.beginPath();
             ctx.moveTo(prev.x, prev.y);
             ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
@@ -462,9 +467,10 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
             ctx.save();
             ctx.strokeStyle = lineColor;
-            ctx.lineWidth = 2.1;
+            ctx.lineWidth = 1.6;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+            if (dashed) ctx.setLineDash([4, 3.5]);
             ctx.beginPath();
             ctx.moveTo(prev.x, prev.y);
             ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
@@ -476,9 +482,15 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         nodes.forEach((n) => {
           if (n.pct === null && !linkedIndices.has(n.idx)) return;
           const isHov = hover?.idx === n.idx;
-          const r = isHov ? 4.4 : 3.4;
+          const dotColor =
+            n.pct === null || n.pct === 0
+              ? lineColor
+              : n.pct > 0
+                ? isLight ? '#059669' : '#34d399'
+                : isLight ? '#e11d48' : '#fb7185';
+          const r = n.pct === null ? 2.8 : isHov ? 4.5 : 3.5;
           ctx.save();
-          ctx.fillStyle = lineColor;
+          ctx.fillStyle = dotColor;
           ctx.strokeStyle = haloStroke;
           ctx.lineWidth = 1.8;
           ctx.beginPath();

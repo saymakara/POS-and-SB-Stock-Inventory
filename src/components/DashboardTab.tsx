@@ -1046,7 +1046,16 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
                           : isLight ? 'text-slate-600' : 'text-slate-300'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLight ? 'bg-sky-600' : 'bg-sky-400'}`} aria-hidden="true" />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      (data.latestPosMomPct ?? 0) > 0
+                        ? isLight ? 'bg-emerald-600' : 'bg-emerald-400'
+                        : (data.latestPosMomPct ?? 0) < 0
+                          ? isLight ? 'bg-rose-600' : 'bg-rose-400'
+                          : isLight ? 'bg-slate-600' : 'bg-slate-400'
+                    }`}
+                    aria-hidden="true"
+                  />
                   {data.latestPosMomText}
                 </span>
               )}
@@ -1078,7 +1087,16 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
                           : isLight ? 'text-slate-600' : 'text-slate-300'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLight ? 'bg-violet-600' : 'bg-violet-400'}`} aria-hidden="true" />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      (data.latestSbMomPct ?? 0) > 0
+                        ? isLight ? 'bg-emerald-600' : 'bg-emerald-400'
+                        : (data.latestSbMomPct ?? 0) < 0
+                          ? isLight ? 'bg-rose-600' : 'bg-rose-400'
+                          : isLight ? 'bg-slate-600' : 'bg-slate-400'
+                    }`}
+                    aria-hidden="true"
+                  />
                   {data.latestSbMomText}
                 </span>
               )}

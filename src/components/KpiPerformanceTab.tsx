@@ -582,9 +582,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       };
     }
     return {
-      pct: `${achievementPct}%`,
-      top: 'OF TARGET',
-      sub: showPacing ? `Pace ${expectedPacePct}%` : `${fmtPts(safeTarget)} pts`,
+      pct: fmtPts(safeTarget),
+      top: targetTitle.toUpperCase(),
+      sub: `pts · ${achievementPct}% done`,
       dot: actualColor,
       pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
     };
@@ -612,13 +612,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
       <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Enlarged Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
-        <div className="relative w-full max-w-[540px] aspect-[524/298] flex items-center justify-center">
+        <div
+          className="relative w-full max-w-[540px] aspect-[524/298] flex items-center justify-center"
+          onMouseLeave={() => setHoveredKey(null)}
+        >
           <svg
             viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
             className="w-full h-full overflow-visible"
             role="img"
             aria-label={`${targetTitle} vs Actual Achievement Donut: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
             data-testid="kpi-target-donut-svg"
+            onMouseLeave={() => setHoveredKey(null)}
           >
             <defs>
               <filter id={shadowFilterId} x="-20%" y="-20%" width="140%" height="140%">
@@ -721,6 +725,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               fill="#ffffff"
               stroke="rgba(15, 23, 42, 0.08)"
               strokeWidth="1"
+              onMouseEnter={() => setHoveredKey(null)}
             />
           </svg>
 
@@ -730,10 +735,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             style={{
               left: `${(KT_CX / KT_VB_W) * 100}%`,
               top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${(((KT_R_INNER - 6) * 1.72) / KT_VB_W) * 100}%`,
+              width: `${(((KT_R_INNER - 6) * 1.84) / KT_VB_W) * 100}%`,
             }}
           >
-            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-bold tracking-wider uppercase text-slate-500 truncate max-w-full">
+            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[9.5px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
               <i
                 className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
                 style={{ backgroundColor: centerReadout.dot }}
