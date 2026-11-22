@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Settings2,
   Target,
@@ -1211,6 +1212,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       </div>
 
       {syncPreview && (
+        createPortal(
         <div
           className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4"
           role="dialog"
@@ -1286,10 +1288,13 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+        )
       )}
 
       {deleteTarget && (
+        createPortal(
         <div
           className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4"
           role="dialog"
@@ -1368,7 +1373,9 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+        )
       )}
     </section>
   );
