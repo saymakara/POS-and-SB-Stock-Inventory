@@ -9,6 +9,7 @@ let rules = [
   rule('POS_INSTALL', 'POS Terminal', 'POS New Installation', 5, true, 10),
   rule('MV_KEY_MERCHANT_VISIT', 'Merchant Visit', 'Key Merchant Visit', 2, true, 120),
   rule('MV_KHQR_ISSUE', 'Merchant Visit', 'KHQR Issue', 0.5, true, 130),
+  rule('MV_BOOTH_EVENT', 'Merchant Visit', 'Booth Event', 0, false, 990),
 ];
 const deleted = new Map();
 const fresh = [
@@ -111,6 +112,18 @@ async function api(route) {
   await p.locator('[data-kpi-sync]').click(); await sleep(300);
   await p.waitForFunction(() => /Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(document.body.innerText), null, { timeout: 4000 }).catch(() => {});
   ok(/Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(await text()) && !(await p.locator('[data-kpi-sync-apply]').count()) && calls.filter((c) => c[0] === 'sync').length === before + 1, 'when nothing is missing, Sync just says it is up to date');
+
+  // ---- an Inactive task at the bottom of a long page (owner, 22 Nov 2026: "I cannot delete"): the window must open on screen
+  await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await sleep(300);
+  const del = p.locator('[data-kpi-delete-rule="MV_BOOTH_EVENT"]');
+  await del.scrollIntoViewIfNeeded(); await del.click(); await sleep(500);
+  const confirmBtn = p.locator('[data-kpi-confirm-delete="MV_BOOTH_EVENT"]');
+  const box = await confirmBtn.boundingBox().catch(() => null);
+  const vh = await p.evaluate(() => window.innerHeight);
+  ok(!!box && box.y >= 0 && box.y + box.height <= vh, 'deleting the last (Inactive) task: the confirm window is on screen (button at y=' + (box && Math.round(box.y)) + ', screen ' + vh + ')');
+  await confirmBtn.click(); await sleep(1000);
+  ok(calls.some((c) => c[0] === 'delete' && c[1] === 'MV_BOOTH_EVENT') && !(await del.count()), 'the Inactive task is deleted and gone from the list');
+  await p.evaluate(() => window.scrollTo(0, 0)); await sleep(300);
 
   // ---- Booth Event / Standby VIP / per-submission settings card
   const card = p.locator('[data-kpi-event-settings]');
