@@ -84,13 +84,36 @@ if (framed) {
   </ErrorBoundary>
 );
 
-/** Shown only if the dashboard code is still downloading right after sign-in; matches App shell geometry to prevent CLS. */
+/**
+ * Shown only if the dashboard code is still downloading right after sign-in. (23 Nov 2026) The same shape as the portal
+ * (sidebar, top bar, figure cards, chart) with soft placeholders, so the portal appears to fill in rather than
+ * replace a spinner; matches the App shell geometry to prevent layout shift.
+ */
 function AppLoading() {
   return (
     <div className="min-h-[100dvh] flex items-start bg-slate-50" role="status" aria-label="Loading">
-      <div className="hidden md:block w-[248px] shrink-0 min-h-[100dvh] bg-[#112338]" />
-      <div className="flex-1 min-h-[100dvh] flex items-center justify-center">
-        <div className="w-9 h-9 rounded-full border-[3px] border-slate-200 border-t-[#003857] animate-spin" />
+      <div className="hidden md:flex flex-col gap-3 w-[248px] shrink-0 min-h-[100dvh] bg-[#112338] px-4 py-5" aria-hidden="true">
+        <div className="flex items-center gap-3 mb-4"><div className="skeleton-dark w-9 h-9 rounded-xl" /><div className="skeleton-dark h-3.5 w-32" /></div>
+        {[72, 58, 80, 64, 70, 52, 76, 60].map((w, i) => <div key={i} className="skeleton-dark h-8 rounded-xl" style={{ width: `${w}%` }} />)}
+      </div>
+      <div className="flex-1 min-w-0 min-h-[100dvh] flex flex-col loading-in" aria-hidden="true">
+        <div className="h-16 border-b border-slate-200/80 bg-white/80 px-5 flex items-center gap-4">
+          <div className="skeleton h-9 w-9 rounded-xl" /><div className="skeleton h-9 flex-1 max-w-md rounded-xl" /><div className="ml-auto skeleton h-9 w-40 rounded-xl" />
+        </div>
+        <div className="p-5 sm:p-6 flex flex-col gap-4">
+          <div className="skeleton h-8 w-72 rounded-lg" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="rounded-[18px] bg-white border border-slate-200/80 px-4 py-3.5 flex flex-col gap-3">
+                <div className="skeleton h-3 w-24 rounded" /><div className="skeleton h-7 w-16 rounded-md" /><div className="skeleton h-2.5 w-full rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="xl:col-span-2 rounded-[22px] bg-white border border-slate-200/80 p-5"><div className="skeleton h-4 w-40 rounded mb-4" /><div className="skeleton h-64 rounded-2xl" /></div>
+            <div className="rounded-[22px] bg-white border border-slate-200/80 p-5"><div className="skeleton h-4 w-28 rounded mb-4" /><div className="skeleton h-56 w-56 mx-auto" style={{ borderRadius: 9999 }} /></div>
+          </div>
+        </div>
       </div>
     </div>
   );

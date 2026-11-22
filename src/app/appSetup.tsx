@@ -233,10 +233,17 @@ export const historyRecordFor = (
   };
 };
 /** Shown for a moment while a screen opened for the first time is fetched; reserves viewport height to prevent footer CLS. */
+// (23 Nov 2026) the shape of a portal screen (title, figure cards, list) with soft placeholders; it appears only when a
+// screen's code takes longer than 120 ms to arrive, so a quick switch never flashes it
 export const TabLoading = () => (
-  <div className="space-y-3 min-h-[calc(100vh-11rem)]" aria-busy="true" aria-label="Loading">
-    <div className="skeleton h-10 rounded-xl w-1/3" />
-    <div className="skeleton h-64 rounded-2xl" />
+  <div className="space-y-4 min-h-[calc(100vh-11rem)] loading-in" aria-busy="true" aria-label="Loading">
+    <div className="skeleton h-9 rounded-xl w-1/3" />
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[92px] rounded-[18px]" />)}
+    </div>
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3">
+      {[92, 80, 86, 74, 88, 70].map((w, i) => <div key={i} className="skeleton h-4 rounded" style={{ width: `${w}%` }} />)}
+    </div>
   </div>
 );
 export const loadServerAuditLogs = (limit = 50, offset = 0) => fetchAuditLogs(limit, offset);

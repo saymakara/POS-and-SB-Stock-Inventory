@@ -125,7 +125,10 @@ export const ProductViewToggle: React.FC<{
       pill.style.opacity = '1';
     }
     lastPill[group] = to;
-  });
+    // (23 Nov 2026, speed) only when the selected view, its count or the group changes. Before, this ran after every
+    // redraw of the Stock Inventory page and made the browser lay out the whole page each time (~280 ms when opening it);
+    // a change of size is followed by the ResizeObserver below.
+  }, [view, group, hasPush, pushCount]);
 
   useEffect(() => {
     const list = listRef.current, pill = pillRef.current;

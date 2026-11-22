@@ -1,7 +1,8 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAllPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
 import { clearFresh, markFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
+import { clearOnUserChange } from '../utils/userScopedCache';
 
 /**
  * (29 Oct 2026) Phone App Review (POS Terminal and Sound Box): instant opening.
@@ -11,7 +12,6 @@ import { registerPortalCacheInvalidator } from '../utils/portalSync';
  */
 let events: FieldEvent[] | null = null;
 let pendingComplete = false;
-let owner: string | null | undefined;
 
 export const clearFieldCache = () => { events = null; pendingComplete = false; };
 registerPortalCacheInvalidator(['field'], () => { clearFresh('field'); });
@@ -22,15 +22,7 @@ export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingCompl
   pendingComplete = complete;
 };
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearFieldCache();
-      owner = id;
-    });
-  } catch { /* the cache simply stays empty */ }
-}
+clearOnUserChange(clearFieldCache);
 
 let inflight: Promise<void> | null = null;
 export function prefetchFieldEvents(): Promise<void> {
