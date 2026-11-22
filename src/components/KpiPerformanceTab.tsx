@@ -85,6 +85,15 @@ const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string;
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
+const isPointsOnlyBonusRule = (code: string): boolean =>
+  code === 'KHQR_PRINT_LAMINATE' || code === 'KHQR_MATERIAL';
+
+const subCatTaskVolume = (sc: { code: string; count: number }): number =>
+  isPointsOnlyBonusRule(sc.code) ? 0 : sc.count;
+
+const formatSubCatSharePct = (v: number): string =>
+  v >= 1 ? `${Math.round(v)}%` : v > 0 ? `${v.toFixed(1)}%` : '0%';
+
 const STAFF_LOCATION_KEY = 'staff_locations_map_v1';
 
 function loadLocationOverrides(): Record<string, string> {
@@ -857,8 +866,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [showSubCategories, setShowSubCategories] = useState(false);
   const [subCatSearch, setSubCatSearch] = useState('');
   const [subCatActiveOnly, setSubCatActiveOnly] = useState(true);
+  const [subCatRankBy, setSubCatRankBy] = useState<'points' | 'tasks'>('points');
   const [subCatViewMode, setSubCatViewMode] = useState<'graph' | 'table'>('graph');
   const [hoveredSubCatCode, setHoveredSubCatCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSubCatRankBy(metricMode);
+  }, [metricMode]);
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
   const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
@@ -2156,18 +2170,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           sc.unit.toLowerCase().includes(q)
       );
     }
+    if (subCatRankBy === 'tasks') {
+      return [...list].sort(
+        (a, b) => subCatTaskVolume(b) - subCatTaskVolume(a) || b.points - a.points || b.count - a.count
+      );
+    }
     return list;
-  }, [subCategoryBreakdown, categoryFilter, subCatActiveOnly, subCatSearch]);
+  }, [subCategoryBreakdown, categoryFilter, subCatActiveOnly, subCatSearch, subCatRankBy]);
 
   const displayedSubCategoryPoints = useMemo(() => {
     return displayedSubCategories.reduce((acc, sc) => acc + sc.points, 0);
   }, [displayedSubCategories]);
 
   const displayedSubCategoryTasks = useMemo(() => {
-    return displayedSubCategories.reduce(
-      (acc, sc) => acc + (sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL' ? 0 : sc.count),
-      0
-    );
+    return displayedSubCategories.reduce((acc, sc) => acc + subCatTaskVolume(sc), 0);
   }, [displayedSubCategories]);
 
   const availableMonths = useMemo(() => {
@@ -3639,6 +3655,52 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span>{subCatActiveOnly ? `Active Only (${activeSubCategoryCount})` : `All Rules (${totalInSelectedCategory})`}</span>
                           </button>
 
+                          {/* Rank By Switcher */}
+                          <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="Rank sub-categories by">
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={subCatRankBy === 'points'}
+                              onClick={() => setSubCatRankBy('points')}
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatRankBy === 'points' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                              }`}
+                              title="Rank and chart by KPI Points"
+                            >
+                              {subCatRankBy === 'points' && (
+                                <PillMotion
+                                  layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_RANK_PILL}
+                                  aria-hidden
+                                  transition={SPRING_TAB_PILL}
+                                  className={CAPSULE_PILL_CLS}
+                                />
+                              )}
+                              <Award className="w-3.5 h-3.5 relative z-10 text-amber-500" />
+                              <span className="relative z-10">By Points</span>
+                            </button>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={subCatRankBy === 'tasks'}
+                              onClick={() => setSubCatRankBy('tasks')}
+                              className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
+                                subCatRankBy === 'tasks' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                              }`}
+                              title="Rank and chart by Task Count"
+                            >
+                              {subCatRankBy === 'tasks' && (
+                                <PillMotion
+                                  layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_RANK_PILL}
+                                  aria-hidden
+                                  transition={SPRING_TAB_PILL}
+                                  className={CAPSULE_PILL_CLS}
+                                />
+                              )}
+                              <CheckSquare className="w-3.5 h-3.5 relative z-10 text-emerald-600" />
+                              <span className="relative z-10">Task Count</span>
+                            </button>
+                          </div>
+
                           {/* View Mode Switcher */}
                           <div className={CAPSULE_TRACK_CLS} role="tablist" aria-label="View mode">
                             <button
@@ -3810,7 +3872,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </div>
                     ) : subCatViewMode === 'graph' ? (
                       (() => {
-                        const maxPoints = displayedSubCategories.reduce((m, item) => Math.max(m, item.points), 0);
+                        const isTaskRank = subCatRankBy === 'tasks';
+                        const metricValOf = (item: typeof displayedSubCategories[number]) =>
+                          isTaskRank ? subCatTaskVolume(item) : item.points;
+                        const maxMetricVal = displayedSubCategories.reduce(
+                          (m, item) => Math.max(m, metricValOf(item)),
+                          0
+                        );
+                        const metricDenom = isTaskRank ? totals.totalTasks : totals.totalPoints;
                         const activeItem =
                           (hoveredSubCatCode
                             ? displayedSubCategories.find((item) => item.code === hoveredSubCatCode)
@@ -3818,19 +3887,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         const activeRank = activeItem
                           ? displayedSubCategories.findIndex((item) => item.code === activeItem.code) + 1
                           : 0;
-                        const activePct =
-                          activeItem && totals.totalPoints > 0
-                            ? (activeItem.points / totals.totalPoints) * 100
-                            : 0;
-                        const activePctDisplay =
-                          activePct >= 1 ? `${Math.round(activePct)}%` : activePct > 0 ? `${activePct.toFixed(1)}%` : '0%';
-                        const fmtAxisTick = (val: number) =>
-                          val <= 0
-                            ? '0'
-                            : val >= 1000
-                            ? `${(val / 1000).toFixed(val >= 10000 || val % 1000 === 0 ? 0 : 1)}k`
-                            : fmtPts(val);
-                        const scaleTicks = maxPoints > 0 ? [0, 0.25, 0.5, 0.75, 1] : [0];
+                        const activeMetricVal = activeItem ? metricValOf(activeItem) : 0;
+                        const activePct = metricDenom > 0 ? (activeMetricVal / metricDenom) * 100 : 0;
+                        const activePctDisplay = formatSubCatSharePct(activePct);
+                        const fmtAxisTick = (val: number) => {
+                          if (val <= 0) return '0';
+                          if (val >= 1000) {
+                            return `${(val / 1000).toFixed(val >= 10000 || val % 1000 === 0 ? 0 : 1)}k`;
+                          }
+                          return isTaskRank ? fmtInt(Math.round(val)) : fmtPts(val);
+                        };
+                        const scaleTicks = maxMetricVal > 0 ? [0, 0.25, 0.5, 0.75, 1] : [0];
 
                         return (
                           <div className="p-3.5 sm:p-5 bg-slate-50/50">
@@ -3847,7 +3914,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   </span>
                                   <span className="inline-flex items-center gap-1.5">
                                     <span className="w-3 h-2.5 rounded-r-[3px] bg-[#94a3b8] inline-block" />
-                                    Sorted High → Low
+                                    {isTaskRank ? 'Sorted by Task Count (High → Low)' : 'Sorted High → Low'}
                                   </span>
                                 </div>
                                 {activeItem && (() => {
@@ -3868,10 +3935,23 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         <span className="font-semibold text-slate-700">{fmtInt(activeItem.count)}</span> {activeItem.unit} × {activeItem.unitPts} pt
                                       </span>
                                       <span className="text-slate-400">=</span>
-                                      <span className="font-bold text-slate-900">
-                                        {fmtPts(activeItem.points)} pts
-                                      </span>
-                                      <span className="text-slate-400">({activePctDisplay})</span>
+                                      {isTaskRank ? (
+                                        <>
+                                          <span className="font-bold text-slate-900">
+                                            {fmtInt(activeMetricVal)} tasks
+                                          </span>
+                                          <span className="text-slate-400">
+                                            ({activePctDisplay} · {fmtPts(activeItem.points)} pts)
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="font-bold text-slate-900">
+                                            {fmtPts(activeItem.points)} pts
+                                          </span>
+                                          <span className="text-slate-400">({activePctDisplay})</span>
+                                        </>
+                                      )}
                                     </div>
                                   );
                                 })()}
@@ -3898,11 +3978,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                 <div className="relative z-10 py-1.5 space-y-1.5" role="list" aria-label="Sorted sub-category tasks bar graph">
                                   {displayedSubCategories.map((sc, i) => {
-                                    const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
-                                    const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
-                                    const barPct = maxPoints > 0 ? (sc.points / maxPoints) * 100 : 0;
+                                    const metricVal = metricValOf(sc);
+                                    const pct = metricDenom > 0 ? (metricVal / metricDenom) * 100 : 0;
+                                    const pctDisplay = formatSubCatSharePct(pct);
+                                    const barPct = maxMetricVal > 0 ? (metricVal / maxMetricVal) * 100 : 0;
                                     const catStyle = CAT_COLORS[sc.category];
-                                    const isZero = sc.points === 0;
+                                    const isBonusOnly = isTaskRank && isPointsOnlyBonusRule(sc.code);
+                                    const isZero = metricVal === 0;
                                     const isTop = i === 0 && !isZero;
                                     const isHovered = hoveredSubCatCode === sc.code;
                                     const isHighlighted = !isZero && (isHovered || (isTop && !hoveredSubCatCode));
@@ -3912,8 +3994,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         key={sc.code}
                                         tabIndex={0}
                                         role="listitem"
-                                        aria-label={`#${i + 1} ${sc.label}, ${sc.category}, ${fmtInt(sc.count)} ${sc.unit} at ${sc.unitPts} points each, ${fmtPts(sc.points)} points, ${pctDisplay} share`}
-                                        title={`${sc.label} (${sc.category}) — ${fmtInt(sc.count)} ${sc.unit} × ${sc.unitPts} pt = ${fmtPts(sc.points)} pts (${pctDisplay} share)`}
+                                        aria-label={`${i + 1} ${sc.label}, ${sc.category}, ${fmtInt(sc.count)} ${sc.unit}, ${
+                                          isTaskRank
+                                            ? `${fmtInt(metricVal)} tasks (${pctDisplay} task share)`
+                                            : `${fmtPts(sc.points)} points (${pctDisplay} point share)`
+                                        }`}
+                                        title={`${sc.label} (${sc.category}) — ${fmtInt(sc.count)} ${sc.unit} × ${sc.unitPts} pt = ${fmtPts(sc.points)} pts${
+                                          isBonusOnly ? ' (bonus multiplier — not counted as separate task)' : ''
+                                        }`}
                                         onMouseEnter={() => setHoveredSubCatCode(sc.code)}
                                         onMouseLeave={() =>
                                           setHoveredSubCatCode((cur) => (cur === sc.code ? null : cur))
@@ -3980,14 +4068,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                                     : 'font-semibold text-slate-700'
                                                 }
                                               >
-                                                {fmtPts(sc.points)}
-                                                <span className="hidden sm:inline font-normal text-slate-400"> pts</span>
+                                                {isTaskRank ? fmtInt(metricVal) : fmtPts(sc.points)}
+                                                <span className="hidden sm:inline font-normal text-slate-400">
+                                                  {isTaskRank ? ' tasks' : ' pts'}
+                                                </span>
                                               </span>
-                                              {!isZero && (
+                                              {!isZero ? (
                                                 <span className="text-[10px] font-medium text-slate-400">
                                                   {pctDisplay}
                                                 </span>
-                                              )}
+                                              ) : isBonusOnly && sc.count > 0 ? (
+                                                <span className="hidden sm:inline text-[10px] font-normal text-slate-400">
+                                                  (bonus)
+                                                </span>
+                                              ) : null}
                                             </div>
                                           </div>
                                         </div>
@@ -3997,10 +4091,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 </div>
                               </div>
 
-                              {/* X-Axis Points Scale */}
+                              {/* X-Axis Metric Scale */}
                               <div className="mt-1 flex items-start">
                                 <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0 pr-2.5 sm:pr-3.5 pt-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                  Points
+                                  {isTaskRank ? 'Tasks' : 'Points'}
                                 </div>
                                 <div className="flex-1 min-w-0 pr-[76px] sm:pr-[136px]">
                                   <div className="relative h-5 border-t border-slate-200/80">
@@ -4016,7 +4110,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         }`}
                                         style={tick > 0 && tick < 1 ? { left: `${tick * 100}%` } : undefined}
                                       >
-                                        {fmtAxisTick(maxPoints * tick)}
+                                        {fmtAxisTick(maxMetricVal * tick)}
                                       </span>
                                     ))}
                                   </div>
@@ -4027,9 +4121,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         );
                       })()
                     ) : (() => {
-                      const fmtSharePct = (v: number) =>
-                        v >= 1 ? `${Math.round(v)}%` : v > 0 ? `${v.toFixed(1)}%` : '0%';
-
                       return (
                         <div className="overflow-x-auto bg-white">
                           <table className="w-full text-left text-[13px] text-slate-700">
@@ -4040,23 +4131,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <th className="py-2.5 px-2.5 whitespace-nowrap">Category</th>
                                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Recorded Volume</th>
                                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Weight</th>
-                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Task Count</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                                  Task Count{subCatRankBy === 'tasks' ? ' ↓' : ''}
+                                </th>
                                 <th className="py-2.5 px-2.5 text-right w-32 whitespace-nowrap">Task Share</th>
-                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Total Points</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                                  Total Points{subCatRankBy === 'points' ? ' ↓' : ''}
+                                </th>
                                 <th className="py-2.5 px-2.5 text-right w-32 whitespace-nowrap">Point Share</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                               {displayedSubCategories.map((sc, i) => {
                                 const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
-                                const pctDisplay = fmtSharePct(pct);
-                                const isPointsOnlyRule = sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL';
+                                const pctDisplay = formatSubCatSharePct(pct);
+                                const isPointsOnlyRule = isPointsOnlyBonusRule(sc.code);
                                 const taskCount = isPointsOnlyRule ? null : sc.count;
                                 const taskPct =
                                   taskCount !== null && totals.totalTasks > 0
                                     ? (taskCount / totals.totalTasks) * 100
                                     : 0;
-                                const taskPctDisplay = fmtSharePct(taskPct);
+                                const taskPctDisplay = formatSubCatSharePct(taskPct);
                                 const catStyle = CAT_COLORS[sc.category];
                                 const isZero = sc.points === 0 && sc.count === 0;
 
@@ -4119,12 +4214,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             {displayedSubCategories.length > 0 && (() => {
                               const totalSharePct =
                                 totals.totalPoints > 0 ? (displayedSubCategoryPoints / totals.totalPoints) * 100 : 0;
-                              const totalShareDisplay = fmtSharePct(totalSharePct);
+                              const totalShareDisplay = formatSubCatSharePct(totalSharePct);
                               const totalTaskSharePct =
                                 totals.totalTasks > 0 ? (displayedSubCategoryTasks / totals.totalTasks) * 100 : 0;
-                              const totalTaskShareDisplay = fmtSharePct(totalTaskSharePct);
-                              const hasBonusOnlyRules = displayedSubCategories.some(
-                                (sc) => sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL'
+                              const totalTaskShareDisplay = formatSubCatSharePct(totalTaskSharePct);
+                              const hasBonusOnlyRules = displayedSubCategories.some((sc) =>
+                                isPointsOnlyBonusRule(sc.code)
                               );
 
                               return (
