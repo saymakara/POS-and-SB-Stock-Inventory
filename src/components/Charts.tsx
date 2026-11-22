@@ -326,7 +326,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       }
       padRight = Math.max(42, Math.ceil(maxRightW + 14));
     }
-    const padTop = showLegend ? 40 : hasMomOverlay ? 28 : 22;
+    const padTop = showLegend ? 40 : hasMomOverlay ? 32 : 22;
     const padBottom = 28;
     const plotW = Math.max(100, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
@@ -391,6 +391,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     });
 
     const occupiedLabelRects: BoxRect[] = [];
+    const barRects: BoxRect[] = [];
+    const groupGeom: Array<{ gx: number; y1: number; y2: number; h1: number; h2: number }> = [];
 
     labels.forEach((lbl, idx) => {
       const isHovered = hover?.idx === idx;
@@ -399,27 +401,30 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       const v2 = series2Data[idx] || 0;
       const h1 = (v1 / maxVal) * plotH;
       const h2 = (v2 / maxVal) * plotH;
+      const y1 = baseY - h1;
+      const y2 = baseY - h2;
+      groupGeom.push({ gx, y1, y2, h1, h2 });
 
       // Bar 1 (with crisp vertical gradient)
       if (h1 > 0) {
-        const y1 = baseY - h1;
         const g1 = ctx.createLinearGradient(0, y1, 0, baseY);
         g1.addColorStop(0, series1Color);
         g1.addColorStop(1, hexToRgba(series1Color, isLight ? 0.72 : 0.65));
         ctx.fillStyle = g1;
         roundRectPath(ctx, gx, y1, barW, h1, [5, 5, 0, 0]);
         ctx.fill();
+        barRects.push({ x: gx, y: y1, w: barW, h: h1 });
       }
 
       // Bar 2 (with crisp vertical gradient)
       if (h2 > 0) {
-        const y2 = baseY - h2;
         const g2 = ctx.createLinearGradient(0, y2, 0, baseY);
         g2.addColorStop(0, series2Color);
         g2.addColorStop(1, hexToRgba(series2Color, isLight ? 0.72 : 0.65));
         ctx.fillStyle = g2;
         roundRectPath(ctx, gx + barW + barGap, y2, barW, h2, [5, 5, 0, 0]);
         ctx.fill();
+        barRects.push({ x: gx + barW + barGap, y: y2, w: barW, h: h2 });
       }
 
       // Value annotations: all bars when they fit cleanly, otherwise hovered/latest/peak bars
@@ -575,75 +580,115 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
           return rank(b) - rank(a);
         });
 
-      const placedPills: BoxRect[] = [];
-      ctx.font = `700 9.5px ${chartFont}`;
-      const pillH = 17;
+      const dotRects: BoxRect[] = allNodes.map((dn) => ({ x: dn.x - 5, y: dn.y - 5, w: 10, h: 10 }));
+      const placedLabels: BoxRect[] = [];
+      ctx.font = `700 10.5px ${chartFont}`;
+      const labelH = 13;
 
       priorityOrder.forEach((n) => {
         const tw = ctx.measureText(n.text).width;
-        const dotSpace = 10;
-        const pillW = Math.ceil(tw + dotSpace + 11);
+        const labelW = Math.ceil(tw + 2);
         const minX = padLeft + 2;
-        const maxX = Math.max(minX, width - padRight - pillW - 2);
-        const preferredX = n.x - pillW / 2;
-        const pxCandidates = [
-          Math.min(maxX, Math.max(minX, Math.round(preferredX))),
-          Math.min(maxX, Math.max(minX, Math.round(n.x - pillW + 4))),
-          Math.min(maxX, Math.max(minX, Math.round(n.x - 4))),
-        ];
+        const maxX = Math.max(minX, width - padRight - labelW - 2);
 
-        const isUp = (n.pct ?? 0) > 0;
-        const isDown = (n.pct ?? 0) < 0;
-        const dyCandidates = isDown
-          ? [9, -(pillH + 8), 23, -(pillH + 22), -(pillH + 34)]
-          : [-(pillH + 8), 9, -(pillH + 22), 23, -(pillH + 34)];
+        const g = groupGeom[n.idx] || { gx: padLeft, y1: baseY, y2: baseY, h1: 0, h2: 0 };
+        const ownLeft = n.seriesIdx === 1 ? g.gx : g.gx + barW + barGap;
+        const ownRight = ownLeft + barW;
+        const ownTop = n.seriesIdx === 1 ? g.y1 : g.y2;
+        const barsLeft = g.gx;
+        const barsRight = g.gx + barW * 2 + barGap;
+
+        const dotY = Math.round(n.y - labelH / 2);
+        const aboveOwnY1 = Math.round(ownTop - 17 - labelH);
+        const aboveOwnY2 = Math.round(ownTop - 31 - labelH);
+        const aboveGroupY1 = Math.round(Math.min(g.y1, g.y2) - 17 - labelH);
+        const centerX = Math.round(n.x - labelW / 2);
+
+        // Prioritize positions strictly OUTSIDE bar bodies and close to each bar
+        const sideCandidates: Array<{ x: number; y: number }> =
+          n.seriesIdx === 1
+            ? [
+                { x: Math.round(ownLeft - labelW - 6), y: dotY },
+                { x: Math.round(barsRight + 6), y: dotY },
+                { x: Math.round(ownLeft - labelW - 6), y: Math.round(ownTop - labelH / 2) },
+                { x: centerX, y: aboveOwnY1 },
+                // Shifted flush with bar1 right edge so wide labels clear taller bar2 beside it
+                { x: Math.round(ownRight - labelW - 2), y: aboveOwnY1 },
+                { x: Math.round(ownLeft - labelW - 6), y: dotY - 12 },
+                { x: Math.round(ownLeft - labelW - 6), y: dotY + 12 },
+                { x: Math.round(ownLeft - 2), y: aboveOwnY1 },
+                { x: centerX, y: aboveOwnY2 },
+                { x: Math.round(ownRight - labelW - 2), y: aboveOwnY2 },
+                { x: centerX, y: aboveGroupY1 },
+              ]
+            : [
+                { x: Math.round(ownRight + 6), y: dotY },
+                { x: Math.round(ownLeft - labelW - 6), y: dotY },
+                { x: Math.round(barsLeft - labelW - 6), y: dotY },
+                { x: Math.round(ownRight + 6), y: Math.round(ownTop - labelH / 2) },
+                { x: Math.round(ownLeft - labelW - 6), y: Math.round(ownTop - labelH / 2) },
+                { x: centerX, y: aboveOwnY1 },
+                // Shifted flush with bar2 left edge (+clearance) so wide labels clear taller bar1 beside it
+                { x: Math.round(ownLeft + 2), y: aboveOwnY1 },
+                { x: Math.round(ownRight + 6), y: dotY - 12 },
+                { x: Math.round(ownRight + 6), y: dotY + 12 },
+                { x: Math.round(barsRight - labelW + 2), y: aboveOwnY1 },
+                { x: centerX, y: aboveOwnY2 },
+                { x: Math.round(ownLeft + 2), y: aboveOwnY2 },
+                { x: centerX, y: aboveGroupY1 },
+              ];
+
+        const fits = (cand: BoxRect, avoidBars: boolean): boolean => {
+          if (cand.x < minX || cand.x > maxX || cand.y < 3 || cand.y + cand.h > baseY - 2) return false;
+          if (placedLabels.some((r) => rectsOverlap(cand, r, 3))) return false;
+          if (occupiedLabelRects.some((r) => rectsOverlap(cand, r, 2))) return false;
+          if (dotRects.some((r) => rectsOverlap(cand, r, 2))) return false;
+          if (avoidBars && barRects.some((r) => rectsOverlap(cand, r, 2))) return false;
+          return true;
+        };
 
         let chosenPos: { x: number; y: number } | null = null;
-        outer: for (const dy of dyCandidates) {
-          const cy = Math.round(n.y + dy);
-          if (cy < 4 || cy + pillH > baseY - 3) continue;
-          for (const cx of pxCandidates) {
-            const cand: BoxRect = { x: cx, y: cy, w: pillW, h: pillH };
-            const hitsPlaced = placedPills.some((r) => rectsOverlap(cand, r, 3));
-            const hitsBarLabel = occupiedLabelRects.some((r) => rectsOverlap(cand, r, 2));
-            if (!hitsPlaced && !hitsBarLabel) {
-              chosenPos = { x: cx, y: cy };
-              break outer;
+        for (const p of sideCandidates) {
+          if (fits({ x: p.x, y: p.y, w: labelW, h: labelH }, true)) {
+            chosenPos = p;
+            break;
+          }
+        }
+        // Dense 12M fallback if every outside-bar slot around tall adjacent bars is blocked
+        if (!chosenPos) {
+          const isDown = (n.pct ?? 0) < 0;
+          const clampedX = Math.min(maxX, Math.max(minX, centerX));
+          const fallbackCands = [
+            { x: clampedX, y: aboveOwnY1 },
+            { x: clampedX, y: Math.round(n.y + (isDown ? 8 : -(labelH + 7))) },
+            { x: clampedX, y: Math.round(n.y + (isDown ? -(labelH + 7) : 8)) },
+          ];
+          for (const p of fallbackCands) {
+            if (fits({ x: p.x, y: p.y, w: labelW, h: labelH }, false)) {
+              chosenPos = p;
+              break;
             }
           }
         }
         if (!chosenPos) return;
 
-        placedPills.push({ x: chosenPos.x, y: chosenPos.y, w: pillW, h: pillH });
+        placedLabels.push({ x: chosenPos.x, y: chosenPos.y, w: labelW, h: labelH });
 
-        const bg = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.94)';
-        const border = isUp
-          ? isLight ? 'rgba(16, 185, 129, 0.48)' : 'rgba(52, 211, 153, 0.45)'
-          : isDown
-            ? isLight ? 'rgba(244, 63, 94, 0.48)' : 'rgba(251, 113, 133, 0.45)'
-            : isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.35)';
+        const isUp = (n.pct ?? 0) > 0;
+        const isDown = (n.pct ?? 0) < 0;
         const txtColor = isUp
-          ? isLight ? '#047857' : '#6ee7b7'
+          ? isLight ? '#059669' : '#34d399'
           : isDown
-            ? isLight ? '#be123c' : '#fda4af'
-            : isLight ? '#475569' : '#cbd5e1';
+            ? isLight ? '#e11d48' : '#fb7185'
+            : isLight ? '#64748b' : '#94a3b8';
 
         ctx.save();
-        ctx.fillStyle = bg;
-        ctx.strokeStyle = border;
-        ctx.lineWidth = 1;
-        roundRectPath(ctx, chosenPos.x, chosenPos.y, pillW, pillH, 999);
-        ctx.fill();
-        ctx.stroke();
-
-        // Series color dot inside pill identifies POS (sky) vs Sound Box (violet)
-        ctx.fillStyle = n.lineColor;
-        ctx.beginPath();
-        ctx.arc(chosenPos.x + 8, chosenPos.y + pillH / 2, 2.7, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = haloStroke;
+        ctx.strokeText(n.text, chosenPos.x + 1, chosenPos.y + 11);
         ctx.fillStyle = txtColor;
-        ctx.fillText(n.text, chosenPos.x + 14, chosenPos.y + 12);
+        ctx.fillText(n.text, chosenPos.x + 1, chosenPos.y + 11);
         ctx.restore();
       });
     }
@@ -721,7 +766,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
                 ? 'border-slate-200/90 bg-white/95 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.12)]'
                 : 'border-slate-700/80 bg-[#0f172a]/95 text-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.38)]'
             }`}
-            style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 28px)' : '28px'})` }}
+            style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? `calc(-100% - ${showMomChangeLine ? 48 : 28}px)` : `${showMomChangeLine ? 48 : 28}px`})` }}
             role="status"
           >
             <div className={`flex items-center justify-between gap-3 font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
