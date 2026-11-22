@@ -12,6 +12,12 @@ interface GroupedBarChartProps {
   height?: number;
   theme?: ThemeMode;
   showLegend?: boolean;
+  /** Overlay a month-to-month % change trend line on a secondary right % axis with +/- pill callouts. */
+  showMomChangeLine?: boolean;
+  /** Optional month immediately preceding labels[0] so the leftmost visible bar can also show true MoM %. */
+  priorSeries1Value?: number;
+  priorSeries2Value?: number;
+  momLineLabel?: string;
   /** Optional screen-reader summary. When omitted, one is built from the data. */
   ariaLabel?: string;
 }
@@ -27,6 +33,89 @@ function niceScale(maxVal: number, targetSteps = 4): { max: number; steps: numbe
   const steps = Math.max(1, Math.ceil(maxVal / step));
   return { max: step * steps, steps, step };
 }
+
+function nicePctStep(rawStep: number): number {
+  const safe = Math.max(1, rawStep);
+  const mag = Math.pow(10, Math.floor(Math.log10(safe)));
+  return [1, 1.5, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= safe) || 10 * mag;
+}
+
+/** Picks clean rounded right-axis % ticks matching exact left gridlines while keeping 0% on a gridline. */
+function nicePercentScale(
+  vals: number[],
+  steps: number
+): { min: number; max: number; step: number; zeroStep: number } {
+  const s = Math.max(1, steps);
+  const rawMin = vals.length > 0 ? Math.min(0, ...vals) : 0;
+  const rawMax = vals.length > 0 ? Math.max(0, ...vals) : 0;
+  const padMax = rawMax > 0 ? rawMax * 1.18 : 0;
+  const padMin = rawMin < 0 ? rawMin * 1.18 : 0;
+
+  if (padMin === 0 && padMax === 0) {
+    return { min: 0, max: s * 25, step: 25, zeroStep: 0 };
+  }
+  if (padMin >= 0) {
+    const step = nicePctStep(padMax / s);
+    return { min: 0, max: s * step, step, zeroStep: 0 };
+  }
+  if (padMax <= 0) {
+    const step = nicePctStep(Math.abs(padMin) / s);
+    return { min: -s * step, max: 0, step, zeroStep: s };
+  }
+
+  let bestStep = Infinity;
+  let bestZero = 1;
+  for (let z = 1; z < s; z++) {
+    const req = Math.max(Math.abs(padMin) / z, padMax / (s - z));
+    const cand = nicePctStep(req);
+    if (cand < bestStep) {
+      bestStep = cand;
+      bestZero = z;
+    }
+  }
+  return {
+    min: -bestZero * bestStep,
+    max: (s - bestZero) * bestStep,
+    step: bestStep,
+    zeroStep: bestZero,
+  };
+}
+
+interface MomDelta {
+  pct: number | null;
+  isNew: boolean;
+  text: string;
+}
+
+function calcMomDelta(cur: number, prev: number | undefined): MomDelta {
+  if (prev === undefined) return { pct: null, isNew: false, text: '' };
+  if (prev <= 0) {
+    return cur > 0
+      ? { pct: null, isNew: true, text: 'New' }
+      : { pct: null, isNew: false, text: '' };
+  }
+  const pct = ((cur - prev) / prev) * 100;
+  const rounded = Math.abs(pct) > 0 && Math.abs(pct) < 10 ? Number(pct.toFixed(1)) : Math.round(pct);
+  const text = rounded > 0 ? `+${fmt(rounded)}%` : rounded < 0 ? `-${fmt(Math.abs(rounded))}%` : '0%';
+  return { pct, isNew: false, text };
+}
+
+interface BoxRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function rectsOverlap(a: BoxRect, b: BoxRect, pad = 2): boolean {
+  return !(
+    a.x + a.w + pad <= b.x ||
+    b.x + b.w + pad <= a.x ||
+    a.y + a.h + pad <= b.y ||
+    b.y + b.h + pad <= a.y
+  );
+}
+
 /** roundRect is missing in some older browsers (e.g. older Android WebViews); fall back to a plain rectangle. */
 function roundRectPath(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number | number[]) {
   ctx.beginPath();
@@ -45,6 +134,10 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
   height = 240,
   theme = 'dark',
   showLegend = true,
+  showMomChangeLine = false,
+  priorSeries1Value,
+  priorSeries2Value,
+  momLineLabel = 'MoM Change %',
   ariaLabel,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -97,8 +190,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
   // Redraw only when the values change, not when a parent passes a new array with the same values.
   const dataKey = useMemo(
-    () => JSON.stringify([labels, series1Data, series2Data]),
-    [labels, series1Data, series2Data]
+    () => JSON.stringify([labels, series1Data, series2Data, priorSeries1Value ?? null, priorSeries2Value ?? null]),
+    [labels, series1Data, series2Data, priorSeries1Value, priorSeries2Value]
   );
   const hasData = useMemo(
     () => series1Data.some((v) => v > 0) || series2Data.some((v) => v > 0),
@@ -108,8 +201,39 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     const scale = niceScale(Math.max(4, ...series1Data, ...series2Data));
     const max1 = Math.max(...series1Data, 0);
     const max2 = Math.max(...series2Data, 0);
+    const momPoints = labels.map((_, idx) => {
+      const v1 = series1Data[idx] || 0;
+      const v2 = series2Data[idx] || 0;
+      const p1 = idx === 0 ? priorSeries1Value : series1Data[idx - 1] || 0;
+      const p2 = idx === 0 ? priorSeries2Value : series2Data[idx - 1] || 0;
+      const pTot = p1 !== undefined && p2 !== undefined ? p1 + p2 : undefined;
+      return {
+        total: calcMomDelta(v1 + v2, pTot),
+        s1: calcMomDelta(v1, p1),
+        s2: calcMomDelta(v2, p2),
+      };
+    });
+    const numericPcts = momPoints
+      .map((m) => m.total.pct)
+      .filter((v): v is number => v !== null);
+    const pctScale = nicePercentScale(numericPcts, scale.steps);
+    let maxGainIdx = -1;
+    let maxDropIdx = -1;
+    momPoints.forEach((m, i) => {
+      if (m.total.pct === null) return;
+      if (m.total.pct > 0 && (maxGainIdx === -1 || m.total.pct > (momPoints[maxGainIdx].total.pct ?? -Infinity))) {
+        maxGainIdx = i;
+      }
+      if (m.total.pct < 0 && (maxDropIdx === -1 || m.total.pct < (momPoints[maxDropIdx].total.pct ?? Infinity))) {
+        maxDropIdx = i;
+      }
+    });
     return {
       scale,
+      pctScale,
+      momPoints,
+      maxGainIdx,
+      maxDropIdx,
       max1,
       max2,
       firstMax1: series1Data.indexOf(max1),
@@ -176,15 +300,31 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       ctx.fillText(series2Label, 68 + s1Width, 17);
     }
 
-    const { scale, firstMax1, firstMax2 } = chartStats;
+    const { scale, pctScale, momPoints, maxGainIdx, maxDropIdx, firstMax1, firstMax2 } = chartStats;
     const maxVal = scale.max;
     const steps = scale.steps;
+    const hasMomOverlay =
+      showMomChangeLine &&
+      hasData &&
+      momPoints.some((m) => m.total.pct !== null || m.total.isNew);
+    const momAccent = isLight ? '#d97706' : '#fbbf24';
 
     ctx.font = `600 10.5px ${chartFont}`;
     const maxAxisW = ctx.measureText(fmt(maxVal)).width;
     const padLeft = Math.max(36, Math.ceil(maxAxisW + 12));
-    const padRight = 14;
-    const padTop = showLegend ? 38 : 22;
+    let padRight = 14;
+    const rightLabels: string[] = [];
+    if (hasMomOverlay) {
+      let maxRightW = 0;
+      for (let i = 0; i <= steps; i++) {
+        const pv = Math.round(pctScale.min + i * pctScale.step);
+        const lbl = pv > 0 ? `+${fmt(pv)}%` : `${fmt(pv)}%`;
+        rightLabels.push(lbl);
+        maxRightW = Math.max(maxRightW, ctx.measureText(lbl).width);
+      }
+      padRight = Math.max(42, Math.ceil(maxRightW + 14));
+    }
+    const padTop = showLegend ? 40 : hasMomOverlay ? 28 : 22;
     const padBottom = 28;
     const plotW = Math.max(100, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
@@ -192,21 +332,33 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
     ctx.lineWidth = 1;
     ctx.font = `600 10.5px ${chartFont}`;
-    ctx.fillStyle = axisTextColor;
 
     for (let i = 0; i <= steps; i++) {
       const y = baseY - (i / steps) * plotH;
       const val = Math.round(i * scale.step);
+      const isZeroPctLine = hasMomOverlay && pctScale.zeroStep > 0 && pctScale.zeroStep < steps && i === pctScale.zeroStep;
       ctx.save();
-      ctx.strokeStyle = i === 0 ? baseLineColor : gridLineColor;
-      if (i > 0) ctx.setLineDash([3, 4]);
+      ctx.strokeStyle =
+        i === 0
+          ? baseLineColor
+          : isZeroPctLine
+            ? isLight
+              ? 'rgba(217, 119, 6, 0.32)'
+              : 'rgba(251, 191, 36, 0.28)'
+            : gridLineColor;
+      if (i > 0) ctx.setLineDash(isZeroPctLine ? [5, 4] : [3, 4]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
       ctx.stroke();
       ctx.restore();
+      ctx.fillStyle = axisTextColor;
       const vs = fmt(val);
       ctx.fillText(vs, Math.max(2, padLeft - 7 - ctx.measureText(vs).width), y + 3);
+      if (hasMomOverlay && rightLabels[i]) {
+        ctx.fillStyle = isZeroPctLine ? momAccent : axisTextColor;
+        ctx.fillText(rightLabels[i], width - padRight + 8, y + 3);
+      }
     }
 
     const groupCount = Math.max(1, labels.length);
@@ -235,6 +387,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       const bothPresent = w1 > 0 && w2 > 0;
       return w1 <= barW + 10 && w2 <= barW + 10 && (!bothPresent || w1 + w2 + 8 <= groupW - 4);
     });
+
+    const occupiedLabelRects: BoxRect[] = [];
 
     labels.forEach((lbl, idx) => {
       const isHovered = hover?.idx === idx;
@@ -274,17 +428,21 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         ctx.fillStyle = isHovered ? series1Color : valueTextColor;
         const s1 = fmt(v1);
         const tw1 = ctx.measureText(s1).width;
-        ctx.fillText(s1, gx + (barW - tw1) / 2, Math.max(10, baseY - h1 - 5));
+        const lx = gx + (barW - tw1) / 2;
+        const ly = Math.max(12, baseY - h1 - 5);
+        ctx.fillText(s1, lx, ly);
+        occupiedLabelRects.push({ x: lx - 2, y: ly - 10, w: tw1 + 4, h: 12 });
       }
       if (showV2) {
         ctx.fillStyle = isHovered ? series2Color : valueTextColor;
         const s2 = fmt(v2);
         const tw2 = ctx.measureText(s2).width;
         const x2Center = gx + barW + barGap + (barW - tw2) / 2;
-        // Guard against subtle label touch when two wide peak/latest numbers sit side-by-side
         const tw1 = ctx.measureText(fmt(v1)).width;
         const yOffset = showV1 && Math.abs(h1 - h2) < 12 && tw1 + tw2 > barW * 2 + barGap ? 14 : 5;
-        ctx.fillText(s2, x2Center, Math.max(10, baseY - h2 - yOffset));
+        const ly = Math.max(12, baseY - h2 - yOffset);
+        ctx.fillText(s2, x2Center, ly);
+        occupiedLabelRects.push({ x: x2Center - 2, y: ly - 10, w: tw2 + 4, h: 12 });
       }
 
       // X-axis label
@@ -294,6 +452,171 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       const tw = ctx.measureText(shortLbl).width;
       ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 8);
     });
+
+    // Style 1 Overlay: Dual-Axis Smooth MoM % Trend Line + Green/Red Pill Callouts
+    if (hasMomOverlay) {
+      const pctRange = Math.max(1, pctScale.max - pctScale.min);
+      const pctToY = (pv: number) => baseY - ((pv - pctScale.min) / pctRange) * plotH;
+      const nodes: Array<{
+        idx: number;
+        x: number;
+        y: number;
+        pct: number | null;
+        isNew: boolean;
+        text: string;
+      }> = momPoints.map((m, idx) => {
+        const cx = padLeft + (idx + 0.5) * groupW;
+        if (m.total.pct !== null) {
+          return { idx, x: cx, y: pctToY(m.total.pct), pct: m.total.pct, isNew: false, text: m.total.text };
+        }
+        if (m.total.isNew) {
+          return { idx, x: cx, y: pctToY(0), pct: null, isNew: true, text: m.total.text };
+        }
+        return { idx, x: cx, y: baseY, pct: null, isNew: false, text: '' };
+      });
+
+      // Split into contiguous active runs so empty zero-gaps don't connect artificially
+      const runs: Array<typeof nodes> = [];
+      let curRun: typeof nodes = [];
+      nodes.forEach((n) => {
+        if (n.pct !== null || n.isNew) {
+          curRun.push(n);
+        } else if (curRun.length > 0) {
+          runs.push(curRun);
+          curRun = [];
+        }
+      });
+      if (curRun.length > 0) runs.push(curRun);
+
+      // Draw connecting segments (dashed amber for starter 'New -> pct', smooth solid amber curve for numeric pcts)
+      runs.forEach((run) => {
+        if (run.length < 2) return;
+        for (let i = 1; i < run.length; i++) {
+          const prev = run[i - 1];
+          const curr = run[i];
+          const isStarter = prev.isNew || curr.isNew;
+          ctx.save();
+          ctx.strokeStyle = momAccent;
+          ctx.lineWidth = isStarter ? 1.8 : 2.35;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          if (isStarter) ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(prev.x, prev.y);
+          const midX = (prev.x + curr.x) / 2;
+          // Gentle horizontal-tangent S-curve between monthly MoM nodes
+          ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+
+      // Draw circular node markers
+      const haloStroke = isLight ? '#ffffff' : '#0f172a';
+      nodes.forEach((n) => {
+        if (n.pct === null && !n.isNew) return;
+        const isHov = hover?.idx === n.idx;
+        const fill = n.isNew
+          ? momAccent
+          : (n.pct ?? 0) > 0
+            ? isLight ? '#059669' : '#10b981'
+            : (n.pct ?? 0) < 0
+              ? isLight ? '#e11d48' : '#fb7185'
+              : momAccent;
+        const r = isHov ? 5.2 : 4.0;
+        ctx.save();
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = haloStroke;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Draw green/red/neutral pill callouts with collision avoidance
+      const priorityOrder = nodes
+        .filter((n) => n.text)
+        .sort((a, b) => {
+          const rank = (n: typeof a) =>
+            (hover?.idx === n.idx ? 1000 : 0) +
+            (n.idx === lastIdx ? 400 : 0) +
+            (n.idx === maxGainIdx ? 200 : 0) +
+            (n.idx === maxDropIdx ? 150 : 0) +
+            (n.pct !== null ? 50 : 10) +
+            n.idx;
+          return rank(b) - rank(a);
+        });
+
+      const placedPills: BoxRect[] = [];
+      ctx.font = `700 9.5px ${chartFont}`;
+      const pillH = 17;
+
+      priorityOrder.forEach((n) => {
+        const tw = ctx.measureText(n.text).width;
+        const pillW = Math.ceil(tw + 12);
+        const minX = padLeft + 2;
+        const maxX = Math.max(minX, width - padRight - pillW - 2);
+        const px = Math.min(maxX, Math.max(minX, Math.round(n.x - pillW / 2)));
+
+        const isUp = (n.pct ?? 0) > 0;
+        const isDown = (n.pct ?? 0) < 0;
+        const preferAbove = !isDown;
+        const offsets = preferAbove
+          ? [-(pillH + 8), 9, -(pillH + 22), 23, -(pillH + 34)]
+          : [9, -(pillH + 8), 23, -(pillH + 22), -(pillH + 34)];
+
+        let chosenY: number | null = null;
+        for (const dy of offsets) {
+          const cy = Math.round(n.y + dy);
+          if (cy < 4 || cy + pillH > baseY - 3) continue;
+          const cand: BoxRect = { x: px, y: cy, w: pillW, h: pillH };
+          const hitsPlaced = placedPills.some((r) => rectsOverlap(cand, r, 3));
+          const hitsBarLabel = occupiedLabelRects.some((r) => rectsOverlap(cand, r, 2));
+          if (!hitsPlaced && !hitsBarLabel) {
+            chosenY = cy;
+            break;
+          }
+        }
+        if (chosenY === null) return;
+
+        placedPills.push({ x: px, y: chosenY, w: pillW, h: pillH });
+
+        const bg = n.isNew
+          ? isLight ? 'rgba(255, 251, 235, 0.96)' : 'rgba(120, 53, 15, 0.92)'
+          : isUp
+            ? isLight ? 'rgba(236, 253, 245, 0.96)' : 'rgba(6, 78, 59, 0.92)'
+            : isDown
+              ? isLight ? 'rgba(255, 241, 242, 0.96)' : 'rgba(136, 19, 55, 0.92)'
+              : isLight ? 'rgba(248, 250, 252, 0.96)' : 'rgba(30, 41, 59, 0.92)';
+        const border = n.isNew
+          ? isLight ? 'rgba(245, 158, 11, 0.45)' : 'rgba(251, 191, 36, 0.45)'
+          : isUp
+            ? isLight ? 'rgba(16, 185, 129, 0.42)' : 'rgba(52, 211, 153, 0.45)'
+            : isDown
+              ? isLight ? 'rgba(244, 63, 94, 0.42)' : 'rgba(251, 113, 133, 0.45)'
+              : isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(148, 163, 184, 0.35)';
+        const txtColor = n.isNew
+          ? isLight ? '#b45309' : '#fcd34d'
+          : isUp
+            ? isLight ? '#047857' : '#6ee7b7'
+            : isDown
+              ? isLight ? '#be123c' : '#fda4af'
+              : isLight ? '#475569' : '#cbd5e1';
+
+        ctx.save();
+        ctx.fillStyle = bg;
+        ctx.strokeStyle = border;
+        ctx.lineWidth = 1;
+        roundRectPath(ctx, px, chosenY, pillW, pillH, 999);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = txtColor;
+        ctx.fillText(n.text, px + 6, chosenY + 12);
+        ctx.restore();
+      });
+    }
     // labels / series are covered by dataKey (value-based)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -305,6 +628,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     height,
     theme,
     showLegend,
+    showMomChangeLine,
+    momLineLabel,
     hover,
     containerWidth,
   ]);
@@ -344,54 +669,85 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       >
         {summary}
       </canvas>
-      {hover && hasData && labels[hover.idx] !== undefined && (
-        <div
-          className={`absolute top-2.5 pointer-events-none z-20 rounded-xl border backdrop-blur-md px-3 py-2 text-[11px] whitespace-nowrap min-w-[185px] ${
-            isLight
-              ? 'border-slate-200/90 bg-white/95 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.12)]'
-              : 'border-slate-700/80 bg-[#0f172a]/95 text-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.38)]'
-          }`}
-          style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 12px)' : '12px'})` }}
-          role="status"
-        >
-          <div className={`font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
-            {labels[hover.idx]}
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series1Color }} />
-              {series1Label}
-            </span>
-            <strong className={`font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              {fmt(series1Data[hover.idx] || 0)}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-4 mt-0.5">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series2Color }} />
-              {series2Label}
-            </span>
-            <strong className={`font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              {fmt(series2Data[hover.idx] || 0)}
-            </strong>
-          </div>
-          {(() => {
-            const v1 = series1Data[hover.idx] || 0;
-            const v2 = series2Data[hover.idx] || 0;
-            const t = v1 + v2;
-            const s1Tag = /POS/i.test(series1Label) ? 'POS' : series1Label.split(' ')[0];
-            const s2Tag = /Sound Box/i.test(series2Label) ? 'SB' : series2Label.split(' ')[0];
-            return t > 0 ? (
+      {hover && hasData && labels[hover.idx] !== undefined && (() => {
+        const m = chartStats.momPoints[hover.idx];
+        const badgeCls = (d?: MomDelta) => {
+          if (!d || (!d.isNew && d.pct === null)) return '';
+          if (d.isNew) return isLight ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/20 text-amber-300';
+          if ((d.pct ?? 0) > 0) return isLight ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-500/20 text-emerald-300';
+          if ((d.pct ?? 0) < 0) return isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-500/20 text-rose-300';
+          return isLight ? 'bg-slate-100 text-slate-600' : 'bg-slate-800 text-slate-300';
+        };
+        const deltaTextCls = (d?: MomDelta) => {
+          if (!d || (!d.isNew && d.pct === null)) return 'text-slate-400';
+          if (d.isNew) return isLight ? 'text-amber-600' : 'text-amber-300';
+          if ((d.pct ?? 0) > 0) return isLight ? 'text-emerald-600' : 'text-emerald-400';
+          if ((d.pct ?? 0) < 0) return isLight ? 'text-rose-600' : 'text-rose-400';
+          return 'text-slate-400';
+        };
+        const v1 = series1Data[hover.idx] || 0;
+        const v2 = series2Data[hover.idx] || 0;
+        const t = v1 + v2;
+        const s1Tag = /POS/i.test(series1Label) ? 'POS' : series1Label.split(' ')[0];
+        const s2Tag = /Sound Box/i.test(series2Label) ? 'SB' : series2Label.split(' ')[0];
+
+        return (
+          <div
+            className={`absolute top-2.5 pointer-events-none z-20 rounded-xl border backdrop-blur-md px-3 py-2 text-[11px] whitespace-nowrap min-w-[205px] ${
+              isLight
+                ? 'border-slate-200/90 bg-white/95 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.12)]'
+                : 'border-slate-700/80 bg-[#0f172a]/95 text-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.38)]'
+            }`}
+            style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 28px)' : '28px'})` }}
+            role="status"
+          >
+            <div className={`flex items-center justify-between gap-3 font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
+              <span>{labels[hover.idx]}</span>
+              {showMomChangeLine && m?.total.text && (
+                <span className={`font-figure font-semibold text-[10px] px-1.5 py-0.5 rounded-full ${badgeCls(m.total)}`}>
+                  {m.total.text} MoM
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series1Color }} />
+                {series1Label}
+              </span>
+              <span className="inline-flex items-baseline gap-1.5 font-figure tabular-nums">
+                <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmt(v1)}</strong>
+                {showMomChangeLine && m?.s1.text && (
+                  <span className={`text-[10px] font-semibold ${deltaTextCls(m.s1)}`}>
+                    {m.s1.text}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4 mt-0.5">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series2Color }} />
+                {series2Label}
+              </span>
+              <span className="inline-flex items-baseline gap-1.5 font-figure tabular-nums">
+                <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmt(v2)}</strong>
+                {showMomChangeLine && m?.s2.text && (
+                  <span className={`text-[10px] font-semibold ${deltaTextCls(m.s2)}`}>
+                    {m.s2.text}
+                  </span>
+                )}
+              </span>
+            </div>
+            {t > 0 && (
               <div className={`mt-1.5 pt-1 border-t flex items-center justify-between gap-3 text-[10.5px] font-figure ${
                 isLight ? 'border-slate-100 text-slate-500' : 'border-slate-700/70 text-slate-400'
               }`}>
                 <span>Total {fmt(t)}</span>
                 <span>{s1Tag} {Math.round((v1 / t) * 100)}% · {s2Tag} {Math.round((v2 / t) * 100)}%</span>
               </div>
-            ) : null;
-          })()}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
       {!hasData && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
           <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${theme === 'light' ? 'bg-white/90 text-slate-500' : 'bg-black/40 text-slate-300'}`}>

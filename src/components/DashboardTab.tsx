@@ -438,6 +438,10 @@ interface MonthlyInstallComparisonData {
   labels: string[];
   pos: number[];
   sb: number[];
+  priorPos?: number;
+  priorSb?: number;
+  latestMomPct: number | null;
+  latestMomText: string;
   totalPos: number;
   totalSb: number;
   totalInstalls: number;
@@ -1004,19 +1008,19 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
 
       <div className="px-6 pt-1 pb-2 flex-1 flex flex-col justify-between gap-2">
         <div
-          className={`flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+          className={`flex flex-wrap xl:flex-nowrap items-center justify-between gap-1.5 text-[10.5px] ${
             isLight ? 'text-slate-600' : 'text-slate-300'
           }`}
         >
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
                 isLight
                   ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
                   : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
               }`}
             >
-              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
+              <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
               <span>POS Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalPos)}
@@ -1024,28 +1028,57 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
             </span>
 
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
                 isLight
                   ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
                   : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
               }`}
             >
-              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
+              <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
               <span>Sound Box Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalSb)}
               </span>
             </span>
+
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap ${
+                isLight
+                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
+                  : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
+              }`}
+            >
+              <span className="inline-flex items-center shrink-0" aria-hidden="true">
+                <span className={`w-3 h-0.5 rounded-full ${isLight ? 'bg-amber-600' : 'bg-amber-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full -ml-1.5 ${isLight ? 'bg-amber-600' : 'bg-amber-400'}`} />
+              </span>
+              <span>MoM</span>
+              {!loading && data.latestMomText && (
+                <span
+                  className={`font-figure font-bold tabular-nums ${
+                    data.latestMomPct === null
+                      ? isLight ? 'text-amber-700' : 'text-amber-300'
+                      : data.latestMomPct > 0
+                        ? isLight ? 'text-emerald-700' : 'text-emerald-400'
+                        : data.latestMomPct < 0
+                          ? isLight ? 'text-rose-700' : 'text-rose-400'
+                          : isLight ? 'text-slate-700' : 'text-slate-200'
+                  }`}
+                >
+                  {data.latestMomText}
+                </span>
+              )}
+            </span>
           </div>
 
           <span
-            className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
+            className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
               isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
             }`}
           >
             {loading
               ? 'Loading Merchant Visit records…'
-              : `${horizonMonths}M Total · ${fmtNum(data.totalInstalls)} submitted${data.pendingTotal > 0 ? ` (${fmtNum(data.pendingTotal)} pending)` : ''}`}
+              : `${horizonMonths}M · ${fmtNum(data.totalInstalls)}${data.pendingTotal > 0 ? ` (${fmtNum(data.pendingTotal)} pending)` : ' submitted'}`}
           </span>
         </div>
 
@@ -1086,8 +1119,11 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
             series2Color={sbColor}
             height={292}
             showLegend={false}
+            showMomChangeLine={true}
+            priorSeries1Value={data.priorPos}
+            priorSeries2Value={data.priorSb}
             theme={theme}
-            ariaLabel={`Monthly POS Installation and Sound Box Installation comparison over trailing ${horizonMonths} months`}
+            ariaLabel={`Monthly POS Installation and Sound Box Installation comparison with month-to-month percentage change over trailing ${horizonMonths} months`}
           />
         )}
       </div>
@@ -2326,7 +2362,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Monthly POS Installation vs Sound Box Installation from Merchant Visit app (approved + pending updates)
   const monthlyInstallComparison = useMemo<MonthlyInstallComparisonData>(() => {
-    const months = lastMonthsPP(12);
+    const months = lastMonthsPP(13);
     const map = new Map<
       string,
       { key: string; label: string; pos: number; sb: number; pendingPos: number; pendingSb: number }
@@ -2401,8 +2437,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
-    const sliced =
-      installHorizon === '3M' ? list.slice(-3) : installHorizon === '6M' ? list.slice(-6) : list;
+    const horizonCount = installHorizon === '3M' ? 3 : installHorizon === '6M' ? 6 : 12;
+    const sliced = list.slice(-horizonCount);
+    const priorEntry = list[list.length - horizonCount - 1];
     let totalPos = 0;
     let totalSb = 0;
     let pendingTotal = 0;
@@ -2419,10 +2456,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
     const latest = sliced[sliced.length - 1];
+    const prevLatest = sliced.length >= 2 ? sliced[sliced.length - 2] : priorEntry;
+    const latestTot = (latest?.pos || 0) + (latest?.sb || 0);
+    const prevTot = (prevLatest?.pos || 0) + (prevLatest?.sb || 0);
+    let latestMomPct: number | null = null;
+    let latestMomText = '';
+    if (prevTot > 0) {
+      latestMomPct = ((latestTot - prevTot) / prevTot) * 100;
+      const rounded =
+        Math.abs(latestMomPct) > 0 && Math.abs(latestMomPct) < 10
+          ? Number(latestMomPct.toFixed(1))
+          : Math.round(latestMomPct);
+      latestMomText = rounded > 0 ? `+${fmtNum(rounded)}%` : rounded < 0 ? `-${fmtNum(Math.abs(rounded))}%` : '0%';
+    } else if (latestTot > 0) {
+      latestMomText = 'New';
+    }
     return {
       labels: sliced.map((x) => x.label),
       pos: sliced.map((x) => x.pos),
       sb: sliced.map((x) => x.sb),
+      priorPos: priorEntry?.pos,
+      priorSb: priorEntry?.sb,
+      latestMomPct,
+      latestMomText,
       totalPos,
       totalSb,
       totalInstalls: totalPos + totalSb,
