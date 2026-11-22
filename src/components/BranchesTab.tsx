@@ -497,7 +497,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-full transition-colors ${
                           isActive
                             ? CAPSULE_COUNT_WARN_ACTIVE_CLS
-                            : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 font-bold'
+                            : 'bg-transparent border border-transparent text-amber-700 dark:text-amber-300 font-bold'
                         }`}
                       >
                         {count}

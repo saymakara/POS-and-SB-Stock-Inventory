@@ -1985,12 +1985,15 @@ export interface FieldInstallSummaryRow {
   branchText: string;
   staffId: string;
   staffName: string;
+  mid?: string;
+  outletName?: string;
+  terminalName?: string;
   recordedAt: string;
   receivedAt: string;
 }
 
 const FIELD_INSTALL_SUMMARY_COLUMNS =
-  'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,recorded_at,received_at';
+  'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,mid,outlet_name,terminal_name,recorded_at,received_at';
 
 export interface MonthlyInstallSessionBucket {
   key: string;
@@ -2048,7 +2051,7 @@ export function getCachedMonthlyInstallFieldEventsCoveredDays(): number {
 export function getCachedMonthlyInstallBuckets(
   scopeKey: string,
   minDays: number
-): { buckets: MonthlyInstallSessionBucket[]; coveredDays: number } | null {
+): { buckets: MonthlyInstallSessionBucket[]; coveredDays: number; totalMerchants?: number } | null {
   try {
     if (typeof sessionStorage === 'undefined') return null;
     const raw = sessionStorage.getItem(`${INSTALL_SESSION_CACHE_PREFIX}${scopeKey}`);
@@ -2058,12 +2061,17 @@ export function getCachedMonthlyInstallBuckets(
       uid?: string | null;
       coveredDays?: number;
       buckets?: MonthlyInstallSessionBucket[];
+      totalMerchants?: number;
     };
     if (!parsed || !Array.isArray(parsed.buckets)) return null;
     if (typeof parsed.at !== 'number' || Date.now() - parsed.at > INSTALL_SESSION_TTL_MS) return null;
     if ((parsed.coveredDays || 0) < minDays) return null;
     if (fieldInstallsOwner !== undefined && parsed.uid !== fieldInstallsOwner) return null;
-    return { buckets: parsed.buckets, coveredDays: parsed.coveredDays || 0 };
+    return {
+      buckets: parsed.buckets,
+      coveredDays: parsed.coveredDays || 0,
+      totalMerchants: typeof parsed.totalMerchants === 'number' ? parsed.totalMerchants : undefined,
+    };
   } catch {
     return null;
   }
@@ -2072,7 +2080,8 @@ export function getCachedMonthlyInstallBuckets(
 export function setCachedMonthlyInstallBuckets(
   scopeKey: string,
   coveredDays: number,
-  buckets: MonthlyInstallSessionBucket[]
+  buckets: MonthlyInstallSessionBucket[],
+  totalMerchants?: number
 ): void {
   try {
     if (typeof sessionStorage === 'undefined') return;
@@ -2083,6 +2092,7 @@ export function setCachedMonthlyInstallBuckets(
         uid: fieldInstallsOwner ?? null,
         coveredDays,
         buckets,
+        ...(typeof totalMerchants === 'number' ? { totalMerchants } : {}),
       })
     );
   } catch { /* ignore storage quota errors */ }
@@ -2208,6 +2218,9 @@ export async function fetchMonthlyInstallFieldEvents(
           branchText: String(r.branch_text || ''),
           staffId: String(r.staff_id || ''),
           staffName: String(r.staff_name || ''),
+          mid: String(r.mid || ''),
+          outletName: String(r.outlet_name || ''),
+          terminalName: String(r.terminal_name || ''),
           recordedAt: String(r.recorded_at || ''),
           receivedAt: String(r.received_at || ''),
         });

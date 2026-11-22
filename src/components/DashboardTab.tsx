@@ -2420,6 +2420,109 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [fieldInstalls, installScopeKey, neededInstallDays]
   );
 
+  // Latest-revision deduplicated POS & Sound Box INSTALL submissions (`APPROVED` + `PENDING`) from Merchant Visit review
+  const scopedFieldInstalls = useMemo(() => {
+    if (fieldInstalls === null) return null;
+    const latestByRecord = new Map<string, FieldInstallSummaryRow>();
+    for (let i = 0; i < fieldInstalls.length; i++) {
+      const e = fieldInstalls[i];
+      if (e.status !== 'APPROVED' && e.status !== 'PENDING') continue;
+      const recKey = e.sourceRecordId ? `${e.sourceRecordId}::${e.unitNo}` : `id:${e.id}`;
+      const prev = latestByRecord.get(recKey);
+      if (!prev || e.revision > prev.revision || (e.revision === prev.revision && e.id > prev.id)) {
+        latestByRecord.set(recKey, e);
+      }
+    }
+    const rows: Array<FieldInstallSummaryRow & { recKey: string; ym: string; merchantKey: string }> = [];
+    latestByRecord.forEach((e, recKey) => {
+      const hasStaffMeta = Boolean((e.staffId || '').trim() || (e.staffName || '').trim());
+      const dir = ppDirectoryScope.resolveKpiStaff(e.staffId, e.staffName, e.branchId, e.branchText);
+      let resolvedBranchId = dir?.branchId || '';
+      if (!dir) {
+        if (hasStaffMeta && ppDirectoryScope.hasDirectory) return;
+        const fbBranch = String(e.branchId || '').trim();
+        if (!ppDirectoryScope.isBranchInScope(fbBranch, e.branchText)) return;
+        resolvedBranchId = fbBranch;
+      }
+      if (branchScopedId && resolvedBranchId !== branchScopedId) return;
+      const merchantKey = (e.mid || e.outletName || e.terminalName || '').trim().toUpperCase();
+      rows.push({
+        ...e,
+        recKey,
+        ym: fieldEventMonthPP(e.recordedAt, e.receivedAt),
+        merchantKey,
+      });
+    });
+    return rows;
+  }, [fieldInstalls, ppDirectoryScope, branchScopedId]);
+
+  // Hardware Deployments KPI: total POS + Sound Box installations from Merchant Visit review (approved + pending)
+  const deploymentSummary = useMemo(() => {
+    if (scopedFieldInstalls !== null) {
+      let pos = 0;
+      let sb = 0;
+      let pendingTotal = 0;
+      const merchantSet = new Set<string>();
+      for (let i = 0; i < scopedFieldInstalls.length; i++) {
+        const e = scopedFieldInstalls[i];
+        if (e.deviceType === 'Sound Box') sb++;
+        else pos++;
+        if (e.status === 'PENDING') pendingTotal++;
+        merchantSet.add(e.merchantKey || e.recKey);
+      }
+      const total = pos + sb;
+      return {
+        total,
+        pos,
+        sb,
+        pendingTotal,
+        approvedTotal: total - pendingTotal,
+        uniqueMerchants: merchantSet.size,
+        fromReview: true,
+      };
+    }
+    if (sessionInstallBuckets) {
+      let pos = 0;
+      let sb = 0;
+      let pendingTotal = 0;
+      for (const b of sessionInstallBuckets.buckets) {
+        pos += b.pos;
+        sb += b.sb;
+        pendingTotal += b.pendingPos + b.pendingSb;
+      }
+      const total = pos + sb;
+      return {
+        total,
+        pos,
+        sb,
+        pendingTotal,
+        approvedTotal: Math.max(0, total - pendingTotal),
+        uniqueMerchants: sessionInstallBuckets.totalMerchants ?? hardwareSummary.uniqueMerchants,
+        fromReview: true,
+      };
+    }
+    if (!isSupabaseConfigured || !fieldInstallsLoading) {
+      return {
+        total: hardwareSummary.installed,
+        pos: hardwareSummary.posInstalled,
+        sb: hardwareSummary.sbInstalled,
+        pendingTotal: 0,
+        approvedTotal: hardwareSummary.installed,
+        uniqueMerchants: hardwareSummary.uniqueMerchants,
+        fromReview: false,
+      };
+    }
+    return {
+      total: 0,
+      pos: 0,
+      sb: 0,
+      pendingTotal: 0,
+      approvedTotal: 0,
+      uniqueMerchants: 0,
+      fromReview: true,
+    };
+  }, [scopedFieldInstalls, sessionInstallBuckets, fieldInstallsLoading, hardwareSummary]);
+
   // Monthly POS Installation vs Sound Box Installation from Merchant Visit app (approved + pending updates)
   const monthlyInstallComparison = useMemo<MonthlyInstallComparisonData>(() => {
     const months = lastMonthsPP(13);
@@ -2440,34 +2543,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       return entry;
     });
 
-    if (fieldInstalls !== null) {
-      // Keep the latest revision per (sourceRecordId, unitNo) so phone-app edits never double-count
-      const latestByRecord = new Map<string, FieldInstallSummaryRow>();
-      for (let i = 0; i < fieldInstalls.length; i++) {
-        const e = fieldInstalls[i];
-        if (e.status !== 'APPROVED' && e.status !== 'PENDING') continue;
-        const recKey = e.sourceRecordId ? `${e.sourceRecordId}::${e.unitNo}` : `id:${e.id}`;
-        const prev = latestByRecord.get(recKey);
-        if (!prev || e.revision > prev.revision || (e.revision === prev.revision && e.id > prev.id)) {
-          latestByRecord.set(recKey, e);
-        }
-      }
-
-      latestByRecord.forEach((e) => {
-        const hasStaffMeta = Boolean((e.staffId || '').trim() || (e.staffName || '').trim());
-        const dir = ppDirectoryScope.resolveKpiStaff(e.staffId, e.staffName, e.branchId, e.branchText);
-        let resolvedBranchId = dir?.branchId || '';
-        if (!dir) {
-          if (hasStaffMeta && ppDirectoryScope.hasDirectory) return;
-          const fbBranch = String(e.branchId || '').trim();
-          if (!ppDirectoryScope.isBranchInScope(fbBranch, e.branchText)) return;
-          resolvedBranchId = fbBranch;
-        }
-        if (branchScopedId && resolvedBranchId !== branchScopedId) return;
-
-        const ym = fieldEventMonthPP(e.recordedAt, e.receivedAt);
-        const bucket = map.get(ym);
-        if (!bucket) return;
+    if (scopedFieldInstalls !== null) {
+      for (let i = 0; i < scopedFieldInstalls.length; i++) {
+        const e = scopedFieldInstalls[i];
+        const bucket = map.get(e.ym);
+        if (!bucket) continue;
         if (e.deviceType === 'Sound Box') {
           bucket.sb++;
           if (e.status === 'PENDING') bucket.pendingSb++;
@@ -2475,7 +2555,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           bucket.pos++;
           if (e.status === 'PENDING') bucket.pendingPos++;
         }
-      });
+      }
     } else if (sessionInstallBuckets) {
       for (const b of sessionInstallBuckets.buckets) {
         const bucket = map.get(b.key);
@@ -2560,15 +2640,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       peakMonthTotal,
       allBuckets: list.map(({ key, pos, sb, pendingPos, pendingSb }) => ({ key, pos, sb, pendingPos, pendingSb })),
     };
-  }, [fieldInstalls, fieldInstallsLoading, sessionInstallBuckets, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
+  }, [scopedFieldInstalls, fieldInstallsLoading, sessionInstallBuckets, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
 
   useEffect(() => {
-    if (fieldInstalls === null) return;
+    if (scopedFieldInstalls === null) return;
     const covered = getCachedMonthlyInstallFieldEventsCoveredDays();
     if (covered >= 220 && monthlyInstallComparison.allBuckets) {
-      setCachedMonthlyInstallBuckets(installScopeKey, covered, monthlyInstallComparison.allBuckets);
+      setCachedMonthlyInstallBuckets(installScopeKey, covered, monthlyInstallComparison.allBuckets, deploymentSummary.uniqueMerchants);
     }
-  }, [fieldInstalls, installScopeKey, monthlyInstallComparison]);
+  }, [scopedFieldInstalls, installScopeKey, monthlyInstallComparison, deploymentSummary.uniqueMerchants]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
@@ -3307,7 +3387,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab?.('merchants')}
-            title="Open Merchant Deployment"
+            title={
+              deploymentSummary.fromReview
+                ? `Merchant Visit review deployments: ${fmtNum(deploymentSummary.approvedTotal)} approved · ${fmtNum(deploymentSummary.pendingTotal)} pending — open Merchant Deployment`
+                : 'Open Merchant Deployment'
+            }
             className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
           >
             <div className="w-full">
@@ -3322,7 +3406,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={hardwareSummary.installed} format duration={220} />
+                    <Odometer value={deploymentSummary.total} format duration={220} />
                   </div>
                   <span
                     data-kpi-delta="deployments"
@@ -3344,9 +3428,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
             </div>
             <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(hardwareSummary.posInstalled)} POS · {fmtNum(hardwareSummary.sbInstalled)} SB</span>
+              <span>{fmtNum(deploymentSummary.pos)} POS · {fmtNum(deploymentSummary.sb)} SB</span>
               <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>
-                {fmtNum(hardwareSummary.uniqueMerchants)} merchants
+                {fmtNum(deploymentSummary.uniqueMerchants)} merchants
               </span>
             </div>
           </button>

@@ -168,7 +168,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                       ? CAPSULE_COUNT_ACTIVE_CLS
                       : isLight
                       ? CAPSULE_COUNT_INACTIVE_CLS
-                      : 'bg-slate-900/70 text-slate-200 border border-slate-700'
+                      : 'bg-transparent border border-transparent text-slate-300 font-medium'
                   }`}
                 >
                   <Odometer value={s.count} format={s.count >= 1000} duration={340} />

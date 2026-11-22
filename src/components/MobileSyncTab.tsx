@@ -1797,7 +1797,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                             ? CAPSULE_COUNT_WARN_ACTIVE_CLS
                             : CAPSULE_COUNT_ACTIVE_CLS
                           : tab.id === 'DRIFT' && tab.count > 0
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200/80 font-bold'
+                          ? 'bg-transparent border border-transparent text-amber-700 dark:text-amber-300 font-bold'
                           : CAPSULE_COUNT_INACTIVE_CLS
                       }`}
                     >

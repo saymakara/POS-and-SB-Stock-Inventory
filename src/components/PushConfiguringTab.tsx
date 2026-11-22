@@ -1042,7 +1042,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] tabular-nums transition-colors ${
                   active
                     ? isLight ? CAPSULE_COUNT_ACTIVE_CLS : 'bg-slate-700 text-sky-200 font-bold'
-                    : isLight ? CAPSULE_COUNT_INACTIVE_CLS : 'bg-slate-800 text-slate-400'
+                    : isLight ? CAPSULE_COUNT_INACTIVE_CLS : 'bg-transparent text-slate-400'
                 }`}>
                   {opt.badge}
                 </span>

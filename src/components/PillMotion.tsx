@@ -22,7 +22,7 @@ export const CAPSULE_COUNT_ACTIVE_CLS =
 export const CAPSULE_COUNT_WARN_ACTIVE_CLS =
   'bg-amber-100 text-amber-800 border border-amber-200/80 font-bold dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30';
 export const CAPSULE_COUNT_INACTIVE_CLS =
-  'bg-white/80 text-slate-700 border border-slate-200/80 font-medium dark:bg-slate-700/60 dark:text-slate-300 dark:border-slate-600';
+  'bg-transparent border border-transparent text-slate-600 font-medium dark:bg-transparent dark:text-slate-300 dark:border-transparent';
 
 interface PillBox {
   track: Element;
