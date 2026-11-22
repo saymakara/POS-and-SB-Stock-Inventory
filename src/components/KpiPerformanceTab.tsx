@@ -3843,7 +3843,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
                                   <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
                                     <span className="w-3 h-2.5 rounded-r-[3px] bg-[#0284c7] inline-block" />
-                                    #1 Top Contributor
+                                    Top Contributor
                                   </span>
                                   <span className="inline-flex items-center gap-1.5">
                                     <span className="w-3 h-2.5 rounded-r-[3px] bg-[#94a3b8] inline-block" />
@@ -3855,7 +3855,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   const ActiveIcon = activeStyle.Icon;
                                   return (
                                     <div className="flex flex-wrap items-center gap-1.5 text-[11px] bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1 text-slate-600 tabular-nums">
-                                      <span className="font-bold text-slate-800">#{activeRank}</span>
+                                      <span className="font-bold text-slate-800">{activeRank}.</span>
                                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded border text-[10px] font-semibold ${activeStyle.badge}`}>
                                         <ActiveIcon className="w-2.5 h-2.5 shrink-0" />
                                         {activeItem.category}
@@ -3927,7 +3927,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         {/* Y-Axis Label (Aligned rank column + aligned category dot + clean left-aligned task name) */}
                                         <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0 pl-1 sm:pl-1.5 pr-2.5 sm:pr-3.5 flex items-center gap-1.5 sm:gap-2 min-w-0">
                                           <span
-                                            className={`hidden sm:inline-block w-7 text-right text-[10.5px] font-mono tabular-nums shrink-0 ${
+                                            className={`hidden sm:inline-block w-5 text-right text-[11px] font-mono tabular-nums shrink-0 ${
                                               isTop
                                                 ? 'font-bold text-sky-600'
                                                 : isZero
@@ -3935,7 +3935,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                                 : 'text-slate-400'
                                             }`}
                                           >
-                                            #{i + 1}
+                                            {i + 1}
                                           </span>
                                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${catStyle.dot} ${isZero ? 'opacity-40' : ''}`} />
                                           <span
