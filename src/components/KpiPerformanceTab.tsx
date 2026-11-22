@@ -2081,6 +2081,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       { code: 'POS_DOCK', category: 'POS Terminal', label: ruleMap.get('POS_DOCK')?.subCategory || 'Charging Dock Installation', count: Number(r.extra?.['POS_DOCK']) || Number(r.posDock) || 0, unitPts: rulePts(ruleMap, 'POS_DOCK'), points: (Number(r.extra?.['POS_DOCK']) || Number(r.posDock) || 0) * rulePts(ruleMap, 'POS_DOCK'), unit: 'docks' },
       { code: 'SB_INSTALL', category: 'Sound Box', label: ruleMap.get('SB_INSTALL')?.subCategory || 'Sound Box New Installation', count: r.sbInstall, unitPts: rulePts(ruleMap, 'SB_INSTALL'), points: r.sbInstall * rulePts(ruleMap, 'SB_INSTALL'), unit: 'units' },
       { code: 'SB_REPLACE', category: 'Sound Box', label: ruleMap.get('SB_REPLACE')?.subCategory || 'Sound Box Replacement / Swap', count: r.sbReplace, unitPts: rulePts(ruleMap, 'SB_REPLACE'), points: r.sbReplace * rulePts(ruleMap, 'SB_REPLACE'), unit: 'swaps' },
+      { code: 'SB_MAINTENANCE', category: 'Sound Box', label: ruleMap.get('SB_MAINTENANCE')?.subCategory || 'Sound Box Maintenance', count: Number(r.extra?.['SB_MAINTENANCE']) || 0, unitPts: rulePts(ruleMap, 'SB_MAINTENANCE'), points: (Number(r.extra?.['SB_MAINTENANCE']) || 0) * rulePts(ruleMap, 'SB_MAINTENANCE'), unit: 'visits' },
       { code: 'SB_MAINT', category: 'Sound Box', label: ruleMap.get('SB_MAINT')?.subCategory || 'Sound Box Operational Support', count: r.sbMaint, unitPts: rulePts(ruleMap, 'SB_MAINT'), points: r.sbMaint * rulePts(ruleMap, 'SB_MAINT'), unit: 'visits' },
       { code: 'SB_OP_INSPECT', category: 'Sound Box', label: ruleMap.get('SB_OP_INSPECT')?.subCategory || 'SB Inspection', count: Number(r.extra?.['SB_OP_INSPECT']) || 0, unitPts: rulePts(ruleMap, 'SB_OP_INSPECT'), points: (Number(r.extra?.['SB_OP_INSPECT']) || 0) * rulePts(ruleMap, 'SB_OP_INSPECT'), unit: 'visits' },
       { code: 'SB_OP_TRAIN', category: 'Sound Box', label: ruleMap.get('SB_OP_TRAIN')?.subCategory || 'SB Refresh Training', count: Number(r.extra?.['SB_OP_TRAIN']) || 0, unitPts: rulePts(ruleMap, 'SB_OP_TRAIN'), points: (Number(r.extra?.['SB_OP_TRAIN']) || 0) * rulePts(ruleMap, 'SB_OP_TRAIN'), unit: 'visits' },
@@ -2677,12 +2678,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     downloadCsv(
       `KPI_Individual_Staff_${pTag}`,
       ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Operational Support', 'POS Points',
-        'SB Install', 'SB Replace', 'SB Operational Support', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
+        'SB Install', 'SB Replace', 'SB Maintenance', 'SB Operational Support', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
         'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
       statusFilteredStaff.map((s, i) => [
         i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId,
         s.posInstall, s.posReplace, s.posBattery, Number(s.extra?.['POS_MAINT']) || Number(s.posMaint) || 0, s.posPoints,
-        s.sbInstall, s.sbReplace, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
+        s.sbInstall, s.sbReplace, Number(s.extra?.['SB_MAINTENANCE']) || 0, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
         s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
     );
@@ -3527,7 +3528,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
               {([
                 { cat: 'KHQR' as KpiCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
-                { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(totals.raw.sbReplace)} swap · ${fmtInt(totals.raw.sbMaint)} op. support` },
+                { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(Number(totals.raw.extra?.['SB_MAINTENANCE']) || 0)} maint · ${fmtInt(totals.raw.sbMaint)} op. support` },
                 { cat: 'Credit Card' as KpiCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
                 { cat: 'POS Terminal' as KpiCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(Number(totals.raw.extra?.['POS_MAINT']) || Number(totals.raw.posMaint) || 0)} op. support` },
                 { cat: 'Merchant Visit' as KpiCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
@@ -3687,7 +3688,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </div>
 
                       {/* Second Row: Category Pills + Search Filter */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
                         {/* Segmented Category Filter Tabs */}
                         <div
                           role="tablist"
@@ -3744,23 +3745,23 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         </div>
 
                         {/* Search Input */}
-                        <div className="relative min-w-[200px] sm:w-64">
-                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <div className="relative w-full sm:w-72 md:w-80 lg:w-96 shrink-0">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             type="text"
                             value={subCatSearch}
                             onChange={(e) => setSubCatSearch(e.target.value)}
                             placeholder="Filter tasks (e.g. roll, swap)..."
-                            className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-slate-200/90 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            className="w-full pl-10 pr-9 py-2.5 text-[13px] sm:text-sm rounded-xl border border-slate-200 bg-white shadow-2xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 transition-all"
                           />
                           {subCatSearch && (
                             <button
                               type="button"
                               onClick={() => setSubCatSearch('')}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                               title="Clear search"
                             >
-                              <X className="w-3 h-3" />
+                              <X className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -4025,117 +4026,161 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           </div>
                         );
                       })()
-                    ) : (
-                      <div className="overflow-x-auto bg-white">
-                        <table className="w-full text-left text-xs text-slate-700">
-                          <thead className="bg-slate-50/90 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                            <tr>
-                              <th className="py-2.5 px-3.5 w-12 text-center">#</th>
-                              <th className="py-2.5 px-3.5">Sub-Category Task</th>
-                              <th className="py-2.5 px-3.5">Category</th>
-                              <th className="py-2.5 px-3.5 text-right">Recorded Volume</th>
-                              <th className="py-2.5 px-3.5 text-right">Weight (Rate)</th>
-                              <th className="py-2.5 px-3.5 text-right">Total Points</th>
-                              <th className="py-2.5 px-3.5 text-right w-28">Point Share</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {displayedSubCategories.map((sc, i) => {
-                              const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
-                              const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
-                              const catStyle = CAT_COLORS[sc.category];
-                              const isZero = sc.points === 0;
+                    ) : (() => {
+                      const fmtSharePct = (v: number) =>
+                        v >= 1 ? `${Math.round(v)}%` : v > 0 ? `${v.toFixed(1)}%` : '0%';
+
+                      return (
+                        <div className="overflow-x-auto bg-white">
+                          <table className="w-full text-left text-[13px] text-slate-700">
+                            <thead className="bg-slate-50/90 text-[11.5px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                              <tr>
+                                <th className="py-2.5 px-2.5 w-10 text-center">#</th>
+                                <th className="py-2.5 px-2.5 whitespace-nowrap">Sub-Category Task</th>
+                                <th className="py-2.5 px-2.5 whitespace-nowrap">Category</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Recorded Volume</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Weight</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Task Count</th>
+                                <th className="py-2.5 px-2.5 text-right w-32 whitespace-nowrap">Task Share</th>
+                                <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Total Points</th>
+                                <th className="py-2.5 px-2.5 text-right w-32 whitespace-nowrap">Point Share</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                              {displayedSubCategories.map((sc, i) => {
+                                const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
+                                const pctDisplay = fmtSharePct(pct);
+                                const isPointsOnlyRule = sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL';
+                                const taskCount = isPointsOnlyRule ? null : sc.count;
+                                const taskPct =
+                                  taskCount !== null && totals.totalTasks > 0
+                                    ? (taskCount / totals.totalTasks) * 100
+                                    : 0;
+                                const taskPctDisplay = fmtSharePct(taskPct);
+                                const catStyle = CAT_COLORS[sc.category];
+                                const isZero = sc.points === 0 && sc.count === 0;
+
+                                return (
+                                  <tr key={sc.code} className={`hover:bg-slate-50/80 transition-colors ${isZero ? 'opacity-50' : ''}`}>
+                                    <td className="py-3 px-2.5 text-center font-mono text-[13px] text-slate-400 tabular-nums whitespace-nowrap">
+                                      {i + 1}
+                                    </td>
+                                    <td className="py-3 px-2.5 font-semibold text-slate-900 whitespace-nowrap">
+                                      {sc.label}
+                                    </td>
+                                    <td className="py-3 px-2.5 text-slate-600 whitespace-nowrap">
+                                      {sc.category}
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                                      {fmtInt(sc.count)} <span className="text-slate-400 font-normal">{sc.unit}</span>
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right text-slate-600 tabular-nums whitespace-nowrap">
+                                      {sc.unitPts} pt
+                                    </td>
+                                    <td
+                                      className="py-3 px-2.5 text-right font-semibold text-slate-900 tabular-nums text-[13.5px] whitespace-nowrap"
+                                      title={isPointsOnlyRule ? 'Points-only bonus multiplier (counted under primary KHQR tasks)' : undefined}
+                                    >
+                                      {taskCount !== null ? fmtInt(taskCount) : <span className="text-slate-400 font-normal">—</span>}
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right tabular-nums whitespace-nowrap">
+                                      {taskCount !== null ? (
+                                        <div className="flex items-center justify-end gap-2">
+                                          <span className="font-semibold text-slate-700 text-[13px] min-w-[36px] text-right">{taskPctDisplay}</span>
+                                          <div className="w-16 bg-slate-100 rounded-full h-2.5 overflow-hidden shrink-0">
+                                            <div
+                                              className={`h-full rounded-full ${catStyle.bar}`}
+                                              style={{ width: `${Math.min(100, Math.max(taskCount === 0 ? 0 : 6, taskPct))}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-400 font-normal">—</span>
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right font-bold text-slate-900 tabular-nums text-[13.5px] whitespace-nowrap">
+                                      {fmtPts(sc.points)} pts
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right tabular-nums whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <span className="font-semibold text-slate-700 text-[13px] min-w-[36px] text-right">{pctDisplay}</span>
+                                        <div className="w-16 bg-slate-100 rounded-full h-2.5 overflow-hidden shrink-0">
+                                          <div
+                                            className={`h-full rounded-full ${catStyle.bar}`}
+                                            style={{ width: `${Math.min(100, Math.max(sc.points === 0 ? 0 : 6, pct))}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                            {displayedSubCategories.length > 0 && (() => {
+                              const totalSharePct =
+                                totals.totalPoints > 0 ? (displayedSubCategoryPoints / totals.totalPoints) * 100 : 0;
+                              const totalShareDisplay = fmtSharePct(totalSharePct);
+                              const totalTaskSharePct =
+                                totals.totalTasks > 0 ? (displayedSubCategoryTasks / totals.totalTasks) * 100 : 0;
+                              const totalTaskShareDisplay = fmtSharePct(totalTaskSharePct);
+                              const hasBonusOnlyRules = displayedSubCategories.some(
+                                (sc) => sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL'
+                              );
 
                               return (
-                                <tr key={sc.code} className={`hover:bg-slate-50/80 transition-colors ${isZero ? 'opacity-50' : ''}`}>
-                                  <td className="py-2.5 px-3.5 text-center font-mono text-[11px] text-slate-400">
-                                    {i + 1}
-                                  </td>
-                                  <td className="py-2.5 px-3.5 font-semibold text-slate-900">
-                                    {sc.label}
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-slate-600">
-                                    {sc.category}
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right font-medium text-slate-700 tabular-nums">
-                                    {fmtInt(sc.count)} <span className="text-slate-400 font-normal">{sc.unit}</span>
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right text-slate-600 tabular-nums">
-                                    {sc.unitPts} pt
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 tabular-nums">
-                                    {fmtPts(sc.points)} pts
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right tabular-nums">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <span className="font-semibold text-slate-700 text-[11px]">{pctDisplay}</span>
-                                      <div className="w-12 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                        <div
-                                          className={`h-full rounded-full ${catStyle.bar}`}
-                                          style={{ width: `${Math.min(100, Math.max(isZero ? 0 : 5, pct))}%` }}
-                                        />
+                                <tfoot>
+                                  <tr className="bg-slate-50/95 border-t-2 border-slate-300 text-[13px] font-semibold text-slate-800 whitespace-nowrap">
+                                    <td colSpan={3} className="py-3 px-2.5 text-slate-900">
+                                      Total
+                                      <span className="ml-1.5 font-normal text-slate-500">
+                                        ({displayedSubCategories.length} sub-categories)
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right text-slate-400 font-normal">—</td>
+                                    <td className="py-3 px-2.5 text-right text-slate-400 font-normal">—</td>
+                                    <td
+                                      className="py-3 px-2.5 text-right font-bold text-slate-900 tabular-nums text-[13.5px] whitespace-nowrap"
+                                      title={
+                                        hasBonusOnlyRules
+                                          ? 'Sum of KPI tasks across displayed sub-categories (excludes points-only bonus multipliers such as Print & Laminate / QR Materials)'
+                                          : 'Sum of KPI tasks across displayed sub-categories'
+                                      }
+                                    >
+                                      {fmtInt(displayedSubCategoryTasks)} tasks
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right tabular-nums whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <span className="font-bold text-slate-800 text-[13px] min-w-[36px] text-right">{totalTaskShareDisplay}</span>
+                                        <div className="w-16 bg-slate-200/70 rounded-full h-2.5 overflow-hidden shrink-0">
+                                          <div
+                                            className="h-full rounded-full bg-slate-700"
+                                            style={{ width: `${Math.min(100, Math.max(displayedSubCategoryTasks > 0 ? 6 : 0, totalTaskSharePct))}%` }}
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  </td>
-                                </tr>
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right font-bold text-slate-900 tabular-nums text-[13.5px] whitespace-nowrap">
+                                      {fmtPts(displayedSubCategoryPoints)} pts
+                                    </td>
+                                    <td className="py-3 px-2.5 text-right tabular-nums whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <span className="font-bold text-slate-800 text-[13px] min-w-[36px] text-right">{totalShareDisplay}</span>
+                                        <div className="w-16 bg-slate-200/70 rounded-full h-2.5 overflow-hidden shrink-0">
+                                          <div
+                                            className="h-full rounded-full bg-slate-700"
+                                            style={{ width: `${Math.min(100, Math.max(displayedSubCategoryPoints > 0 ? 6 : 0, totalSharePct))}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tfoot>
                               );
-                            })}
-                          </tbody>
-                          {displayedSubCategories.length > 0 && (() => {
-                            const totalSharePct =
-                              totals.totalPoints > 0 ? (displayedSubCategoryPoints / totals.totalPoints) * 100 : 0;
-                            const totalShareDisplay =
-                              totalSharePct >= 1
-                                ? `${Math.round(totalSharePct)}%`
-                                : totalSharePct > 0
-                                ? `${totalSharePct.toFixed(1)}%`
-                                : '0%';
-                            const hasBonusOnlyRules = displayedSubCategories.some(
-                              (sc) => sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL'
-                            );
-
-                            return (
-                              <tfoot>
-                                <tr className="bg-slate-50/95 border-t-2 border-slate-200 text-xs font-semibold text-slate-800">
-                                  <td colSpan={3} className="py-2.5 px-3.5 text-slate-900">
-                                    Total
-                                    <span className="ml-1.5 font-normal text-slate-500">
-                                      ({displayedSubCategories.length} sub-categories)
-                                    </span>
-                                  </td>
-                                  <td
-                                    className="py-2.5 px-3.5 text-right tabular-nums text-slate-900"
-                                    title={
-                                      hasBonusOnlyRules
-                                        ? 'Sum of KPI tasks across displayed sub-categories (excludes points-only bonus multipliers such as Print & Laminate / QR Materials)'
-                                        : 'Sum of KPI tasks across displayed sub-categories'
-                                    }
-                                  >
-                                    <span className="font-bold">{fmtInt(displayedSubCategoryTasks)}</span>{' '}
-                                    <span className="font-normal text-slate-500">Total Tasks</span>
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right text-slate-400 font-normal">—</td>
-                                  <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 tabular-nums">
-                                    {fmtPts(displayedSubCategoryPoints)} pts
-                                  </td>
-                                  <td className="py-2.5 px-3.5 text-right tabular-nums">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <span className="font-bold text-slate-800 text-[11px]">{totalShareDisplay}</span>
-                                      <div className="w-12 bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
-                                        <div
-                                          className="h-full rounded-full bg-slate-700"
-                                          style={{ width: `${Math.min(100, Math.max(displayedSubCategoryPoints > 0 ? 5 : 0, totalSharePct))}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              </tfoot>
-                            );
-                          })()}
-                        </table>
-                      </div>
-                    )}
+                            })()}
+                          </table>
+                        </div>
+                      );
+                    })()}
 
                     {/* Footer Summary Bar */}
                     <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
@@ -6206,6 +6251,7 @@ RatingBadge.displayName = 'RatingBadge';
 const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, KpiPointRule>; mode?: KpiMetricMode }> = ({ raw, ruleMap, mode = 'points' }) => {
   const isTasks = mode === 'tasks';
   const posOpMaint = Number(raw.extra?.['POS_MAINT']) || Number(raw.posMaint) || 0;
+  const sbMaintenanceCount = Number(raw.extra?.['SB_MAINTENANCE']) || 0;
   const cells = [
     { label: 'POS Install', n: raw.posInstall, pts: raw.posInstall * rulePts(ruleMap, 'POS_INSTALL') },
     { label: 'POS Replace', n: raw.posReplace, pts: raw.posReplace * rulePts(ruleMap, 'POS_REPLACE') },
@@ -6213,6 +6259,7 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
     { label: 'POS Op. Support', n: posOpMaint, pts: posOpMaint * rulePts(ruleMap, 'POS_MAINT') },
     { label: 'SB Install', n: raw.sbInstall, pts: raw.sbInstall * rulePts(ruleMap, 'SB_INSTALL') },
     { label: 'SB Replace', n: raw.sbReplace, pts: raw.sbReplace * rulePts(ruleMap, 'SB_REPLACE') },
+    { label: 'SB Maintenance', n: sbMaintenanceCount, pts: sbMaintenanceCount * rulePts(ruleMap, 'SB_MAINTENANCE') },
     { label: 'SB Op. Support', n: raw.sbMaint, pts: raw.sbMaint * rulePts(ruleMap, 'SB_MAINT') },
     { label: 'SB Return', n: raw.sbReturn, pts: raw.sbReturn * rulePts(ruleMap, 'SB_RETURN') },
     { label: 'KHQR Install', n: raw.khqrInstall, pts: raw.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') },
@@ -6223,7 +6270,7 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
     { label: 'CC Supp.', n: raw.ccSupp, pts: raw.ccSupp * rulePts(ruleMap, 'CC_SUPP') },
   ];
   for (const [code, n] of Object.entries(raw.extra || {})) {
-    if (!n || code === 'POS_MAINT') continue;
+    if (!n || code === 'POS_MAINT' || code === 'SB_MAINTENANCE') continue;
     const rule = ruleMap.get(code);
     const label = rule?.subCategory || code.replace(/^MV_|^POS_|^SB_/, '').replace(/_/g, ' ');
     const pts = n * (rulePts(ruleMap, code) || (rule?.points ?? 1));
