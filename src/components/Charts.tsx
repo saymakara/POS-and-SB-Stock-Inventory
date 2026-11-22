@@ -34,53 +34,6 @@ function niceScale(maxVal: number, targetSteps = 4): { max: number; steps: numbe
   return { max: step * steps, steps, step };
 }
 
-function nicePctStep(rawStep: number): number {
-  const safe = Math.max(1, rawStep);
-  const mag = Math.pow(10, Math.floor(Math.log10(safe)));
-  return [1, 1.5, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= safe) || 10 * mag;
-}
-
-/** Picks clean rounded right-axis % ticks matching exact left gridlines while keeping 0% on a gridline. */
-function nicePercentScale(
-  vals: number[],
-  steps: number
-): { min: number; max: number; step: number; zeroStep: number } {
-  const s = Math.max(1, steps);
-  const rawMin = vals.length > 0 ? Math.min(0, ...vals) : 0;
-  const rawMax = vals.length > 0 ? Math.max(0, ...vals) : 0;
-  const padMax = rawMax > 0 ? rawMax * 1.18 : 0;
-  const padMin = rawMin < 0 ? rawMin * 1.18 : 0;
-
-  if (padMin === 0 && padMax === 0) {
-    return { min: 0, max: s * 25, step: 25, zeroStep: 0 };
-  }
-  if (padMin >= 0) {
-    const step = nicePctStep(padMax / s);
-    return { min: 0, max: s * step, step, zeroStep: 0 };
-  }
-  if (padMax <= 0) {
-    const step = nicePctStep(Math.abs(padMin) / s);
-    return { min: -s * step, max: 0, step, zeroStep: s };
-  }
-
-  let bestStep = Infinity;
-  let bestZero = 1;
-  for (let z = 1; z < s; z++) {
-    const req = Math.max(Math.abs(padMin) / z, padMax / (s - z));
-    const cand = nicePctStep(req);
-    if (cand < bestStep) {
-      bestStep = cand;
-      bestZero = z;
-    }
-  }
-  return {
-    min: -bestZero * bestStep,
-    max: (s - bestZero) * bestStep,
-    step: bestStep,
-    zeroStep: bestZero,
-  };
-}
-
 interface MomDelta {
   pct: number | null;
   isBaseline: boolean;
@@ -208,7 +161,6 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         s2: calcMomDelta(v2, p2),
       };
     });
-    const numericPcts: number[] = [];
     let maxGainIdx = -1;
     let maxDropIdx = -1;
     let maxGainVal = -Infinity;
@@ -216,7 +168,6 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     momPoints.forEach((m, i) => {
       for (const d of [m.s1, m.s2]) {
         if (d.pct === null) continue;
-        numericPcts.push(d.pct);
         if (d.pct > 0 && d.pct > maxGainVal) {
           maxGainVal = d.pct;
           maxGainIdx = i;
@@ -227,10 +178,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         }
       }
     });
-    const pctScale = nicePercentScale(numericPcts, scale.steps);
     return {
       scale,
-      pctScale,
       momPoints,
       maxGainIdx,
       maxDropIdx,
@@ -300,7 +249,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       ctx.fillText(series2Label, 68 + s1Width, 17);
     }
 
-    const { scale, pctScale, momPoints, maxGainIdx, maxDropIdx, firstMax1, firstMax2 } = chartStats;
+    const { scale, momPoints, maxGainIdx, maxDropIdx, firstMax1, firstMax2 } = chartStats;
     const maxVal = scale.max;
     const steps = scale.steps;
     const hasMomOverlay =
@@ -309,24 +258,12 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       momPoints.some((m) => m.s1.pct !== null || m.s2.pct !== null);
     const s1LineColor = isLight ? '#0284c7' : '#38bdf8';
     const s2LineColor = isLight ? '#7c3aed' : '#a78bfa';
-    const momZeroAccent = isLight ? '#64748b' : '#94a3b8';
 
     ctx.font = `600 10.5px ${chartFont}`;
     const maxAxisW = ctx.measureText(fmt(maxVal)).width;
     const padLeft = Math.max(36, Math.ceil(maxAxisW + 12));
-    let padRight = 14;
-    const rightLabels: string[] = [];
-    if (hasMomOverlay) {
-      let maxRightW = 0;
-      for (let i = 0; i <= steps; i++) {
-        const pv = Math.round(pctScale.min + i * pctScale.step);
-        const lbl = pv > 0 ? `+${fmt(pv)}%` : `${fmt(pv)}%`;
-        rightLabels.push(lbl);
-        maxRightW = Math.max(maxRightW, ctx.measureText(lbl).width);
-      }
-      padRight = Math.max(42, Math.ceil(maxRightW + 14));
-    }
-    const padTop = showLegend ? 40 : hasMomOverlay ? 32 : 22;
+    const padRight = hasMomOverlay ? Math.max(44, padLeft) : 14;
+    const padTop = showLegend ? 40 : hasMomOverlay ? 36 : 22;
     const padBottom = 28;
     const plotW = Math.max(100, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
@@ -338,17 +275,9 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     for (let i = 0; i <= steps; i++) {
       const y = baseY - (i / steps) * plotH;
       const val = Math.round(i * scale.step);
-      const isZeroPctLine = hasMomOverlay && pctScale.zeroStep > 0 && pctScale.zeroStep < steps && i === pctScale.zeroStep;
       ctx.save();
-      ctx.strokeStyle =
-        i === 0
-          ? baseLineColor
-          : isZeroPctLine
-            ? isLight
-              ? 'rgba(217, 119, 6, 0.32)'
-              : 'rgba(251, 191, 36, 0.28)'
-            : gridLineColor;
-      if (i > 0) ctx.setLineDash(isZeroPctLine ? [5, 4] : [3, 4]);
+      ctx.strokeStyle = i === 0 ? baseLineColor : gridLineColor;
+      if (i > 0) ctx.setLineDash([3, 4]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
@@ -357,10 +286,6 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       ctx.fillStyle = axisTextColor;
       const vs = fmt(val);
       ctx.fillText(vs, Math.max(2, padLeft - 7 - ctx.measureText(vs).width), y + 3);
-      if (hasMomOverlay && rightLabels[i]) {
-        ctx.fillStyle = isZeroPctLine ? momZeroAccent : axisTextColor;
-        ctx.fillText(rightLabels[i], width - padRight + 8, y + 3);
-      }
     }
 
     const groupCount = Math.max(1, labels.length);
@@ -436,7 +361,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         const s1 = fmt(v1);
         const tw1 = ctx.measureText(s1).width;
         const lx = gx + (barW - tw1) / 2;
-        const ly = Math.max(12, baseY - h1 - 5);
+        const ly = Math.max(12, baseY - h1 - (hasMomOverlay ? 8 : 5));
         ctx.fillText(s1, lx, ly);
         occupiedLabelRects.push({ x: lx - 2, y: ly - 10, w: tw1 + 4, h: 12 });
       }
@@ -446,7 +371,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         const tw2 = ctx.measureText(s2).width;
         const x2Center = gx + barW + barGap + (barW - tw2) / 2;
         const tw1 = ctx.measureText(fmt(v1)).width;
-        const yOffset = showV1 && Math.abs(h1 - h2) < 12 && tw1 + tw2 > barW * 2 + barGap ? 14 : 5;
+        const baseOff = hasMomOverlay ? 8 : 5;
+        const yOffset = showV1 && Math.abs(h1 - h2) < 12 && tw1 + tw2 > barW * 2 + barGap ? 14 : baseOff;
         const ly = Math.max(12, baseY - h2 - yOffset);
         ctx.fillText(s2, x2Center, ly);
         occupiedLabelRects.push({ x: x2Center - 2, y: ly - 10, w: tw2 + 4, h: 12 });
@@ -460,10 +386,8 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 8);
     });
 
-    // Dual Separate MoM % Lines (POS % Line & Sound Box % Line) with collision-free pill badges
+    // Dual Separate Bar-Top-to-Bar-Top Curves with MoM % labels placed cleanly outside the bars
     if (hasMomOverlay) {
-      const pctRange = Math.max(1, pctScale.max - pctScale.min);
-      const pctToY = (pv: number) => baseY - ((pv - pctScale.min) / pctRange) * plotH;
       const haloStroke = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.94)';
 
       interface TrendNode {
@@ -487,13 +411,14 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       seriesSpecs.forEach(({ seriesIdx, lineColor, pick }) => {
         const nodes: TrendNode[] = momPoints.map((m, idx) => {
           const d = pick(m);
-          const gx = padLeft + idx * groupW + (groupW - barW * 2 - barGap) / 2;
-          const cx = seriesIdx === 1 ? gx + barW / 2 : gx + barW + barGap + barW / 2;
+          const g = groupGeom[idx] || { gx: padLeft, y1: baseY, y2: baseY, h1: 0, h2: 0 };
+          const cx = seriesIdx === 1 ? g.gx + barW / 2 : g.gx + barW + barGap + barW / 2;
+          const barTopY = seriesIdx === 1 ? g.y1 : g.y2;
           if (d.pct !== null) {
-            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(d.pct), pct: d.pct, isBaseline: false, text: d.text };
+            return { seriesIdx, lineColor, idx, x: cx, y: barTopY, pct: d.pct, isBaseline: false, text: d.text };
           }
           if (d.isBaseline) {
-            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(0), pct: null, isBaseline: true, text: '' };
+            return { seriesIdx, lineColor, idx, x: cx, y: barTopY, pct: null, isBaseline: true, text: '' };
           }
           return { seriesIdx, lineColor, idx, x: cx, y: baseY, pct: null, isBaseline: false, text: '' };
         });
@@ -502,7 +427,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         let curRun: TrendNode[] = [];
         nodes.forEach((n) => {
           if (n.pct !== null) {
-            // Dashed starter from a non-zero baseline month (prev <= 0) directly into its first numeric %
+            // Link directly from the preceding bar's top rim into this bar's top rim
             if (curRun.length === 0 && n.idx > 0 && nodes[n.idx - 1].isBaseline) {
               curRun.push(nodes[n.idx - 1]);
             }
@@ -514,21 +439,21 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         });
         if (curRun.length > 0) runs.push(curRun);
 
+        const linkedIndices = new Set<number>();
         runs.forEach((run) => {
           if (run.length < 2) return;
+          run.forEach((rn) => linkedIndices.add(rn.idx));
           for (let i = 1; i < run.length; i++) {
             const prev = run[i - 1];
             const curr = run[i];
-            const isStarter = prev.isBaseline || curr.isBaseline;
             const midX = (prev.x + curr.x) / 2;
 
-            // Crisp halo stroke so line stays readable over dark bar fills
+            // Crisp halo stroke so line stays readable over bars and gridlines
             ctx.save();
             ctx.strokeStyle = haloStroke;
             ctx.lineWidth = 4;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            if (isStarter) ctx.setLineDash([4, 4]);
             ctx.beginPath();
             ctx.moveTo(prev.x, prev.y);
             ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
@@ -537,10 +462,9 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
             ctx.save();
             ctx.strokeStyle = lineColor;
-            ctx.lineWidth = isStarter ? 1.8 : 2.2;
+            ctx.lineWidth = 2.1;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            if (isStarter) ctx.setLineDash([4, 4]);
             ctx.beginPath();
             ctx.moveTo(prev.x, prev.y);
             ctx.bezierCurveTo(midX, prev.y, midX, curr.y, curr.x, curr.y);
@@ -550,13 +474,13 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         });
 
         nodes.forEach((n) => {
-          if (n.pct === null) return;
+          if (n.pct === null && !linkedIndices.has(n.idx)) return;
           const isHov = hover?.idx === n.idx;
-          const r = isHov ? 4.8 : 3.6;
+          const r = isHov ? 4.4 : 3.4;
           ctx.save();
           ctx.fillStyle = lineColor;
           ctx.strokeStyle = haloStroke;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
           ctx.fill();
@@ -599,9 +523,9 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         const barsRight = g.gx + barW * 2 + barGap;
 
         const dotY = Math.round(n.y - labelH / 2);
-        const aboveOwnY1 = Math.round(ownTop - 17 - labelH);
-        const aboveOwnY2 = Math.round(ownTop - 31 - labelH);
-        const aboveGroupY1 = Math.round(Math.min(g.y1, g.y2) - 17 - labelH);
+        const aboveOwnY1 = Math.round(ownTop - 21 - labelH);
+        const aboveOwnY2 = Math.round(ownTop - 35 - labelH);
+        const aboveGroupY1 = Math.round(Math.min(g.y1, g.y2) - 21 - labelH);
         const centerX = Math.round(n.x - labelW / 2);
 
         // Prioritize positions strictly OUTSIDE bar bodies and close to each bar

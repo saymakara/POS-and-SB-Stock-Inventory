@@ -273,12 +273,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 468;
-const KT_VB_H = 292;
-const KT_CX = 234;
-const KT_CY = 148;
-const KT_R_INNER = 64;
-const KT_R_OUTER = 86;
+const KT_VB_W = 524;
+const KT_VB_H = 298;
+const KT_CX = 262;
+const KT_CY = 149;
+const KT_R_INNER = 96;
+const KT_R_OUTER = 110;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -528,15 +528,15 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : ey - CALLOUT_H / 2 > KT_CY
               ? ey - CALLOUT_H / 2 - KT_CY
               : 0;
-        const minRingR = KT_R_TICK + 6;
+        const minRingR = KT_R_TICK + 4;
         const clearDx =
           dyNearest >= minRingR
             ? 32
             : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
         const rawEx =
           side === 'left'
-            ? Math.min(g.sx - 18, KT_CX - clearDx - 6)
-            : Math.max(g.sx + 18, KT_CX + clearDx + 6);
+            ? Math.min(g.sx - 14, KT_CX - clearDx - 4)
+            : Math.max(g.sx + 14, KT_CX + clearDx + 4);
         const ex =
           side === 'left'
             ? Math.max(134, Math.min(KT_CX - 34, rawEx))
@@ -591,7 +591,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   })();
 
   const centerPctFontSize =
-    centerReadout.pct.length >= 8 ? '18px' : centerReadout.pct.length >= 6 ? '22px' : '26px';
+    centerReadout.pct.length >= 8 ? '23px' : centerReadout.pct.length >= 6 ? '28px' : '33px';
 
   return (
     <div
@@ -610,9 +610,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         </p>
       </div>
 
-      <div className="px-1.5 sm:px-2 pt-1 pb-2.5 flex-1 flex items-center justify-center">
-        {/* Dashboard-Style Sculpted Donut + Curved Leaders + 3 Floating Pill Callouts */}
-        <div className="relative w-full max-w-[500px] aspect-[468/290] flex items-center justify-center">
+      <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
+        {/* Dashboard-Style Enlarged Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
+        <div className="relative w-full max-w-[540px] aspect-[524/298] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
             className="w-full h-full overflow-visible"
@@ -717,7 +717,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             <circle
               cx={KT_CX}
               cy={KT_CY}
-              r={KT_R_INNER - 5}
+              r={KT_R_INNER - 6}
               fill="#ffffff"
               stroke="rgba(15, 23, 42, 0.08)"
               strokeWidth="1"
@@ -726,14 +726,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
           {/* Center Interactive Focus Readout */}
           <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-1.5"
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
             style={{
               left: `${(KT_CX / KT_VB_W) * 100}%`,
               top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${(((KT_R_INNER - 5) * 1.72) / KT_VB_W) * 100}%`,
+              width: `${(((KT_R_INNER - 6) * 1.72) / KT_VB_W) * 100}%`,
             }}
           >
-            <span className="inline-flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase text-slate-500 truncate max-w-full">
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-bold tracking-wider uppercase text-slate-500 truncate max-w-full">
               <i
                 className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
                 style={{ backgroundColor: centerReadout.dot }}
@@ -747,7 +747,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               {centerReadout.pct}
             </span>
             <span
-              className={`text-[10px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
+              className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
             >
               {centerReadout.sub}
             </span>
@@ -3207,7 +3207,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </div>
                   ) : (
                     <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 24, right: 4, left: -14, bottom: 0 }}>
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 32, right: 4, left: -14, bottom: 0 }}>
                         <defs>
                           <linearGradient id="kpiVelocityBarGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#155484" />
@@ -3269,6 +3269,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           yAxisId="left"
                           axisLine={false}
                           tickLine={false}
+                          tickCount={5}
+                          domain={[0, (dataMax: number) => {
+                            if (dataMax <= 0) return 10;
+                            const raw = dataMax * 1.18;
+                            const mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, raw / 4))));
+                            const step = ([1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5, 8, 10].map((m) => m * mag).find((v) => v >= raw / 4) || 10 * mag);
+                            return Math.ceil(raw / step) * step;
+                          }]}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
                         />
@@ -3381,11 +3389,42 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           isAnimationActive={false}
                           label={(lblProps) => {
                             const val = Number(lblProps.value || 0);
+                            if (val <= 0) return <g key={`v-zero-${lblProps.index}`} />;
                             const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
-                            if (!isPeak || !velocitySummary.peakLabel) return <g key={`pk-none-${lblProps.index}`} />;
-                            const rawX = Number(lblProps.x || 0) + Number(lblProps.width || 0) / 2;
-                            const pillX = Math.max(46, Math.min(chartW - 46, rawX));
-                            const pillY = Math.max(2, Number(lblProps.y || 0) - 20);
+                            const slotW = (chartW - 40) / Math.max(1, reversedTimeSeries.length);
+                            if (!isPeak && slotW < 24) return <g key={`v-skip-${lblProps.index}`} />;
+
+                            const valLabel =
+                              val >= 1_000_000
+                                ? `${(val / 1_000_000).toFixed(1)}M`
+                                : val >= 1000
+                                  ? `${(val / 1000).toFixed(1)}k`
+                                  : val >= 100 || Number.isInteger(val)
+                                    ? String(Math.round(val))
+                                    : val.toFixed(1);
+
+                            const barY = Number(lblProps.y || 0);
+                            const cx = Number(lblProps.x || 0) + Number(lblProps.width || 0) / 2;
+                            const numY = Math.max(12, barY - 5);
+
+                            if (!isPeak || !velocitySummary.peakLabel) {
+                              return (
+                                <text
+                                  key={`v-lbl-${lblProps.index}`}
+                                  x={cx}
+                                  y={numY}
+                                  textAnchor="middle"
+                                  fill="#334155"
+                                  fontSize="9.5"
+                                  fontWeight="700"
+                                >
+                                  {valLabel}
+                                </text>
+                              );
+                            }
+
+                            const pillX = Math.max(46, Math.min(chartW - 46, cx));
+                            const pillY = Math.max(2, numY - 26);
                             const pillText = `${velocitySummary.peakLabel} Peak`;
                             const pillW = Math.max(62, pillText.length * 5.6 + 14);
                             return (
@@ -3394,19 +3433,29 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   x={pillX - pillW / 2}
                                   y={pillY}
                                   width={pillW}
-                                  height={15}
-                                  rx={7.5}
+                                  height={14}
+                                  rx={7}
                                   fill="#0d9488"
                                 />
                                 <text
                                   x={pillX}
-                                  y={pillY + 10.5}
+                                  y={pillY + 10}
                                   textAnchor="middle"
                                   fill="#ffffff"
                                   fontSize="8.5"
                                   fontWeight="700"
                                 >
                                   {pillText}
+                                </text>
+                                <text
+                                  x={cx}
+                                  y={numY}
+                                  textAnchor="middle"
+                                  fill="#0f766e"
+                                  fontSize="9.5"
+                                  fontWeight="800"
+                                >
+                                  {valLabel}
                                 </text>
                               </g>
                             );
