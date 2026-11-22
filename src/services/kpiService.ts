@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { todayPP } from '../utils/time';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
+import { clearOnUserChange } from '../utils/userScopedCache';
 
 export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Merchant Visit' | 'Other';
 
@@ -349,7 +350,6 @@ let staffSliceRpcSupported: boolean | null = null;
 let pendingStorageTimer: number | null = null;
 const pendingSlicesToPersist = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[] }>();
 let pendingSeriesToPersist = false;
-let owner: string | null | undefined;
 
 export interface KpiSettingsData {
   rules: KpiPointRule[];
@@ -465,15 +465,7 @@ export function clearKpiCache(): void {
 
 registerPortalCacheInvalidator(['kpi', 'devices', 'field', 'qr', 'cc', 'mv', 'staff', 'branches'], clearKpiCache);
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, s) => {
-      const id = s?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearKpiCache();
-      owner = id;
-    });
-  } catch { /* ignore */ }
-}
+clearOnUserChange(clearKpiCache);
 
 function getSeriesBundle(): KpiSeriesBundle | null {
   const today = todayPP();

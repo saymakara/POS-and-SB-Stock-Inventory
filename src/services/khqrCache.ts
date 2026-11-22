@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { clearFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { todayPP } from '../utils/time';
@@ -6,6 +6,7 @@ import {
   QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary,
   fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary,
 } from './supabaseService';
+import { clearOnUserChange, rememberRecent } from '../utils/userScopedCache';
 
 /**
  * (29 Oct 2026) KHQR screen: instant opening.
@@ -39,21 +40,12 @@ const entries = new Map<string, EntriesHit>();
 const summaries = new Map<string, QrSummary>();
 const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
-let owner: string | null | undefined;
 
 export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; clearFresh('qr:'); }
 
 registerPortalCacheInvalidator(['qr', 'kpi'], clearKhqrCache);
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearKhqrCache();
-      owner = id;
-    });
-  } catch { /* the cache simply stays empty */ }
-}
+clearOnUserChange(clearKhqrCache);
 
 export const entriesKey = (f: QrQuery, page: number, pageSize: number) =>
   JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.region || 'ALL', f.branchId || '', f.staffId || '', f.search || '', page, pageSize]);
@@ -61,15 +53,13 @@ const periodKey = (from: string | null, to: string | null) => `${from || ''}|${t
 
 export const getCachedEntries = (key: string) => entries.get(key);
 export function setCachedEntries(key: string, hit: EntriesHit): void {
-  entries.delete(key); entries.set(key, hit);
-  while (entries.size > MAX_KEYS) entries.delete(entries.keys().next().value as string);
+  rememberRecent(entries, key, hit, MAX_KEYS);
 }
 export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; region?: string; branchId?: string; staffId?: string; search?: string; kind?: string }, page: number, pageSize: number) =>
   JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.region || 'ALL', f.branchId || '', f.staffId || '', f.search || '', f.kind || 'SUBMIT_BLOCKED', page, pageSize]);
 export const getCachedAttempts = (key: string) => attempts.get(key);
 export function setCachedAttempts(key: string, hit: { rows: QrAttempt[]; total: number }): void {
-  attempts.delete(key); attempts.set(key, hit);
-  while (attempts.size > MAX_KEYS) attempts.delete(attempts.keys().next().value as string);
+  rememberRecent(attempts, key, hit, MAX_KEYS);
 }
 export const getCachedSummary = (from: string | null, to: string | null) => summaries.get(periodKey(from, to));
 export const setCachedSummary = (from: string | null, to: string | null, s: QrSummary) => { summaries.set(periodKey(from, to), s); };
