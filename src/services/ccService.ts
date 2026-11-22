@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { FieldScope } from '../utils/fieldScope';
+import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 
 /**
  * (31 Oct 2026) Phone App Review → Credit Card: entries sent by the Merchant Visit phone app (Apps Script), reviewed by
@@ -144,6 +145,7 @@ export async function reviewCc(recordId: string, action: 'CONFIRM' | 'REJECT', r
   const { data, error } = await supabase.rpc('cc_review', { p_record_id: recordId, p_action: action, p_reason: reason || null, p_note: note || null });
   if (error) throw new Error(error.message);
   clearCcCache();
+  emitPortalSync(['cc', 'kpi'], { broadcast: true });
   const d: any = data || {};
   return { reviewedBy: d.reviewed_by || '', reviewedAt: d.reviewed_at || '' };
 }
@@ -157,6 +159,7 @@ export async function docsCc(recordId: string, action: 'WELL_RECEIVED' | 'FOLLOW
     throw new Error(error.message);
   }
   clearCcCache();
+  emitPortalSync(['cc', 'kpi'], { broadcast: true });
   const d: any = data || {};
   return { docStatus: d.doc_status ?? null, docSince: d.doc_since ?? null, docFollowups: Number(d.doc_followups) || 0, docLastFollowup: d.doc_last_followup ?? null, by: d.by || '', at: d.at || '' };
 }
@@ -178,6 +181,7 @@ export function patchCachedCcEntry(recordId: string, next: Partial<CcEntry>): vo
   });
 }
 export function clearCcCache(): void { listCache.clear(); countsCache.clear(); born.clear(); lastPrefetch = 0; }
+registerPortalCacheInvalidator(['cc'], clearCcCache);
 
 /** Warms the default Credit Card view (all time, all entries, page 1) and counts in the background so opening the tab is 0ms. */
 let inflightPrefetch: Promise<CcCounts | null> | null = null;

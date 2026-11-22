@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { todayPP } from '../utils/time';
+import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 
 export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Merchant Visit' | 'Other';
 
@@ -455,6 +456,8 @@ export function clearKpiCache(): void {
     }
   } catch { /* ignore */ }
 }
+
+registerPortalCacheInvalidator(['kpi', 'devices', 'field', 'qr', 'cc', 'mv', 'staff', 'branches'], clearKpiCache);
 
 if (isSupabaseConfigured) {
   try {
@@ -914,6 +917,7 @@ export async function saveKpiRuleOnServer(rule: {
   if (error) throw new Error(error.message);
   const mapped = mapRule(data);
   patchCachedKpiRule(mapped);
+  emitPortalSync(['kpi'], { broadcast: true, skipInvalidate: true });
   return mapped;
 }
 
@@ -921,6 +925,7 @@ export async function deleteKpiRuleOnServer(code: string): Promise<void> {
   const { error } = await supabase.rpc('kpi_delete_rule', { p_code: code });
   if (error) throw new Error(error.message);
   removeCachedKpiRule(code);
+  emitPortalSync(['kpi'], { broadcast: true, skipInvalidate: true });
 }
 
 export async function saveKpiTargetsOnServer(targets: {
@@ -956,6 +961,7 @@ export async function saveKpiTargetsOnServer(targets: {
   if (error) throw new Error(error.message);
   const mapped = mapTargets(data);
   patchCachedKpiTargets(mapped);
+  emitPortalSync(['kpi'], { broadcast: true, skipInvalidate: true });
   return mapped;
 }
 

@@ -42,6 +42,7 @@ import {
 } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
+import { onPortalSync } from '../utils/portalSync';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -284,10 +285,10 @@ interface KpiTargetComparisonDonutProps {
 
 const KT_VB_W = 580;
 const KT_VB_H = 336;
-const KT_CX = 290;
+const KT_CX = 284;
 const KT_CY = 168;
-const KT_R_INNER = 88;
-const KT_R_OUTER = 102;
+const KT_R_INNER = 85;
+const KT_R_OUTER = 98;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -544,16 +545,16 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
         const rawEx =
           side === 'left'
-            ? KT_CX - clearDx - 6
-            : KT_CX + clearDx + 6;
+            ? Math.min(g.sx - 12, KT_CX - clearDx - 8)
+            : Math.max(g.sx + 22, KT_CX + clearDx + 18);
         const ex =
           side === 'left'
-            ? Math.max(182, Math.min(KT_CX - 34, rawEx))
-            : Math.min(KT_VB_W - 182, Math.max(KT_CX + 34, rawEx));
+            ? Math.max(176, Math.min(KT_CX - 34, rawEx))
+            : Math.min(KT_VB_W - 173, Math.max(KT_CX + 34, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 8)
-            : Math.max(g.sx + 6, ex - 8);
+            : Math.max(g.sx + 6, Math.min(ex - 8, (g.sx + ex) / 2));
         return { ...g, qpx, qpy: ey, ex, ey };
       });
     };
@@ -734,7 +735,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             <circle
               cx={KT_CX}
               cy={KT_CY}
-              r={KT_R_INNER - 6}
+              r={KT_R_INNER - 5}
               fill="#ffffff"
               stroke="rgba(15, 23, 42, 0.08)"
               strokeWidth="1"
@@ -744,14 +745,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
           {/* Center Interactive Focus Readout */}
           <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-1.5"
             style={{
               left: `${(KT_CX / KT_VB_W) * 100}%`,
               top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${(((KT_R_INNER - 6) * 1.84) / KT_VB_W) * 100}%`,
+              width: `${(((KT_R_INNER - 5) * 1.8) / KT_VB_W) * 100}%`,
             }}
           >
-            <span className="inline-flex items-center gap-1 text-[7.5px] @[360px]:text-[8.5px] @[430px]:text-[9.5px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[7px] @[360px]:text-[8px] @[430px]:text-[9px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
               <i
                 className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
                 style={{ backgroundColor: centerReadout.dot }}
@@ -962,11 +963,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [loadError, setLoadError] = useState('');
 
   const seqRef = useRef(0);
-  const load = useCallback(async () => {
+  const loadImpl = useCallback(async (quiet: boolean) => {
     const seq = ++seqRef.current;
     const hit = getCachedKpiSummary(range.from, range.to);
     if (hit) setData(hit);
-    setLoading(!hit);
+    setLoading(!hit && !quiet);
     try {
       const res = await fetchKpiSummary(range.from, range.to);
       if (seq !== seqRef.current) return;
@@ -979,8 +980,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (seq === seqRef.current) setLoading(false);
     }
   }, [range.from, range.to]);
+  const load = useCallback(() => loadImpl(false), [loadImpl]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    let timer = 0;
+    const unsub = onPortalSync(
+      ['kpi', 'field', 'qr', 'cc', 'mv', 'staff', 'branches', 'devices'],
+      () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          void loadImpl(true);
+        }, 700);
+      }
+    );
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [loadImpl]);
 
   const branchNameMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -2911,9 +2930,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5 mt-4 pt-4 border-t border-slate-200/90">
+        <div
+          data-testid="kpi-summary-cards"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 mt-4 pt-4 border-t border-slate-200/90"
+        >
           {loading && !data ? (
-            Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)
+            Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
           ) : (
             <>
               {(() => {
@@ -2932,28 +2954,30 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       active={selectedCard === 'points'}
                     />
                     <BigKpiCard
-                      label="Active Branches"
-                      value={fmtInt(totals.activeBranchCount)}
-                      sub="Phnom Penh Branches"
-                      icon={Building2}
-                      accentColor="amber"
-                      badge={`${totals.branchesOnTarget} on target`}
-                      onClick={() => handleCardClick('branches', 'all', 'branch')}
-                      active={selectedCard === 'branches'}
-                    />
-                    <BigKpiCard
-                      label="Active Staff"
-                      value={fmtInt(totals.activeStaffCount)}
+                      label="Branches & Staff"
+                      valueNode={
+                        <span className="inline-flex items-center gap-3.5 sm:gap-4">
+                          <span className="inline-flex flex-col">
+                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(totals.activeBranchCount)}</span>
+                            <span className="text-[10.5px] font-medium text-slate-500 tracking-normal mt-1">Branches</span>
+                          </span>
+                          <span className="h-8 w-px bg-slate-200/90 shrink-0" aria-hidden="true" />
+                          <span className="inline-flex flex-col">
+                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(totals.activeStaffCount)}</span>
+                            <span className="text-[10.5px] font-medium text-slate-500 tracking-normal mt-1">Staff</span>
+                          </span>
+                        </span>
+                      }
                       sub={
                         isTaskMode
-                          ? (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffTasks)} tasks/field staff (${totals.mgtStaffCount} mgt exempt)` : `Avg ${fmtPts(totals.avgStaffTasks)} tasks / staff`)
-                          : (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffPts)} pts/field staff (${totals.mgtStaffCount} mgt exempt)` : `Avg ${fmtPts(totals.avgStaffPts)} pts / staff`)
+                          ? (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffTasks)} tasks/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffTasks)} tasks/st`)
+                          : (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffPts)} pts/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffPts)} pts/staff`)
                       }
                       icon={Users}
                       accentColor="violet"
                       badge={`${totals.staffOnTarget} on target`}
                       onClick={() => handleCardClick('staff', 'all', 'staff')}
-                      active={selectedCard === 'staff'}
+                      active={selectedCard === 'staff' || selectedCard === 'branches'}
                     />
                     <BigKpiCard
                       label="Leading Branch"
@@ -3172,15 +3196,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <div className="flex flex-wrap items-end justify-between gap-4 pt-1">
                   <div className="flex items-center gap-6">
                     <div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-figure text-2xl font-bold tracking-tight text-slate-900 tabular-nums leading-none">
-                          {isTaskMode ? fmtInt(velocitySummary.total) : fmtPts(velocitySummary.total)}
-                        </span>
-                        {velocitySummary.peakLabel && (
-                          <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/70 tabular-nums">
-                            Peak {velocitySummary.peakLabel}
-                          </span>
-                        )}
+                      <div className="font-figure text-2xl font-bold tracking-tight text-slate-900 tabular-nums leading-none">
+                        {isTaskMode ? fmtInt(velocitySummary.total) : fmtPts(velocitySummary.total)}
                       </div>
                       <p className="text-[11px] text-slate-500 mt-1">
                         {isTaskMode ? 'Window Total Tasks' : 'Window Total Points'}
@@ -6122,13 +6139,14 @@ const KpiTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 8 }) => (
 const BigKpiCard: React.FC<{
   label: string;
   value?: string;
+  valueNode?: React.ReactNode;
   sub?: string;
   icon: React.ElementType;
   accentColor?: 'blue' | 'emerald' | 'amber' | 'violet';
   badge?: string;
   onClick?: () => void;
   active?: boolean;
-}> = React.memo(({ label, value, sub, icon: Icon, accentColor = 'blue', badge, onClick, active }) => {
+}> = React.memo(({ label, value, valueNode, sub, icon: Icon, accentColor = 'blue', badge, onClick, active }) => {
   const theme = {
     blue: {
       iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
@@ -6149,22 +6167,22 @@ const BigKpiCard: React.FC<{
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group ${
+      className={`relative flex flex-col justify-between p-4 2xl:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group ${
         active ? 'border-[#1e5b88] ring-2 ring-sky-100' : 'border-slate-200/90'
       }`}
     >
-      <div className="flex items-center justify-between gap-2.5">
-        <span className="text-[11.5px] font-semibold text-slate-600 uppercase tracking-wider truncate">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide truncate">
           {label}
         </span>
-        <div className={`w-9.5 h-9.5 rounded-xl flex items-center justify-center border shrink-0 transition-transform group-hover:scale-105 ${theme.iconBg}`}>
-          <Icon className="w-5 h-5" />
+        <div className={`w-8.5 h-8.5 2xl:w-9.5 2xl:h-9.5 rounded-xl flex items-center justify-center border shrink-0 transition-transform group-hover:scale-105 ${theme.iconBg}`}>
+          <Icon className="w-4.5 h-4.5 2xl:w-5 2xl:h-5" />
         </div>
       </div>
 
-      <div className="my-2.5">
-        <div className="font-figure text-[28px] font-semibold tracking-tight tabular-nums leading-tight text-slate-700 truncate">
-          {value === undefined ? '—' : value}
+      <div className="my-2">
+        <div className="font-figure text-[26px] 2xl:text-[28px] font-semibold tracking-tight tabular-nums leading-tight text-slate-700 truncate">
+          {valueNode ?? (value === undefined ? '—' : value)}
         </div>
       </div>
 

@@ -30,6 +30,7 @@ import {
 } from './PillMotion';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
 import { getCachedStaff, onStaffList } from '../services/staffCache';
+import { onPortalSync } from '../utils/portalSync';
 import type { StaffAccount } from '../services/supabaseService';
 
 /**
@@ -176,15 +177,15 @@ const SimCardTabComponent: React.FC<{
 
   const [countsKey, setCountsKey] = useState(0);
 
-  const load = useCallback(async (force = false) => {
-    setLoading(true);
+  const load = useCallback(async (force = false, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const p = await fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page: 1, pageSize: 1000 }, force);
       if (!status && !branchId && !search) { simCache = { rows: p.rows, total: p.total }; setUnfilteredRows(p.rows); }
       setRows(p.rows); setTotal(p.total); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setRows((r) => r || []);
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   }, [status, branchId, search]);
 
   useEffect(() => {
@@ -197,15 +198,22 @@ const SimCardTabComponent: React.FC<{
   const changed = () => { setCountsKey((k) => k + 1); onLostChanged?.(); };
 
   useEffect(() => {
+    let timer = 0;
     const handleSync = () => {
-      load(true);
-      setCountsKey((k) => k + 1);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void load(true, true);
+        setCountsKey((k) => k + 1);
+      }, 350);
     };
     window.addEventListener('materials-updated', handleSync);
     window.addEventListener('sim-card-updated', handleSync);
+    const unsubSync = onPortalSync(['materials', 'devices'], handleSync);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener('materials-updated', handleSync);
       window.removeEventListener('sim-card-updated', handleSync);
+      unsubSync();
     };
   }, [load]);
 

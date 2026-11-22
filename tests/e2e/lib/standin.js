@@ -172,8 +172,30 @@ async function api(route) {
   if (path === '/rest/v1/rpc/cc_counts') return json(200, { pending: 0, confirmed: 0, rejected: 0, no_review: 0, total: 0 });
   if (path === '/rest/v1/rpc/cc_list') return json(200, []);
   if (path === '/rest/v1/rpc/kpi_dashboard_summary') return json(200, []);
+  if (path === '/rest/v1/rpc/kpi_get_settings_fast') return json(200, { rules: [], targets: {} });
+  if (path === '/rest/v1/rpc/kpi_team_lead_list') return json(200, []);
   if (path === '/rest/v1/kpi_point_rules') return json(200, []);
   if (path === '/rest/v1/kpi_settings') return json(200, [{ id: 1 }]);
+  if (path === '/rest/v1/notification_reads') {
+    state.notifReads = state.notifReads || {};
+    const uid = (me && me.id) || 'anon';
+    const userMap = state.notifReads[uid] || (state.notifReads[uid] = {});
+    if (method === 'GET') {
+      return json(200, Object.keys(userMap).map((id) => ({ user_id: uid, notif_id: id, read_at: userMap[id] })));
+    }
+    const items = Array.isArray(body) ? body : body ? [body] : [];
+    items.forEach((it) => { if (it && it.notif_id) userMap[String(it.notif_id)] = it.read_at || new Date().toISOString(); });
+    return json(201, items);
+  }
+  if (path === '/rest/v1/rpc/mark_notifications_read') {
+    state.notifReads = state.notifReads || {};
+    const uid = (me && me.id) || 'anon';
+    const userMap = state.notifReads[uid] || (state.notifReads[uid] = {});
+    const ids = Array.isArray(body && body.p_notif_ids) ? body.p_notif_ids : [];
+    const now = new Date().toISOString();
+    ids.forEach((id) => { const s = String(id || '').trim(); if (s) userMap[s] = now; });
+    return json(200, ids.length);
+  }
   return json(404, { message: 'not in the stand-in: ' + path });
 }
 

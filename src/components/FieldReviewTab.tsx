@@ -31,6 +31,7 @@ import {
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
 import { getCachedFieldEvents, isFieldCacheComplete, setCachedFieldEvents } from '../services/fieldCache';
+import { onPortalSync } from '../utils/portalSync';
 import { FieldScope, normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
@@ -522,8 +523,17 @@ export const FieldReviewTab: React.FC<Props> = ({
       queued.set(e.id, e);
       if (frame === null) frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flushQueued) : (window.setTimeout(flushQueued, 16) as unknown as number);
     });
+    let syncTimer = 0;
+    const unsubSync = onPortalSync(['field'], () => {
+      window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => {
+        void load();
+      }, 650);
+    });
   return () => {
       unsub();
+      unsubSync();
+      window.clearTimeout(syncTimer);
       if (frame !== null) { try { cancelAnimationFrame(frame); } catch { /* not a frame */ } }
       queued.clear();
     };

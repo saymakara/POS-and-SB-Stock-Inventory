@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { fetchStaffAccounts, type StaffAccount } from './supabaseService';
 
 /**
@@ -12,6 +13,7 @@ let list: StaffAccount[] | null = null;
 let at = 0;                                            // when the list in memory was fetched
 let owner: string | null | undefined;
 export const clearStaffCache = () => { list = null; at = 0; };
+registerPortalCacheInvalidator(['staff'], () => { at = 0; });
 export const getCachedStaff = () => list;
 const listeners = new Set<(x: StaffAccount[]) => void>();
 export const setCachedStaff = (x: StaffAccount[]) => { list = x; at = Date.now(); listeners.forEach((f) => f(x)); };

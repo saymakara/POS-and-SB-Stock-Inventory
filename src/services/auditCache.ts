@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { fetchAuditLogs, type ServerAuditEntry } from './supabaseService';
 
 /**
@@ -13,6 +14,8 @@ const MAX_KEYS = 12;
 const key = (limit: number, offset: number) => `${limit}:${offset}`;
 
 export const clearAuditCache = () => pages.clear();
+
+registerPortalCacheInvalidator(['audit'], clearAuditCache);
 export const getCachedAudit = (limit: number, offset: number) => pages.get(key(limit, offset));
 export function setCachedAudit(limit: number, offset: number, rows: ServerAuditEntry[]): void {
   const k = key(limit, offset);

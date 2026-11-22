@@ -15,6 +15,7 @@ import { KpiRulesAdminSection } from './KpiRulesAdminSection';
 import { KpiTeamLeadsSection } from './KpiTeamLeadsSection';
 import { KhqrRetentionSection } from './KhqrRetentionSection';
 import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
+import { onPortalSync } from '../utils/portalSync';
 import SystemHealthPanel from './SystemHealthPanel';
 import {
   getTelegramWebhookConfig,
@@ -195,6 +196,26 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           setLoadingKpi(false);
         });
     }
+  }, [activeSubTab]);
+
+  useEffect(() => {
+    if (activeSubTab !== 'kpi') return;
+    let timer = 0;
+    const unsub = onPortalSync(['kpi'], () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        fetchFastKpiSettings()
+          .then((data) => {
+            setKpiRules(data.rules || []);
+            setKpiTargets(data.targets);
+          })
+          .catch(() => {});
+      }, 450);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
   }, [activeSubTab]);
 
   const handleRuleSaved = (updated: KpiPointRule) => {

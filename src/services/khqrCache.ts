@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { clearFresh } from '../utils/freshness';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { todayPP } from '../utils/time';
 import {
   QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary,
@@ -41,6 +42,8 @@ let history: QrMonthTotal[] | null = null;
 let owner: string | null | undefined;
 
 export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; clearFresh('qr:'); }
+
+registerPortalCacheInvalidator(['qr', 'kpi'], clearKhqrCache);
 
 if (isSupabaseConfigured) {
   try {

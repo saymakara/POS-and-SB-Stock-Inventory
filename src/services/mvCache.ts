@@ -1,4 +1,5 @@
 import { clearFresh } from '../utils/freshness';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import type { MvVisit, MvVisitSummary } from './supabaseService';
 
 /**
@@ -13,3 +14,5 @@ export const setMvPage = (k: string, v: { rows: MvVisit[]; total: number }) => {
 export const getMvSummary = (k: string) => summaries.get(k);
 export const setMvSummary = (k: string, v: MvVisitSummary) => { if (summaries.size > 20) summaries.clear(); summaries.set(k, v); };
 export function clearMvCache(): void { pages.clear(); summaries.clear(); clearFresh('mv:'); }
+
+registerPortalCacheInvalidator(['mv', 'kpi'], clearMvCache);

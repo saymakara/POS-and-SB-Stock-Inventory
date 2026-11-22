@@ -239,34 +239,10 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
 
   if (phase === 'ready') return <>{children(profile)}</>;
 
-  const card = 'relative z-10 w-full max-w-[380px] bg-white rounded-3xl border border-slate-200/90 shadow-[0_20px_46px_rgba(15,23,42,0.07),0_4px_12px_rgba(15,23,42,0.03)] p-7';
-  const input = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 outline-none transition-colors focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/15';
+  const card = 'w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-xl p-7';
+  const input = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/15';
   return (
-    <div
-      className="relative min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden"
-      style={{ background: 'radial-gradient(circle at 50% 45%, #ffffff 0%, #eff2f6 65%, #e3e8ef 100%)' }}
-    >
-      {/* M6-2 Pure Platinum Monochrome Fold */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <svg viewBox="0 0 1440 720" preserveAspectRatio="none" className="w-full h-full block" fill="none">
-          <defs>
-            <linearGradient id="authgate-platinum-fold" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity={0.85} />
-              <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.28} />
-            </linearGradient>
-          </defs>
-          <path
-            d="M-40,500 C320,260 660,540 1040,280 C1230,150 1370,220 1480,170 L1480,720 L-40,720 Z"
-            fill="url(#authgate-platinum-fold)"
-          />
-          <path
-            d="M-40,500 C320,260 660,540 1040,280 C1230,150 1370,220 1480,170"
-            stroke="#ffffff"
-            strokeOpacity={0.95}
-            strokeWidth={2}
-          />
-        </svg>
-      </div>
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <div className={card}>
         <div className="flex items-center gap-3 mb-6">
           <AppBrandLogo presetId="quantum-sound" size="lg" />

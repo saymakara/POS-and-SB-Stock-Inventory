@@ -29,6 +29,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import { getCachedAudit } from '../services/auditCache';
 import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
+import { onPortalSync, type SyncDomain } from '../utils/portalSync';
 import {
   fetchMonthlyInstallFieldEvents,
   getCachedMonthlyInstallBuckets,
@@ -258,9 +259,9 @@ interface KpiSparkSummary {
 
 function analyzeSparkTrend(
   rawValues: number[],
-  options: { invertSentiment?: boolean; isLight?: boolean; unitLabel?: string } = {}
+  options: { invertSentiment?: boolean; isLight?: boolean; unitLabel?: string; negativeHex?: string } = {}
 ): KpiSparkSummary {
-  const { invertSentiment = false, isLight = true, unitLabel = 'period' } = options;
+  const { invertSentiment = false, isLight = true, unitLabel = 'period', negativeHex } = options;
   const values = rawValues.length >= 2 ? rawValues : rawValues.length === 1 ? [rawValues[0], rawValues[0]] : [0, 0];
   const n = values.length;
   const split = Math.max(1, Math.floor(n / 2));
@@ -291,7 +292,7 @@ function analyzeSparkTrend(
   }
 
   const upGoodHex = isLight ? '#2d6a4f' : '#34d399';
-  const badHex = isLight ? '#e11d48' : '#fb7185';
+  const badHex = negativeHex || (isLight ? '#e11d48' : '#fb7185');
   const flatHex = isLight ? '#64748b' : '#94a3b8';
 
   const colorHex =
@@ -1784,6 +1785,51 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [loadFieldInstalls, neededInstallDays]);
 
+  // Live dynamic sync across all portal domains when another user or phone app changes data
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let metricsTimer = 0;
+    let assetsTimer = 0;
+    let installsTimer = 0;
+    const unsub = onPortalSync(
+      ['kpi', 'cc', 'materials', 'devices', 'field', 'qr', 'mv', 'staff', 'branches', 'requisitions'],
+      (changed: Set<SyncDomain>) => {
+        if (
+          changed.has('kpi') ||
+          changed.has('cc') ||
+          changed.has('field') ||
+          changed.has('qr') ||
+          changed.has('mv') ||
+          changed.has('staff') ||
+          changed.has('branches')
+        ) {
+          window.clearTimeout(metricsTimer);
+          metricsTimer = window.setTimeout(() => {
+            void loadPeriodMetrics(true);
+          }, 700);
+        }
+        if (changed.has('materials') || changed.has('devices') || changed.has('requisitions')) {
+          window.clearTimeout(assetsTimer);
+          assetsTimer = window.setTimeout(() => {
+            void loadInventoryAndSims(true);
+          }, 500);
+        }
+        if (changed.has('field')) {
+          window.clearTimeout(installsTimer);
+          installsTimer = window.setTimeout(() => {
+            void loadFieldInstalls(true, neededInstallDays, true);
+          }, 800);
+        }
+      }
+    );
+    return () => {
+      window.clearTimeout(metricsTimer);
+      window.clearTimeout(assetsTimer);
+      window.clearTimeout(installsTimer);
+      unsub();
+    };
+  }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls, neededInstallDays]);
+
   // Idle sequential background warm-up of Today, All time, and previous month after initial load settles
   useEffect(() => {
     if (!isSupabaseConfigured || !kpiData || syncing) return;
@@ -2816,7 +2862,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return {
       tasks: analyzeSparkTrend(tasksVals, { isLight, unitLabel: 'field tasks' }),
       deployments: analyzeSparkTrend(deploymentVals, { isLight, unitLabel: 'hardware ops' }),
-      queue: analyzeSparkTrend(queueVals, { invertSentiment: true, isLight, unitLabel: 'approval queue' }),
+      queue: analyzeSparkTrend(queueVals, {
+        invertSentiment: true,
+        isLight,
+        unitLabel: 'approval queue',
+        negativeHex: isLight ? '#d97706' : '#fbbf24',
+      }),
       outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
     };
   }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, monthlyInstallComparison.allBuckets, queues.total, isLight]);
@@ -3614,12 +3665,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   ? channelActivity.totalTasks
                   : channelTotals[velocityChannel];
               const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
-              const weekendDaysCount = velocitySeries.filter((p) => p.isWeekend && !p.holidayName).length;
-              const holidayPoints = velocitySeries.filter((p) => Boolean(p.holidayName));
-              const holidayDaysCount = holidayPoints.length;
-              const holidayListTitle = holidayPoints
-                .map((p) => `${p.fullLabel || p.label}: ${p.holidayName}`)
-                .join(' · ');
 
               return (
                 <>
@@ -3679,36 +3724,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         </span>
                         Active staff
                       </span>
-
-                      {weekendDaysCount > 0 && (
-                        <span
-                          data-dash-legend="weekend"
-                          title="Weekend columns (Saturday & Sunday)"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
-                            isLight
-                              ? 'bg-slate-50/95 border-slate-200/85 text-slate-600'
-                              : 'bg-slate-800/75 border-slate-700/80 text-slate-300'
-                          }`}
-                        >
-                          <span className="w-2.5 h-2.5 rounded-[3px] bg-slate-400/20 border border-slate-400/50 border-t-2 border-t-slate-500 inline-block shrink-0" aria-hidden="true" />
-                          <span>Weekend ({weekendDaysCount}d)</span>
-                        </span>
-                      )}
-
-                      {holidayDaysCount > 0 && (
-                        <span
-                          data-dash-legend="holiday"
-                          title={holidayListTitle || 'Cambodian Official Public Holiday'}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
-                            isLight
-                              ? 'bg-amber-50/90 border-amber-200/85 text-amber-800'
-                              : 'bg-amber-950/50 border-amber-700/60 text-amber-300'
-                          }`}
-                        >
-                          <span className="w-2.5 h-2.5 rounded-[3px] bg-amber-500/15 border border-dashed border-amber-500/75 border-t-2 border-t-amber-600 inline-block shrink-0" aria-hidden="true" />
-                          <span>Holiday ({holidayDaysCount}d)</span>
-                        </span>
-                      )}
 
                       {velocityChannel !== 'ALL' && (
                         <button

@@ -82,7 +82,8 @@ import {
   SIM_BTN_PRIMARY_CLS,
 } from './components/RightDrawerShell';
 import { isSupabaseConfigured } from './lib/supabase';
-import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence, commitStockBatch, type StockBatchRowError, type BatchCommitResult } from './services/supabaseService';
+import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, subscribeToAllPortalChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence, commitStockBatch, type StockBatchRowError, type BatchCommitResult, fetchNotificationReads, readLocalNotifReads, markNotificationIdsRead, subscribeToNotificationReads } from './services/supabaseService';
+import { onPortalSync, type SyncDomain } from './utils/portalSync';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
@@ -364,6 +365,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [notifications, setNotifications] = useState<SystemNotification[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_NOTIFS);
       if (saved) {
@@ -586,6 +588,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const syncedDevices = React.useRef<Map<string, Device>>(new Map());
   const syncedReqs = React.useRef<Map<string, Requisition>>(new Map());
   const syncedHist = React.useRef<Set<string>>(new Set());
+  const lastCdcDeviceAtRef = React.useRef(0);
+  const lastCdcReqAtRef = React.useRef(0);
   // (22 Oct 2026, review) every copy that came FROM the server (load or live feed). Such a copy is never sent back:
   // before, a screen update that was still running with the previous list could send a unit's old copy back right after
   // another user changed it – the server refused it as stale, a "changed by someone else" message appeared and the
@@ -968,11 +972,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       flushHandle = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flush) : (setTimeout(flush, 16) as unknown as number);
     };
     unsubscribe = subscribeToRealtimeChanges(
-      (d) => { serverCopies.current.add(d); pendingDev.set(d.serial, d); scheduleFlush(); },
-      (r) => { serverCopies.current.add(r); pendingReq.set(r.reqId, r); scheduleFlush(); },
+      (d) => { lastCdcDeviceAtRef.current = Date.now(); serverCopies.current.add(d); pendingDev.set(d.serial, d); scheduleFlush(); },
+      (r) => { lastCdcReqAtRef.current = Date.now(); serverCopies.current.add(r); pendingReq.set(r.reqId, r); scheduleFlush(); },
       {
-        onDeviceDelete: (serial) => { pendingDev.set(serial, null); setServerDeviceTotal((prev) => (typeof prev === "number" && prev > 0 ? prev - 1 : prev)); scheduleFlush(); },
-        onRequisitionDelete: (reqId) => { pendingReq.set(reqId, null); scheduleFlush(); },
+        onDeviceDelete: (serial) => { lastCdcDeviceAtRef.current = Date.now(); pendingDev.set(serial, null); setServerDeviceTotal((prev) => (typeof prev === "number" && prev > 0 ? prev - 1 : prev)); scheduleFlush(); },
+        onRequisitionDelete: (reqId) => { lastCdcReqAtRef.current = Date.now(); pendingReq.set(reqId, null); scheduleFlush(); },
         onHistoryInsert: (rec) => {
           syncedHist.current.add(rec.recordId);                         // (came from the server: not sent back)
           setHistoricalMerchants((prev) => (prev.some((h) => h.recordId === rec.recordId) ? prev : [rec, ...prev]));
@@ -984,8 +988,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     );
     (async () => {
-      const loaded = await reloadFromServer();
+      const ownerKey = profile?.user_id || authUsername || 'local';
+      const [loaded, dbReadIds] = await Promise.all([
+        reloadFromServer(),
+        fetchNotificationReads(ownerKey),
+      ]);
       if (!alive) return;
+      if (dbReadIds && dbReadIds.size > 0) {
+        dbReadIds.forEach((id) => persistedReadNotifIdsRef.current.add(id));
+        setReadNotifVersion((v) => v + 1);
+      }
       if (!loaded) {
         setServerError('The stock could not be loaded from the server. Nothing you change now is saved – please reload the page.');
         return;
@@ -1009,6 +1021,163 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       unsubscribeField();
     };
   }, [reloadFromServer, applyPendingByType]);
+
+  const notifOwnerKey = profile?.user_id || authUsername || getBootSession()?.username || 'local';
+  const persistedReadNotifIdsRef = React.useRef<Set<string>>(readLocalNotifReads(notifOwnerKey));
+  const [readNotifVersion, setReadNotifVersion] = useState(0);
+  useEffect(() => {
+    persistedReadNotifIdsRef.current = readLocalNotifReads(notifOwnerKey);
+    setReadNotifVersion((v) => v + 1);
+  }, [notifOwnerKey]);
+  const persistReadNotifs = useCallback(
+    (ids: string[]) => {
+      const clean = Array.from(new Set(ids.map((x) => String(x || '').trim()).filter(Boolean)));
+      if (clean.length === 0) return;
+      const idSet = new Set(clean);
+      clean.forEach((id) => persistedReadNotifIdsRef.current.add(id));
+      setNotifications((prev) => {
+        let changed = false;
+        const next = prev.map((n) => {
+          if (idSet.has(n.id) && !n.read) {
+            changed = true;
+            return { ...n, read: true };
+          }
+          return n;
+        });
+        return changed ? next : prev;
+      });
+      void markNotificationIdsRead(clean, notifOwnerKey);
+    },
+    [notifOwnerKey]
+  );
+
+  // Live portal-wide sync (all tables + cross-user broadcast + cross-tab notification read receipts)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    let alive = true;
+    const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
+    const timers: Record<string, number> = {};
+    const scheduleDomain = (key: string, delayMs: number, fn: () => void) => {
+      if (timers[key]) window.clearTimeout(timers[key]);
+      timers[key] = window.setTimeout(() => {
+        delete timers[key];
+        if (alive) fn();
+      }, delayMs);
+    };
+
+    const unsubAll = subscribeToAllPortalChanges();
+    const unsubNotifReads = subscribeToNotificationReads(profile?.user_id, (ids) => {
+      if (!alive || !ids.length) return;
+      let added = false;
+      ids.forEach((id) => {
+        if (!persistedReadNotifIdsRef.current.has(id)) {
+          persistedReadNotifIdsRef.current.add(id);
+          added = true;
+        }
+      });
+      if (added) setReadNotifVersion((v) => v + 1);
+    });
+
+    const unsubBus = onPortalSync(
+      ['branches', 'staff', 'materials', 'cc', 'field', 'devices', 'requisitions'],
+      (changed: Set<SyncDomain>) => {
+        if (changed.has('branches')) {
+          scheduleDomain('branches', 300, () => {
+            void fetchBranchesFromSupabase().then((srvBranches) => {
+              if (!alive || !srvBranches || !srvBranches.length) return;
+              setBranches((prev) => {
+                const local = new Map(prev.map((b) => [b.id, b]));
+                return srvBranches.map((b) => ({
+                  ...(local.get(b.id) || { staff: [], staffDetails: [] }),
+                  id: b.id,
+                  code: b.code,
+                  name: b.id === '100' ? 'Head Office' : b.name,
+                  region: b.region,
+                }));
+              });
+            });
+          });
+        }
+        if (changed.has('staff') && isAdminProfile) {
+          scheduleDomain('staff', 350, () => {
+            void Promise.all([loadStaff({ maxAgeMs: 0 }), fetchBranchesFromSupabase()]).then(([staffList, srvBranches]) => {
+              if (!alive || !staffList) return;
+              const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
+              const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
+              setUsers(nextUsers);
+              setBranches((prev) => {
+                const byBranch = new Map<string, string[]>();
+                for (const u of nextUsers) {
+                  if (u.status === 'Suspended' || !isUserInPhnomPenh(u)) continue;
+                  const bId = String(u.branchId).trim();
+                  const displayName = u.name.trim();
+                  if (!byBranch.has(bId)) byBranch.set(bId, []);
+                  const list = byBranch.get(bId)!;
+                  if (!list.includes(displayName)) list.push(displayName);
+                }
+                return prev.map((b) => {
+                  const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
+                  return {
+                    ...b,
+                    staff: staffList.length > 0 ? sList : deduplicateStaffList(b.staff || []),
+                  };
+                });
+              });
+            });
+          });
+        }
+        if (changed.has('materials')) {
+          scheduleDomain('materials', 350, () => {
+            refreshLostCounts();
+          });
+        }
+        if (changed.has('cc')) {
+          scheduleDomain('cc', 400, () => {
+            void import('./services/ccService')
+              .then((m) => m.fetchCcCounts(null, null, 0))
+              .then((c) => {
+                if (alive && c) setCcPending(c.pendingAll);
+              })
+              .catch(() => {});
+          });
+        }
+        if (changed.has('field')) {
+          scheduleDomain('field', 450, () => {
+            void countPendingFieldEventsByType(phoneReviewScopeRef.current, branchesRef.current).then((c) => {
+              if (alive && c !== null) applyPendingByType(c);
+            });
+          });
+        }
+        if (changed.has('devices')) {
+          scheduleDomain('devices', 900, () => {
+            if (Date.now() - lastCdcDeviceAtRef.current > 1200) {
+              void reloadFromServer();
+            }
+          });
+        }
+        if (changed.has('requisitions')) {
+          scheduleDomain('requisitions', 700, () => {
+            if (Date.now() - lastCdcReqAtRef.current > 1200) {
+              void fetchRequisitionsFromSupabase().then((reqs) => {
+                if (!alive || !reqs) return;
+                syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
+                reqs.forEach((r) => serverCopies.current.add(r));
+                setRequisitions(reqs);
+              });
+            }
+          });
+        }
+      }
+    );
+
+    return () => {
+      alive = false;
+      Object.values(timers).forEach((t) => window.clearTimeout(t));
+      unsubAll();
+      unsubNotifReads();
+      unsubBus();
+    };
+  }, [serverReady, profile?.role, profile?.user_id, reloadFromServer, refreshLostCounts, applyPendingByType]);
 
   // Keep sidebar POS / Sound Box badges synced with the active scope after branches & settings are committed
   useEffect(() => {
@@ -2215,9 +2384,11 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         nonReqNotifs.push(n);
       }
 
-      const mergedReqNotifs = builtList.map((n) =>
-        prevReadById.has(n.id) ? { ...n, read: prevReadById.get(n.id)! } : n
-      );
+      const persistedReads = persistedReadNotifIdsRef.current;
+      const mergedReqNotifs = builtList.map((n) => {
+        const isRead = persistedReads.has(n.id) || Boolean(prevReadById.get(n.id));
+        return isRead ? { ...n, read: true } : n;
+      });
       const next = [...mergedReqNotifs, ...nonReqNotifs].slice(0, 60);
       if (
         next.length === prev.length &&
@@ -2242,10 +2413,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
       return prev;
     });
 
-    if (newestArrival) {
+    if (newestArrival && !persistedReadNotifIdsRef.current.has(newestArrival.id)) {
       triggerReqAlertBanner(newestArrival);
     }
-  }, [requisitions, scopedRequisitions, serverReady, triggerReqAlertBanner]);
+  }, [requisitions, scopedRequisitions, serverReady, triggerReqAlertBanner, readNotifVersion]);
 
   // Fast O(1) serial index map for instant lookups
   const deviceBySerialMap = useMemo(() => {
@@ -4342,13 +4513,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                 <button
                   type="button"
                   onClick={() => {
-                    setNotifications((prev) =>
-                      prev.map((item) =>
-                        item.id === activeAlertNotif.id
-                          ? { ...item, read: true }
-                          : item
-                      )
-                    );
+                    persistReadNotifs([activeAlertNotif.id]);
                     if (activeAlertNotif.targetTab) {
                       setActiveTab(activeAlertNotif.targetTab);
                     }
@@ -4542,14 +4707,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             pendingReqs={pendingReqsCount}
             notifications={notifications}
             onMarkAllNotificationsRead={() =>
-              setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+              persistReadNotifs(notifications.map((n) => n.id))
             }
             onSelectNotification={(n) => {
-              setNotifications((prev) =>
-                prev.map((item) =>
-                  item.id === n.id ? { ...item, read: true } : item
-                )
-              );
+              persistReadNotifs([n.id]);
               if (n.targetTab) handleSelectTab(n.targetTab);
             }}
             theme={theme}

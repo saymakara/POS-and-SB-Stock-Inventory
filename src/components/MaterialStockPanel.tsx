@@ -34,6 +34,7 @@ import {
 import { ManageMaterialModal } from './ManageMaterialModal';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
 import { getCachedStaff, onStaffList } from '../services/staffCache';
+import { onPortalSync } from '../utils/portalSync';
 import type { StaffAccount } from '../services/supabaseService';
 
 export type ProductView = 'UNITS' | 'PUSH';
@@ -783,9 +784,9 @@ const MaterialStockPanelComponent: React.FC<{
   const deviceDerivedItems = useMemo(() => deriveDeviceKitMaterials(devices, group), [devices, group]);
 
   // Load balances from material_balances
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async (force = false, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const b = await fetchMaterialBalances(force);
       setBalances(b || []);
       setErr('');
@@ -793,7 +794,7 @@ const MaterialStockPanelComponent: React.FC<{
       const m = cleanMaterialError(e);
       setErr(isMaterialsMissing(m) ? 'SETUP' : m);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -826,6 +827,22 @@ const MaterialStockPanelComponent: React.FC<{
       .catch(() => {});
     return () => { alive = false; };
   }, [codes, selectedCode, branchFilter, countsKey]);
+
+  useEffect(() => {
+    let timer = 0;
+    const unsub = onPortalSync(['materials', 'devices', 'requisitions'], () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setCountsKey((k) => k + 1);
+        void load(true, true);
+        void loadSerials(true);
+      }, 350);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [load, loadSerials]);
 
   const changed = () => {
     clearMaterialsCache();
@@ -1822,9 +1839,18 @@ export const LostMaterialsSection: React.FC<{
   }, [key]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    const again = () => load(true);
+    let timer = 0;
+    const again = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void load(true); }, 350);
+    };
     window.addEventListener('materials-updated', again);
-    return () => window.removeEventListener('materials-updated', again);
+    const unsubSync = onPortalSync(['materials', 'devices'], again);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('materials-updated', again);
+      unsubSync();
+    };
   }, [load]);
   const rows = useMemo(() => (all ? (filter === 'OPEN' ? all.filter((l) => l.status === 'OPEN') : all) : null), [all, filter]);
   if (!all || all.length === 0) return null;

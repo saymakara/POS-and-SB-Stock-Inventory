@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchAllPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
-import { markFresh } from '../utils/freshness';
+import { clearFresh, markFresh } from '../utils/freshness';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 
 /**
  * (29 Oct 2026) Phone App Review (POS Terminal and Sound Box): instant opening.
@@ -13,6 +14,7 @@ let pendingComplete = false;
 let owner: string | null | undefined;
 
 export const clearFieldCache = () => { events = null; pendingComplete = false; };
+registerPortalCacheInvalidator(['field'], () => { clearFresh('field'); });
 export const getCachedFieldEvents = () => events;
 export const isFieldCacheComplete = () => pendingComplete;
 export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingComplete) => {

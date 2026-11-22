@@ -3,6 +3,7 @@ import { Users, Plus, Pencil, Trash2, Loader2, Save, X } from 'lucide-react';
 import { Branch } from '../types';
 import { KpiTeamLead, deleteTeamLead, fetchTeamLeads, saveTeamLead } from '../services/kpiTeamLeadService';
 import { ToggleSwitch } from './ToggleSwitch';
+import { onPortalSync } from '../utils/portalSync';
 
 /**
  * (11 Nov 2026) Settings → KPI: Team leads. A team lead (Merchant Visit Staff ID) sees "Team KPI" in the phone app: today's and
@@ -23,6 +24,15 @@ export const KpiTeamLeadsSection = memo(function KpiTeamLeadsSection({ canEdit, 
     try { setRows(await fetchTeamLeads()); setErr(''); } catch (e) { setErr(e instanceof Error ? e.message : String(e)); setRows([]); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let timer = 0;
+    const unsub = onPortalSync(['kpi'], () => {
+      if (draft) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void load(); }, 400);
+    });
+    return () => { window.clearTimeout(timer); unsub(); };
+  }, [load, draft]);
 
   const save = async () => {
     if (!draft) return;

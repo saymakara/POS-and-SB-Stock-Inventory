@@ -25,6 +25,7 @@ import { CopyableRecordId } from './CopyableRecordId';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
+import { onPortalSync } from '../utils/portalSync';
 
 /**
  * Phone App Review → Merchant Visit (4 Nov 2026).
@@ -87,13 +88,13 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   const pg = usePager(total, [from, to, activity, region, branchId, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async (force = false, silent = false) => {
     const my = ++seq.current;
     const key = mvKey({ from, to }, activity, region, branchId, search, page, pageSize);
     const hit = getMvPage(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // the last answer at once; the fresh one replaces it
     if (hit && force !== true && isFresh('mv:p:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
-    setLoading(!hit);
+    setLoading(!hit && !silent);
     try {
       const res = await fetchMvVisitsPage({ ...filters, page, pageSize });
       if (my !== seq.current) return;
@@ -120,6 +121,21 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  useEffect(() => {
+    let timer = 0;
+    const unsub = onPortalSync(['mv', 'branches'], () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void load(true, true);
+        void loadStats(true);
+      }, 450);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [load, loadStats]);
 
   const activities = useMemo(() => {
     const list = (summary?.byActivity || []).map((a) => a.activity).filter((a) => a && a !== '(none)');

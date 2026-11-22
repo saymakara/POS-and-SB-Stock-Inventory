@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { emitPortalSync } from '../utils/portalSync';
 
 /**
  * (11 Nov 2026) KPI team leads: who sees "Team KPI" in the Merchant Visit app (More → Team KPI) and for which staff -
@@ -20,8 +21,10 @@ export async function fetchTeamLeads(): Promise<KpiTeamLead[]> {
 export async function saveTeamLead(t: { staffId: string; staffName: string; branchIds: string[]; memberIds: string[]; active: boolean }): Promise<void> {
   const { error } = await supabase.rpc('kpi_team_lead_save', { p: { staff_id: t.staffId.trim(), staff_name: t.staffName.trim(), branch_ids: t.branchIds, member_ids: t.memberIds, active: t.active } });
   if (error) throw new Error(missing(error.message) ? SETUP : error.message);
+  emitPortalSync(['kpi'], { broadcast: true });
 }
 export async function deleteTeamLead(staffId: string): Promise<void> {
   const { error } = await supabase.rpc('kpi_team_lead_delete', { p_staff_id: staffId });
   if (error) throw new Error(missing(error.message) ? SETUP : error.message);
+  emitPortalSync(['kpi'], { broadcast: true });
 }

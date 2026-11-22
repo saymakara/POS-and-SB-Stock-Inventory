@@ -2,6 +2,7 @@
 // edit, refuses the stock fields of an approved POS Terminal / Sound Box record, writes the Audit Trail and queues the change
 // for the Merchant Visit app's Google Sheet (FIELD, VISIT, CC; KHQR lives only in the portal).
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { emitPortalSync } from '../utils/portalSync';
 
 export type PhoneEditSource = 'FIELD' | 'VISIT' | 'CC' | 'KHQR';
 export interface PhoneEditResult { changed: string[]; record: string; sheet: 'PENDING' | 'NOT_NEEDED' }
@@ -18,6 +19,8 @@ export async function editPhoneRecord(source: PhoneEditSource, id: number, chang
   const { data, error } = await supabase.rpc('admin_edit_phone_record', { p: { source, id, changes, reason: reason || '' } });
   if (error) throw new Error(plain(error.message));
   const d: any = data || {};
+  const domain = source === 'FIELD' ? 'field' : source === 'VISIT' ? 'mv' : source === 'CC' ? 'cc' : 'qr';
+  emitPortalSync([domain, 'kpi'], { broadcast: true });
   return { changed: Array.isArray(d.changed) ? d.changed.map(String) : [], record: String(d.record || ''), sheet: d.sheet === 'PENDING' ? 'PENDING' : 'NOT_NEEDED' };
 }
 

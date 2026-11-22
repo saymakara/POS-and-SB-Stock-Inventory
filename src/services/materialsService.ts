@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { formatProfessionalError } from '../utils/errorLogger';
+import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 import type { Device } from '../types';
 
 /**
@@ -107,6 +108,8 @@ export function clearMaterialsCache(): void {
   inflightLost.clear();
   clearFresh('mat:');
 }
+
+registerPortalCacheInvalidator(['materials', 'devices', 'requisitions'], clearMaterialsCache);
 
 if (isSupabaseConfigured) {
   try {
@@ -344,6 +347,7 @@ async function rpc<T = any>(fn: string, p: unknown): Promise<T> {
   const { data, error } = await supabase.rpc(fn, { p });
   if (error) throw new Error(error.message);
   clearMaterialsCache();
+  emitPortalSync(['materials', 'devices', 'kpi'], { broadcast: true, skipInvalidate: true });
   return data as T;
 }
 export const materialStockIn = (p: { code: MaterialCode; branch_id?: string; qty?: number; serials?: string[]; note?: string }) =>

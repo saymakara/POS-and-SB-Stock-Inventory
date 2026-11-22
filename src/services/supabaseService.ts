@@ -5,6 +5,13 @@ import { reportCaughtError } from '../utils/errorLogger';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey, clearInventoryCache } from './inventoryCache';
 import { FieldScope, PHNOM_PENH_BRANCH_CODE_LIST, countPendingFieldEventsScoped } from '../utils/fieldScope';
+import {
+  emitPortalSync,
+  getPortalTabId,
+  registerPortalBroadcastSender,
+  registerPortalCacheInvalidator,
+  type SyncDomain,
+} from '../utils/portalSync';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -699,6 +706,9 @@ export async function saveDevicePushStatusToSupabase(
     }
     clearInventoryCache();
     clearConfiguringCache();
+    if (updated.length > 0) {
+      emitPortalSync(['devices'], { broadcast: true, skipInvalidate: true });
+    }
   } catch (err) {
     await reportCaughtError('saveDevicePushStatusToSupabase', err, { showPopup: false });
   }
@@ -1039,6 +1049,7 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
     if (error) {
       throw error;
     }
+    emitPortalSync(['devices'], { broadcast: true, skipInvalidate: true });
     return true;
   } catch (err) {
     await reportCaughtError('insertHistoricalMerchantToSupabase', err, { target: rec.serial || rec.recordId });
@@ -1068,6 +1079,7 @@ export function subscribeToRealtimeChanges(
   const channel = supabase
     .channel(channelName('inventory_realtime_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, (payload) => {
+      emitPortalSync(['devices', 'materials', 'kpi'], { source: 'remote', broadcast: false });
       if (payload.eventType === 'DELETE') {
         const serial = (payload.old as any)?.serial;
         if (serial) extra?.onDeviceDelete?.(serial);
@@ -1076,6 +1088,7 @@ export function subscribeToRealtimeChanges(
       if (payload.new && (payload.new as any).serial) onDeviceChange(mapRowToDevice(payload.new));
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'requisitions' }, (payload) => {
+      emitPortalSync(['requisitions', 'materials'], { source: 'remote', broadcast: false });
       if (payload.eventType === 'DELETE') {
         const id = (payload.old as any)?.req_id;
         if (id) extra?.onRequisitionDelete?.(id);
@@ -1237,6 +1250,7 @@ export async function saveDevicesStrict(
     }
     clearInventoryCache();
     clearConfiguringCache();
+    emitPortalSync(['devices', 'materials', 'kpi'], { broadcast: true, skipInvalidate: true });
     return first ? { ...(first as { error: string; stale: boolean }), versions } : { error: '', stale: false, versions };
   } catch (err) {
     await reportCaughtError('saveDevicesStrict', err, { target: devices[0]?.serial });
@@ -1306,6 +1320,7 @@ export async function commitStockBatch(
     (Array.isArray(d.versions) ? d.versions : []).forEach((v: any) => versions.set(String(v.serial), Number(v.row_version)));
     clearInventoryCache();
     clearConfiguringCache();
+    emitPortalSync(['devices', 'materials', 'kpi'], { broadcast: true, skipInvalidate: true });
     return { ok: true, created: Number(d.created) || 0, moved: Number(d.moved) || 0, versions };
   } catch (err) {
     await reportCaughtError('commitStockBatch', err, { target: rows[0]?.device?.serial, showPopup: false });
@@ -1334,6 +1349,7 @@ export async function saveRequisitionStrict(req: Requisition, isNew: boolean): P
     if (error) {
       throw error;
     }
+    emitPortalSync(['requisitions'], { broadcast: true });
     return '';
   } catch (err) {
     await reportCaughtError('saveRequisitionStrict', err, { target: req.reqId });
@@ -1427,6 +1443,9 @@ export async function deleteDevicesOnServer(serials: string[]): Promise<string> 
         await sleep(CSV_BATCH_DELAY_MS);
       }
     }
+    clearInventoryCache();
+    clearConfiguringCache();
+    emitPortalSync(['devices', 'materials', 'kpi'], { broadcast: true, skipInvalidate: true });
     return '';
   } catch (err) {
     await reportCaughtError('deleteDevicesOnServer', err, { target: serials[0], showPopup: false });
@@ -1442,6 +1461,7 @@ export async function deleteAllHistoricalMerchantsOnServer(): Promise<string> {
     if (error) {
       throw error;
     }
+    emitPortalSync(['requisitions'], { broadcast: true });
     return '';
   } catch (err) {
     await reportCaughtError('deleteAllHistoricalMerchantsOnServer', err);
@@ -1461,6 +1481,7 @@ export async function dispatchRequisitionOnServer(
       p_note: note || null,
     });
     if (error) throw error;
+    emitPortalSync(['requisitions', 'devices', 'materials'], { broadcast: true });
     return (data && data.arranged) || [];
   } catch (err) {
     await reportCaughtError('dispatchRequisitionOnServer', err, { target: reqId });
@@ -1478,6 +1499,7 @@ export async function dispatchRequestWithMaterialsOnServer(
   try {
     const { data, error } = await supabase.rpc('admin_dispatch_request', { p: { req_id: reqId, serials, note: note || null, materials } });
     if (error) throw error;
+    emitPortalSync(['requisitions', 'devices', 'materials'], { broadcast: true });
     return (data && data.arranged) || [];
   } catch (err) {
     const payload = await reportCaughtError('dispatchRequestWithMaterialsOnServer', err, { target: reqId });
@@ -1489,6 +1511,7 @@ export async function rejectRequisitionOnServer(reqId: string, reason: string): 
   try {
     const { error } = await supabase.rpc('admin_reject_requisition', { p_req_id: reqId, p_reason: reason });
     if (error) throw error;
+    emitPortalSync(['requisitions'], { broadcast: true });
   } catch (err) {
     await reportCaughtError('rejectRequisitionOnServer', err, { target: reqId });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
@@ -1502,6 +1525,7 @@ export async function receiveReturnOnServer(
   try {
     const { data, error } = await supabase.rpc('admin_receive_return', { p_req_id: reqId, p_note: note || null });
     if (error) throw error;
+    emitPortalSync(['requisitions', 'devices', 'materials'], { broadcast: true });
     return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
   } catch (err) {
     await reportCaughtError('receiveReturnOnServer', err, { target: reqId });
@@ -1513,6 +1537,7 @@ export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: st
   try {
     const { data, error } = await supabase.rpc('branch_confirm_receipt', { p_req_id: reqId });
     if (error) throw error;
+    emitPortalSync(['requisitions', 'devices', 'materials'], { broadcast: true });
     return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
   } catch (err) {
     await reportCaughtError('confirmReceiptOnServer', err, { target: reqId });
@@ -2278,6 +2303,8 @@ export async function approveFieldEvent(
   try {
     const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
     if (error) throw error;
+    clearMonthlyInstallFieldEventsCache();
+    emitPortalSync(['field', 'devices', 'materials', 'kpi'], { broadcast: true });
     return data;
   } catch (err) {
     await reportCaughtError('approveFieldEvent', err, { target: String(id) });
@@ -2289,6 +2316,7 @@ export async function rejectFieldEvent(id: number, note: string): Promise<void> 
   try {
     const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
     if (error) throw error;
+    emitPortalSync(['field', 'kpi'], { broadcast: true });
   } catch (err) {
     await reportCaughtError('rejectFieldEvent', err, { target: String(id) });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
@@ -2419,6 +2447,11 @@ export async function deletePhoneRecords(source: PhoneRecordSource, ids: number[
     out.deleted += Number(d.deleted) || 0;
     out.notFound += Number(d.not_found) || 0;
     if (Array.isArray(d.refused)) out.refused.push(...d.refused.map((r: any) => ({ id: Number(r.id), record: String(r.record || ''), why: String(r.why || '') })));
+  }
+  if (out.deleted > 0) {
+    const domain: SyncDomain =
+      source === 'FIELD' ? 'field' : source === 'VISIT' ? 'mv' : source === 'CC' ? 'cc' : 'qr';
+    emitPortalSync([domain, 'kpi'], { broadcast: true });
   }
   return out;
 }
@@ -2854,6 +2887,7 @@ export async function saveStaffAccount(p: {
     if (!body.password) delete body.password;
     const { data, error } = await supabase.rpc('admin_save_staff', { p: body });
     if (error) throw error;
+    emitPortalSync(['staff', 'kpi'], { broadcast: true });
     return mapStaff(data);
   } catch (err) {
     await reportCaughtError('saveStaffAccount', err, { target: p.emp_id });
@@ -2873,6 +2907,7 @@ export async function deleteStaffAccount(p: {
       }
       throw error;
     }
+    emitPortalSync(['staff', 'kpi'], { broadcast: true });
     return data || { deleted: true, emp_id: p.emp_id };
   } catch (err) {
     await reportCaughtError('deleteStaffAccount', err, { target: p.emp_id });
@@ -2916,6 +2951,7 @@ export async function saveBranchOnServer(b: { id: string; name: string }): Promi
       .from('branches')
       .upsert({ id: b.id, code: b.id, name: b.name, active: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
     if (error) throw error;
+    emitPortalSync(['branches', 'kpi'], { broadcast: true });
     return '';
   } catch (err) {
     await reportCaughtError('saveBranchOnServer', err, { target: b.id });
@@ -3023,6 +3059,9 @@ export async function renameDeviceSerialOnServer(
     if (deleteErr) {
       throw deleteErr;
     }
+    clearInventoryCache();
+    clearConfiguringCache();
+    emitPortalSync(['devices', 'materials', 'kpi'], { broadcast: true, skipInvalidate: true });
     return '';
   } catch (err) {
     await reportCaughtError('renameDeviceSerialOnServer', err, { target: `${cleanOld} -> ${cleanNew}` });
@@ -3114,5 +3153,238 @@ export function subscribeToOnlinePresence(
     unsubscribe: () => {
       supabase.removeChannel(channel);
     },
+  };
+}
+
+registerPortalCacheInvalidator(['devices'], clearConfiguringCache);
+registerPortalCacheInvalidator(['field'], clearMonthlyInstallFieldEventsCache);
+
+/**
+ * Portal-wide real-time sync channel:
+ *  1) Listens to Postgres CDC for all non-core portal tables (branches, staff, CC, KHQR, KPI, materials, MV, audit).
+ *  2) Connects a shared Supabase Realtime broadcast channel (`portal_live_broadcast_v1`) so mutations propagate
+ *     immediately across all connected users regardless of publication replication lag.
+ */
+export function subscribeToAllPortalChanges(): () => void {
+  if (!isSupabaseConfigured) return () => {};
+
+  const emitRemote = (domains: SyncDomain[]) => {
+    emitPortalSync(domains, { source: 'remote', broadcast: false });
+  };
+
+  let broadcastReady = false;
+  const broadcastCh = supabase
+    .channel('portal_live_broadcast_v1', {
+      config: {
+        broadcast: { self: false, ack: false },
+      },
+    })
+    .on('broadcast', { event: 'domain_sync' }, (msg: any) => {
+      const p = msg?.payload;
+      if (!p || p.sender === getPortalTabId() || !Array.isArray(p.domains)) return;
+      emitRemote(p.domains as SyncDomain[]);
+    })
+    .subscribe((status) => {
+      broadcastReady = status === 'SUBSCRIBED';
+    });
+
+  registerPortalBroadcastSender((domains) => {
+    if (!broadcastReady) return;
+    void broadcastCh
+      .send({
+        type: 'broadcast',
+        event: 'domain_sync',
+        payload: { sender: getPortalTabId(), domains },
+      })
+      .catch(() => {});
+  });
+
+  const cdcCh = supabase
+    .channel(channelName('portal_cdc_feed'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'branches' }, () => emitRemote(['branches', 'kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'branch_aliases' }, () => emitRemote(['branches', 'kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_profiles' }, () => emitRemote(['staff', 'kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cc_entries' }, () => emitRemote(['cc', 'kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cc_settings' }, () => emitRemote(['cc']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'kpi_point_rules' }, () => emitRemote(['kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'kpi_settings' }, () => emitRemote(['kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'kpi_team_leads' }, () => emitRemote(['kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'mv_visits' }, () => emitRemote(['mv', 'kpi']))
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'qr_installations' }, () => emitRemote(['qr', 'kpi']))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qr_installations' }, () => emitRemote(['kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qr_attempts' }, () => emitRemote(['qr']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, () => emitRemote(['field', 'kpi']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_types' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_qty' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_lost' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_movements' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_serials' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'material_counts' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'device_kits' }, () => emitRemote(['materials']))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => emitRemote(['audit']))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_record_edits' }, () => emitRemote(['field', 'mv', 'cc', 'qr']))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'deleted_phone_records' }, () => emitRemote(['field', 'mv', 'cc', 'qr', 'kpi']))
+    .subscribe();
+
+  return () => {
+    broadcastReady = false;
+    registerPortalBroadcastSender(null);
+    supabase.removeChannel(broadcastCh);
+    supabase.removeChannel(cdcCh);
+  };
+}
+
+const LOCAL_NOTIF_READS_PREFIX = 'crm_pos_notif_reads_v1_';
+const MAX_STORED_NOTIF_READS = 500;
+let notifReadsSchemaMissing = false;
+
+function localNotifReadsKey(userKey?: string | null): string | null {
+  const clean = String(userKey || '').trim();
+  return clean ? `${LOCAL_NOTIF_READS_PREFIX}${clean}` : null;
+}
+
+export function readLocalNotifReads(userKey?: string | null): Set<string> {
+  const out = new Set<string>();
+  const key = localNotifReadsKey(userKey);
+  if (!key || typeof localStorage === 'undefined') return out;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return out;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        const s = String(item || '').trim();
+        if (s) out.add(s);
+      }
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+  return out;
+}
+
+function writeLocalNotifReads(userKey: string | null | undefined, ids: Iterable<string>): void {
+  const key = localNotifReadsKey(userKey);
+  if (!key || typeof localStorage === 'undefined') return;
+  try {
+    const arr = Array.from(new Set(Array.from(ids).map((s) => String(s || '').trim()).filter(Boolean)));
+    const trimmed = arr.length > MAX_STORED_NOTIF_READS ? arr.slice(arr.length - MAX_STORED_NOTIF_READS) : arr;
+    localStorage.setItem(key, JSON.stringify(trimmed));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+function isMissingNotifSchemaError(err: any): boolean {
+  const msg = String(err?.message || err || '');
+  const code = String(err?.code || '');
+  return (
+    code === 'PGRST202' ||
+    code === 'PGRST205' ||
+    code === '42P01' ||
+    code === '42883' ||
+    /notification_reads|mark_notifications_read|schema cache|does not exist|not in the stand-in/i.test(msg)
+  );
+}
+
+/**
+ * Fetches notification IDs previously marked as read by the current authenticated user.
+ * Falls back gracefully to a per-user opaque localStorage set when offline or before migration runs.
+ */
+export async function fetchNotificationReads(userKey?: string | null): Promise<Set<string>> {
+  const merged = readLocalNotifReads(userKey);
+  if (!isSupabaseConfigured || notifReadsSchemaMissing) return merged;
+  try {
+    const { data, error } = await supabase
+      .from('notification_reads')
+      .select('notif_id')
+      .order('read_at', { ascending: false })
+      .limit(MAX_STORED_NOTIF_READS);
+
+    if (error) {
+      if (isMissingNotifSchemaError(error)) {
+        notifReadsSchemaMissing = true;
+      }
+      return merged;
+    }
+
+    let changed = false;
+    (data || []).forEach((r: any) => {
+      const id = String(r?.notif_id || '').trim();
+      if (id && !merged.has(id)) {
+        merged.add(id);
+        changed = true;
+      }
+    });
+    if (changed) writeLocalNotifReads(userKey, merged);
+  } catch {
+    /* non-fatal: keep local fallback */
+  }
+  return merged;
+}
+
+/**
+ * Persists one or more notification IDs as read for the signed-in user in PostgreSQL + local per-user backup.
+ */
+export async function markNotificationIdsRead(notifIds: string[], userKey?: string | null): Promise<void> {
+  const cleanIds = Array.from(new Set((notifIds || []).map((x) => String(x || '').trim()).filter(Boolean)));
+  if (cleanIds.length === 0) return;
+
+  const localSet = readLocalNotifReads(userKey);
+  cleanIds.forEach((id) => localSet.add(id));
+  writeLocalNotifReads(userKey, localSet);
+
+  if (!isSupabaseConfigured || notifReadsSchemaMissing) return;
+
+  try {
+    const { error: rpcErr } = await supabase.rpc('mark_notifications_read', { p_notif_ids: cleanIds });
+    if (!rpcErr) {
+      return;
+    }
+    if (!isMissingNotifSchemaError(rpcErr)) {
+      return;
+    }
+
+    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+    const uid = !sessionErr ? sessionData?.session?.user?.id : null;
+    if (!uid) return;
+
+    const nowIso = new Date().toISOString();
+    const rows = cleanIds.map((notif_id) => ({ user_id: uid, notif_id, read_at: nowIso }));
+    const { error: upErr } = await supabase
+      .from('notification_reads')
+      .upsert(rows, { onConflict: 'user_id,notif_id' });
+    if (upErr && isMissingNotifSchemaError(upErr)) {
+      notifReadsSchemaMissing = true;
+    }
+  } catch {
+    /* keep local persistence silently on network errors */
+  }
+}
+
+/**
+ * Syncs notification read receipts for the same user across browser tabs/devices live.
+ */
+export function subscribeToNotificationReads(
+  userId: string | null | undefined,
+  onReadIds: (ids: string[]) => void
+): () => void {
+  const uid = String(userId || '').trim();
+  if (!isSupabaseConfigured || !uid || notifReadsSchemaMissing) return () => {};
+
+  const channel = supabase
+    .channel(channelName('notif_reads_feed'))
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'notification_reads', filter: `user_id=eq.${uid}` },
+      (payload) => {
+        const id = String((payload.new as any)?.notif_id || '').trim();
+        if (id) onReadIds([id]);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
   };
 }

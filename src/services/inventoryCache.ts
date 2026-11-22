@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { markFresh, clearFresh } from '../utils/freshness';
+import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import type { Device, PaginatedResult } from '../types';
 
 /**
@@ -52,6 +53,8 @@ export function clearInventoryCache(): void {
   pages.clear();
   clearFresh('inv:');
 }
+
+registerPortalCacheInvalidator(['devices'], clearInventoryCache);
 
 if (isSupabaseConfigured) {
   try {

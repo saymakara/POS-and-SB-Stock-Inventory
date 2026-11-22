@@ -38,6 +38,7 @@ import {
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
+import { onPortalSync } from '../utils/portalSync';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -185,13 +186,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   useEffect(() => { loadMonthHistory(); }, [loadMonthHistory]);
 
   const reqSeq = useRef(0);
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async (force = false, silent = false) => {
     const seq = ++reqSeq.current;
     const key = entriesKey(filters, page, pageSize);
     const hit = getCachedEntries(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // shown at once; the fresh answer replaces it quietly
     if (hit && force !== true && isFresh('qr:e:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
-    setLoading(!hit);
+    setLoading(!hit && !silent);
     try {
       const res = await fetchQrEntriesPage({ ...filters, page, pageSize });
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
@@ -221,8 +222,23 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       setNewCount((n) => n + 1);
       if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }, STATS_REFRESH_MS);
     });
-    return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
-  }, [loadStats, loadMonthHistory]);
+    let syncTimer = 0;
+    const unsubSync = onPortalSync(['qr', 'branches'], () => {
+      window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => {
+        void load(true, true);
+        void loadStats(true);
+        void loadMonthHistory(true);
+        setLogKey((k) => k + 1);
+      }, 450);
+    });
+    return () => {
+      unsub();
+      unsubSync();
+      window.clearTimeout(syncTimer);
+      if (statTimer) clearTimeout(statTimer);
+    };
+  }, [load, loadStats, loadMonthHistory]);
 
   const filtersActive = !!query || activity !== 'ALL' || region !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
   const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setRegion('ALL'); setBranchId(''); setStaffSel(null); setPeriod('ALL'); };

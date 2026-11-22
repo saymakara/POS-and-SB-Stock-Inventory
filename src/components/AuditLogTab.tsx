@@ -1,6 +1,7 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } from 'react';
 import { getCachedAudit, setCachedAudit } from '../services/auditCache';
+import { onPortalSync } from '../utils/portalSync';
 import { useSort, SortTh } from '../utils/sort';
 import { UserRole, ThemeMode } from '../types';
 import type { ServerAuditEntry } from '../services/supabaseService';
@@ -120,13 +121,13 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     };
   }, []);
 
-  const refreshServerLogs = useCallback(async () => {
+  const refreshServerLogs = useCallback(async (silent = false) => {
     if (!loadServerLogs) return;
     const seq = ++requestSeq.current;
     const offset = (currentPage - 1) * pageSize;
     const hit = getCachedAudit(pageSize, offset);
     if (hit) { setServerLogs(hit); setHasNextServerPage(hit.length >= pageSize); }   // fresh answer replaces it quietly
-    setLoading(!hit);
+    setLoading(!hit && !silent);
     setLoadError(null);
     try {
       const rows = await loadServerLogs(pageSize, offset);
@@ -148,6 +149,21 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
   useEffect(() => {
     if (serverMode) void refreshServerLogs();
+  }, [serverMode, refreshServerLogs]);
+
+  useEffect(() => {
+    if (!serverMode) return;
+    let timer = 0;
+    const unsub = onPortalSync(['audit'], () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void refreshServerLogs(true);
+      }, 500);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
   }, [serverMode, refreshServerLogs]);
 
   const rows: AuditRow[] = useMemo(() => {

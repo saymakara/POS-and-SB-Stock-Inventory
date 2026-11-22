@@ -32,6 +32,7 @@ import {
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
+import { onPortalSync } from '../utils/portalSync';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -121,7 +122,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   useEffect(() => { loadCounts(); }, [loadCounts]);
 
   const seqRef = useRef(0);
-  const load = useCallback(async (fresh = false) => {
+  const load = useCallback(async (fresh = false, silent = false) => {
     const seq = ++seqRef.current;
     const q = { from: range.from, to: range.to, review, region, branchId, search, page: pg.page, pageSize: pg.pageSize };
     const key = ccListKey(q);
@@ -135,7 +136,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
       }
     }
     if (hit) { setRows(hit.rows); setTotal(hit.total); setMasked(hit.masked); }   // the last answer at once (no waiting)
-    setLoading(!hit);
+    setLoading(!hit && !silent);
     try {
       const res = await fetchCcList(q, fresh ? 0 : 30000);   // an answer from the last 30 s (sign-in warm-up, last visit) is reused
       if (seq !== seqRef.current) return;
@@ -151,6 +152,21 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     }
   }, [range.from, range.to, review, region, branchId, search, pg.page, pg.pageSize]);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let timer = 0;
+    const unsub = onPortalSync(['cc', 'branches'], () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void load(true, true);
+        void loadCounts(true);
+      }, 400);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [load, loadCounts]);
 
   const refresh = () => { load(true); loadCounts(true); };
   const filtersActive = period !== 'ALL' || review !== '' || region !== 'ALL' || !!branchId || !!query;
