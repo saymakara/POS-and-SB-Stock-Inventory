@@ -1017,7 +1017,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   };
 
   const loadingFirst = !events && !loadError;
-  const visibleRows = shown.slice(pg.start, pg.end);
+  const visibleRows = shown.slice(pg.start, pg.drawEnd);
   const unitCount = useMemo(() => {
     const m = new Map<string, number>();
     (events || []).forEach((x) => {

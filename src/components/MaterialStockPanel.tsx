@@ -1163,13 +1163,13 @@ const MaterialStockPanelComponent: React.FC<{
   // Pagination for both ledger views
   const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, assignmentFilter, search]);
   const displayedItems = useMemo(
-    () => combinedItems.slice(pg.start, pg.end),
-    [combinedItems, pg.start, pg.end]
+    () => combinedItems.slice(pg.start, pg.drawEnd),
+    [combinedItems, pg.start, pg.drawEnd]
   );
   const balPg = usePager(branchBalanceRows.length, [selectedCode, statusFilter, branchFilter, search]);
   const displayedBalanceRows = useMemo(
-    () => branchBalanceRows.slice(balPg.start, balPg.end),
-    [branchBalanceRows, balPg.start, balPg.end]
+    () => branchBalanceRows.slice(balPg.start, balPg.drawEnd),
+    [branchBalanceRows, balPg.start, balPg.drawEnd]
   );
 
   const exportDetailedInventoryCsv = () => {

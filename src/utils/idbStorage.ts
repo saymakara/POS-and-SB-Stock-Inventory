@@ -153,7 +153,7 @@ export async function loadFullCacheFromIdb(): Promise<CachedInventorySnapshot> {
 // The work is cut into slices of at most SLICE_MS, each run in an idle moment, and a slice waits while the user has just
 // tapped, typed or scrolled, or a page switch is under way.
 const SLICE_MS = 6;
-const QUIET_AFTER_INPUT_MS = 700;
+const QUIET_AFTER_INPUT_MS = 1500;   // (23 Nov 2026) was 700 ms: a heavy screen was still being drawn when the save resumed
 let lastInputAt = 0;
 if (typeof window !== 'undefined') {
   const mark = () => { lastInputAt = performance.now(); };

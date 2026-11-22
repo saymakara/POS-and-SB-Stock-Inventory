@@ -456,7 +456,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               </div>
             )}
             <div data-page-content className="divide-y divide-slate-200/90">
-              {(rows || []).map((e, i) => (
+              {(rows || []).slice(0, pg.drawEnd - pg.start).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                   canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast}
                   checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} onEdit={isAdmin ? () => setEditing(e) : undefined} />

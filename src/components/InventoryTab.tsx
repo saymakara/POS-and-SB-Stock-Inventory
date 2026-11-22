@@ -61,6 +61,7 @@ import {
   Upload,
   Truck,
 } from 'lucide-react';
+import { useDrawLimit } from '../utils/usePager';
 import { formatBranchName, showDateTime } from '../utils/format';
 
 interface InventoryTabProps {
@@ -368,6 +369,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     const start = isServerPaginated && serverPageRows !== null ? 0 : (currentPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
   }, [visibleDevices, currentPage, rowsPerPage, isServerPaginated, serverPageRows]);
+
+  // (23 Nov 2026, smoothness) the first rows are drawn at once and the rest one frame later; selection uses the whole page
+  const drawLimit = useDrawLimit(`${currentPage}|${rowsPerPage}`);
+  const drawnDevices = useMemo(() => (drawLimit >= pagedDevices.length ? pagedDevices : pagedDevices.slice(0, drawLimit)), [pagedDevices, drawLimit]);
 
   const lastSelectedIdxRef = useRef<number | null>(null);
 
@@ -1002,7 +1007,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                pagedDevices.map((dev, index) => {
+                drawnDevices.map((dev, index) => {
                   const isChecked = selectedSet.has(dev.serial);
                   const meta = STAGE_META[dev.stage];
                   const cycleCount = dev.redeployCount || 0;
