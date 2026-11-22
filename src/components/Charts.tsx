@@ -11,6 +11,7 @@ interface GroupedBarChartProps {
   series2Color: string;
   height?: number;
   theme?: ThemeMode;
+  showLegend?: boolean;
   /** Optional screen-reader summary. When omitted, one is built from the data. */
   ariaLabel?: string;
 }
@@ -43,6 +44,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
   series2Color,
   height = 240,
   theme = 'dark',
+  showLegend = true,
   ariaLabel,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -151,101 +153,146 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     const isLight = theme === 'light';
 
     const legendTextColor = isLight ? '#0f172a' : '#e2e8f0';
-    const gridLineColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)';
+    const gridLineColor = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(255, 255, 255, 0.08)';
+    const baseLineColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.16)';
     const axisTextColor = isLight ? '#64748b' : '#94a3b8';
     const valueTextColor = isLight ? '#0f172a' : '#f8fafc';
-    const labelTextColor = isLight ? '#334155' : '#cbd5e1';
+    const labelTextColor = isLight ? '#475569' : '#cbd5e1';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
-    // Legend
-    ctx.font = `700 11px ${chartFont}`;
-    ctx.fillStyle = series1Color;
-    roundRectPath(ctx, 16, 8, 10, 10, 3);
-    ctx.fill();
-    ctx.fillStyle = legendTextColor;
-    ctx.fillText(series1Label, 32, 17);
+    if (showLegend) {
+      ctx.font = `700 11px ${chartFont}`;
+      ctx.fillStyle = series1Color;
+      roundRectPath(ctx, 16, 8, 10, 10, 3);
+      ctx.fill();
+      ctx.fillStyle = legendTextColor;
+      ctx.fillText(series1Label, 32, 17);
 
-    const s1Width = ctx.measureText(series1Label).width;
-    ctx.fillStyle = series2Color;
-    roundRectPath(ctx, 52 + s1Width, 8, 10, 10, 3);
-    ctx.fill();
-    ctx.fillStyle = legendTextColor;
-    ctx.fillText(series2Label, 68 + s1Width, 17);
+      const s1Width = ctx.measureText(series1Label).width;
+      ctx.fillStyle = series2Color;
+      roundRectPath(ctx, 52 + s1Width, 8, 10, 10, 3);
+      ctx.fill();
+      ctx.fillStyle = legendTextColor;
+      ctx.fillText(series2Label, 68 + s1Width, 17);
+    }
 
-    const padLeft = 36;
-    const padRight = 16;
-    const padTop = 38;
-    const padBottom = 38;
-    const plotW = Math.max(100, width - padLeft - padRight);
-    const plotH = Math.max(80, height - padTop - padBottom);
     const { scale, firstMax1, firstMax2 } = chartStats;
     const maxVal = scale.max;
     const steps = scale.steps;
 
-    ctx.strokeStyle = gridLineColor;
+    ctx.font = `600 10.5px ${chartFont}`;
+    const maxAxisW = ctx.measureText(fmt(maxVal)).width;
+    const padLeft = Math.max(36, Math.ceil(maxAxisW + 12));
+    const padRight = 14;
+    const padTop = showLegend ? 38 : 22;
+    const padBottom = 28;
+    const plotW = Math.max(100, width - padLeft - padRight);
+    const plotH = Math.max(80, height - padTop - padBottom);
+    const baseY = padTop + plotH;
+
     ctx.lineWidth = 1;
-    ctx.font = `600 11px ${chartFont}`;
+    ctx.font = `600 10.5px ${chartFont}`;
     ctx.fillStyle = axisTextColor;
 
     for (let i = 0; i <= steps; i++) {
-      const y = padTop + plotH - (i / steps) * plotH;
+      const y = baseY - (i / steps) * plotH;
       const val = Math.round(i * scale.step);
+      ctx.save();
+      ctx.strokeStyle = i === 0 ? baseLineColor : gridLineColor;
+      if (i > 0) ctx.setLineDash([3, 4]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
       ctx.stroke();
+      ctx.restore();
       const vs = fmt(val);
-      ctx.fillText(vs, Math.max(2, padLeft - 6 - ctx.measureText(vs).width), y + 3);
+      ctx.fillText(vs, Math.max(2, padLeft - 7 - ctx.measureText(vs).width), y + 3);
     }
 
     const groupCount = Math.max(1, labels.length);
     const groupW = plotW / groupCount;
     geomRef.current = { padLeft, groupW, count: labels.length };
-    // (31 Oct 2026, UI standard) numbers only where they help: the last group and each series' highest bar;
-    // every other value is shown on hover / tap.
     const lastIdx = labels.length - 1;
-    const barW = Math.min(24, Math.max(8, (groupW - 14) / 2));
+    const barGap = groupW >= 64 ? 6 : 4;
+    const barW = Math.min(28, Math.max(8, (groupW - (groupW >= 64 ? 22 : 12) - barGap) / 2));
+
+    // Subtle hover focus column wash behind the active month
+    if (hover && labels[hover.idx] !== undefined) {
+      const bandW = Math.max(24, Math.min(groupW - 4, barW * 2 + barGap + 18));
+      const cx = padLeft + (hover.idx + 0.5) * groupW;
+      ctx.save();
+      ctx.fillStyle = isLight ? 'rgba(21, 84, 132, 0.055)' : 'rgba(56, 189, 248, 0.085)';
+      roundRectPath(ctx, cx - bandW / 2, padTop - 4, bandW, plotH + 6, 8);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Check if showing values above every bar fits cleanly without overlapping adjacent bars
+    ctx.font = `600 10px ${chartFont}`;
+    const allLabelsFit = labels.every((_, idx) => {
+      const w1 = (series1Data[idx] || 0) > 0 ? ctx.measureText(fmt(series1Data[idx] || 0)).width : 0;
+      const w2 = (series2Data[idx] || 0) > 0 ? ctx.measureText(fmt(series2Data[idx] || 0)).width : 0;
+      const bothPresent = w1 > 0 && w2 > 0;
+      return w1 <= barW + 10 && w2 <= barW + 10 && (!bothPresent || w1 + w2 + 8 <= groupW - 4);
+    });
 
     labels.forEach((lbl, idx) => {
-      const gx = padLeft + idx * groupW + (groupW - barW * 2 - 4) / 2;
+      const isHovered = hover?.idx === idx;
+      const gx = padLeft + idx * groupW + (groupW - barW * 2 - barGap) / 2;
       const v1 = series1Data[idx] || 0;
       const v2 = series2Data[idx] || 0;
       const h1 = (v1 / maxVal) * plotH;
       const h2 = (v2 / maxVal) * plotH;
 
-      // Bar 1
-      ctx.fillStyle = series1Color;
+      // Bar 1 (with crisp vertical gradient)
       if (h1 > 0) {
-        roundRectPath(ctx, gx, padTop + plotH - h1, barW, h1, [4, 4, 0, 0]);
+        const y1 = baseY - h1;
+        const g1 = ctx.createLinearGradient(0, y1, 0, baseY);
+        g1.addColorStop(0, series1Color);
+        g1.addColorStop(1, hexToRgba(series1Color, isLight ? 0.72 : 0.65));
+        ctx.fillStyle = g1;
+        roundRectPath(ctx, gx, y1, barW, h1, [5, 5, 0, 0]);
         ctx.fill();
       }
 
-      // Bar 2
-      ctx.fillStyle = series2Color;
+      // Bar 2 (with crisp vertical gradient)
       if (h2 > 0) {
-        roundRectPath(ctx, gx + barW + 4, padTop + plotH - h2, barW, h2, [4, 4, 0, 0]);
+        const y2 = baseY - h2;
+        const g2 = ctx.createLinearGradient(0, y2, 0, baseY);
+        g2.addColorStop(0, series2Color);
+        g2.addColorStop(1, hexToRgba(series2Color, isLight ? 0.72 : 0.65));
+        ctx.fillStyle = g2;
+        roundRectPath(ctx, gx + barW + barGap, y2, barW, h2, [5, 5, 0, 0]);
         ctx.fill();
       }
 
-      // Value annotations (centered above bars): last group + highest bar of each series
-      ctx.font = `600 11px ${chartFont}`;
-      if (v1 > 0 && (idx === lastIdx || idx === firstMax1)) {
-        ctx.fillStyle = valueTextColor;
-        const tw1 = ctx.measureText(fmt(v1)).width;
-        ctx.fillText(fmt(v1), gx + (barW - tw1) / 2, padTop + plotH - h1 - 4);
+      // Value annotations: all bars when they fit cleanly, otherwise hovered/latest/peak bars
+      ctx.font = `${isHovered ? '700' : '600'} 10px ${chartFont}`;
+      const showV1 = v1 > 0 && (allLabelsFit || isHovered || idx === lastIdx || idx === firstMax1);
+      const showV2 = v2 > 0 && (allLabelsFit || isHovered || idx === lastIdx || idx === firstMax2);
+      if (showV1) {
+        ctx.fillStyle = isHovered ? series1Color : valueTextColor;
+        const s1 = fmt(v1);
+        const tw1 = ctx.measureText(s1).width;
+        ctx.fillText(s1, gx + (barW - tw1) / 2, Math.max(10, baseY - h1 - 5));
       }
-      if (v2 > 0 && (idx === lastIdx || idx === firstMax2)) {
-        ctx.fillStyle = valueTextColor;
-        const tw2 = ctx.measureText(fmt(v2)).width;
-        ctx.fillText(fmt(v2), gx + barW + 4 + (barW - tw2) / 2, padTop + plotH - h2 - 4);
+      if (showV2) {
+        ctx.fillStyle = isHovered ? series2Color : valueTextColor;
+        const s2 = fmt(v2);
+        const tw2 = ctx.measureText(s2).width;
+        const x2Center = gx + barW + barGap + (barW - tw2) / 2;
+        // Guard against subtle label touch when two wide peak/latest numbers sit side-by-side
+        const tw1 = ctx.measureText(fmt(v1)).width;
+        const yOffset = showV1 && Math.abs(h1 - h2) < 12 && tw1 + tw2 > barW * 2 + barGap ? 14 : 5;
+        ctx.fillText(s2, x2Center, Math.max(10, baseY - h2 - yOffset));
       }
 
       // X-axis label
-      ctx.fillStyle = labelTextColor;
-      ctx.font = `600 11px ${chartFont}`;
+      ctx.fillStyle = isHovered ? (isLight ? '#0f172a' : '#ffffff') : labelTextColor;
+      ctx.font = `${isHovered ? '700' : '600'} 10.5px ${chartFont}`;
       const shortLbl = lbl.length > 11 ? lbl.slice(0, 10) + '…' : lbl;
       const tw = ctx.measureText(shortLbl).width;
-      ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 14);
+      ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 8);
     });
     // labels / series are covered by dataKey (value-based)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,8 +304,12 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     series2Label,
     height,
     theme,
+    showLegend,
+    hover,
     containerWidth,
   ]);
+
+  const isLight = theme === 'light';
 
   return (
     <div className="relative w-full flex items-center justify-center" style={{ height: height + 5 }}>
@@ -266,7 +317,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         ref={canvasRef}
         role="img"
         aria-label={summary}
-        className="w-full h-full block"
+        className="w-full h-full block cursor-crosshair"
         onPointerMove={(e) => {
           const g = geomRef.current; if (!g || !g.count) return;
           const r = e.currentTarget.getBoundingClientRect();
@@ -295,14 +346,50 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       </canvas>
       {hover && hasData && labels[hover.idx] !== undefined && (
         <div
-          className="absolute top-8 pointer-events-none z-10 rounded-lg border border-slate-200 bg-white/95 shadow-md px-2.5 py-1.5 text-[11px] text-slate-700 whitespace-nowrap"
-          style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) / 2 ? 'calc(-100% - 12px)' : '12px'})` }}
+          className={`absolute top-2.5 pointer-events-none z-20 rounded-xl border backdrop-blur-md px-3 py-2 text-[11px] whitespace-nowrap min-w-[185px] ${
+            isLight
+              ? 'border-slate-200/90 bg-white/95 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.12)]'
+              : 'border-slate-700/80 bg-[#0f172a]/95 text-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.38)]'
+          }`}
+          style={{ left: hover.x, transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 12px)' : '12px'})` }}
           role="status"
         >
-          <div className="font-semibold text-slate-900 mb-0.5">{labels[hover.idx]}</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: series1Color }} />{series1Label}: <strong className="text-slate-900">{fmt(series1Data[hover.idx] || 0)}</strong></div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: series2Color }} />{series2Label}: <strong className="text-slate-900">{fmt(series2Data[hover.idx] || 0)}</strong></div>
-          {(() => { const t = (series1Data[hover.idx] || 0) + (series2Data[hover.idx] || 0); return t > 0 ? <div className="text-slate-500 mt-0.5">Total {fmt(t)} · {series1Label.split(" ")[0]} {Math.round(((series1Data[hover.idx] || 0) / t) * 100)}%</div> : null; })()}
+          <div className={`font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
+            {labels[hover.idx]}
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series1Color }} />
+              {series1Label}
+            </span>
+            <strong className={`font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {fmt(series1Data[hover.idx] || 0)}
+            </strong>
+          </div>
+          <div className="flex items-center justify-between gap-4 mt-0.5">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: series2Color }} />
+              {series2Label}
+            </span>
+            <strong className={`font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {fmt(series2Data[hover.idx] || 0)}
+            </strong>
+          </div>
+          {(() => {
+            const v1 = series1Data[hover.idx] || 0;
+            const v2 = series2Data[hover.idx] || 0;
+            const t = v1 + v2;
+            const s1Tag = /POS/i.test(series1Label) ? 'POS' : series1Label.split(' ')[0];
+            const s2Tag = /Sound Box/i.test(series2Label) ? 'SB' : series2Label.split(' ')[0];
+            return t > 0 ? (
+              <div className={`mt-1.5 pt-1 border-t flex items-center justify-between gap-3 text-[10.5px] font-figure ${
+                isLight ? 'border-slate-100 text-slate-500' : 'border-slate-700/70 text-slate-400'
+              }`}>
+                <span>Total {fmt(t)}</span>
+                <span>{s1Tag} {Math.round((v1 / t) * 100)}% · {s2Tag} {Math.round((v2 / t) * 100)}%</span>
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
       {!hasData && (

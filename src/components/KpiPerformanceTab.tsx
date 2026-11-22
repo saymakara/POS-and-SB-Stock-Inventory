@@ -343,6 +343,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
     };
   })();
 
+  const centerPctFontSize =
+    centerReadout.pct.length >= 8 ? '17px' : centerReadout.pct.length >= 6 ? '21px' : '24px';
+
   return (
     <div
       data-testid="kpi-target-donut-card"
@@ -361,9 +364,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       </div>
 
       <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
-        {/* Dual Concentric Activity Rings + Right-Side Ledger */}
-        <div className="w-full flex flex-col @[425px]:flex-row items-center @[425px]:justify-between gap-4 @[425px]:gap-3 @[490px]:gap-5 @[570px]:gap-6">
-          <div className="relative w-[216px] h-[216px] @[425px]:w-[222px] @[425px]:h-[222px] @[425px]:ml-1.5 @[490px]:w-[248px] @[490px]:h-[248px] @[490px]:ml-3 @[570px]:w-[272px] @[570px]:h-[272px] @[570px]:ml-7 @[640px]:w-[282px] @[640px]:h-[282px] @[640px]:ml-10 shrink-0">
+        {/* Dual Concentric Activity Rings + Right-Side Ledger (ring height matched to KPI Point Velocity bars) */}
+        <div className="w-full max-w-[460px] mx-auto flex flex-col @[400px]:flex-row items-center @[400px]:justify-between gap-4 @[400px]:gap-4 @[490px]:gap-6">
+          <div className="relative w-[204px] h-[204px] @[400px]:w-[206px] @[400px]:h-[206px] @[440px]:w-[222px] @[440px]:h-[222px] shrink-0">
             <svg
               viewBox="0 0 240 240"
               className="w-full h-full"
@@ -378,7 +381,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke="#e2e8f0"
-                strokeWidth={19}
+                strokeWidth={18}
               />
               <circle
                 data-kpi-target-slice="actual"
@@ -387,7 +390,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_OUTER_R}
                 fill="none"
                 stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 21 : 19}
+                strokeWidth={hoveredKey === 'actual' ? 20 : 18}
                 strokeLinecap="round"
                 strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
                 strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
@@ -406,7 +409,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 r={KT_INNER_R}
                 fill="none"
                 stroke="#f1f5f9"
-                strokeWidth={15}
+                strokeWidth={14}
               />
               {showPacing && (
                 <circle
@@ -416,7 +419,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                   r={KT_INNER_R}
                   fill="none"
                   stroke={paceRingColor}
-                  strokeWidth={hoveredKey === 'pace' ? 17 : 15}
+                  strokeWidth={hoveredKey === 'pace' ? 16 : 14}
                   strokeLinecap="round"
                   strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
                   strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
@@ -432,28 +435,28 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               {/* Ring Center Metric */}
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY - 9}
+                y={KT_RING_CY - 8}
                 textAnchor="middle"
                 className="fill-slate-900 font-figure"
-                style={{ fontSize: '31px', fontWeight: 800, letterSpacing: '-0.025em' }}
+                style={{ fontSize: centerPctFontSize, fontWeight: 700, letterSpacing: '-0.02em' }}
               >
                 {centerReadout.pct}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 14}
+                y={KT_RING_CY + 11}
                 textAnchor="middle"
                 className="fill-slate-500"
-                style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em' }}
+                style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.06em' }}
               >
                 {centerReadout.top}
               </text>
               <text
                 x={KT_RING_CX}
-                y={KT_RING_CY + 32}
+                y={KT_RING_CY + 27}
                 textAnchor="middle"
                 fill={centerReadout.subColor}
-                style={{ fontSize: '11.5px', fontWeight: 700 }}
+                style={{ fontSize: '10.5px', fontWeight: 600 }}
               >
                 {centerReadout.sub}
               </text>
@@ -461,7 +464,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           </div>
 
           {/* Right Side Ledger Stack */}
-          <div className="w-full @[425px]:w-auto @[425px]:ml-auto @[490px]:pr-2 @[570px]:pr-3 min-w-0 shrink-0 flex flex-col gap-3.5 @[490px]:gap-4.5 @[570px]:gap-5">
+          <div className="w-full @[400px]:w-auto min-w-0 flex flex-col gap-3 @[490px]:gap-3.5">
             <button
               type="button"
               data-kpi-comparison-row="actual"
@@ -469,15 +472,15 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('actual')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-700' : 'border-[#155484]'
               } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Actual Achievement
               </div>
-              <div className="font-figure text-[15px] @[490px]:text-[17px] @[570px]:text-[18.5px] font-extrabold text-slate-900 tabular-nums mt-0.5 whitespace-nowrap">
-                {fmtPts(safeActual)} <span className="text-[11px] @[490px]:text-[12px] font-semibold text-slate-500">pts</span>
+              <div className="font-figure text-[14px] @[490px]:text-[15px] font-bold text-slate-900 tabular-nums mt-0.5">
+                {fmtPts(safeActual)} <span className="text-[11px] font-semibold text-slate-500">pts</span>
               </div>
             </button>
 
@@ -488,17 +491,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('pace')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
                 isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
               } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
             >
-              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
               </div>
-              <div className={`font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold tabular-nums mt-0.5 whitespace-nowrap ${
+              <div className={`font-figure text-[13px] @[490px]:text-[14px] font-bold tabular-nums mt-0.5 ${
                 isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
               }`}>
-                {fmtPts(expectedPacePts)} <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
+                {fmtPts(expectedPacePts)} <span className="text-[10.5px] @[490px]:text-[11px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
               </div>
             </button>
 
@@ -509,16 +512,16 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               onMouseLeave={() => setHoveredKey(null)}
               onFocus={() => setHoveredKey('target')}
               onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] border-slate-300 pl-2.5 @[490px]:pl-3.5 py-0.5 transition-opacity cursor-pointer ${
+              className={`text-left border-l-[3px] border-slate-300 pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
                 hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
               }`}
             >
-              <div className="text-[10px] @[490px]:text-[11px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
               </div>
-              <div className="font-figure text-[14px] @[490px]:text-[16px] @[570px]:text-[17px] font-extrabold text-slate-700 tabular-nums mt-0.5 whitespace-nowrap">
+              <div className="font-figure text-[13px] @[490px]:text-[14px] font-bold text-slate-700 tabular-nums mt-0.5">
                 {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
-                <span className="text-[10.5px] @[490px]:text-[12px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
+                <span className="text-[10.5px] @[490px]:text-[11px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
               </div>
             </button>
           </div>

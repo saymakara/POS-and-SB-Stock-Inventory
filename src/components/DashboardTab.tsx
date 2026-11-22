@@ -11,6 +11,7 @@ import {
   getBatteryLifecycleStatus,
 } from '../types';
 import {
+  GroupedBarChart,
   CrossChannelVelocityChart,
   CrossChannelDayPoint,
   CHANNEL_COLORS,
@@ -65,7 +66,6 @@ import {
   CreditCard,
   BatteryCharging,
   FileSpreadsheet,
-  Building2,
   Package,
   RefreshCw,
   Boxes,
@@ -426,17 +426,20 @@ interface ChannelSliceItem {
   offset: number;
 }
 
-interface BranchPerfRow {
-  code: string;
-  name: string;
-  pos: number;
-  sb: number;
-  khqr: number;
-  mv: number;
-  cc: number;
-  totalTasks: number;
-  reserve: number;
-  installed: number;
+type InstallHorizon = '3M' | '6M' | '12M';
+
+interface MonthlyInstallComparisonData {
+  labels: string[];
+  pos: number[];
+  sb: number[];
+  totalPos: number;
+  totalSb: number;
+  totalInstalls: number;
+  latestLabel: string;
+  latestPos: number;
+  latestSb: number;
+  peakMonthLabel: string;
+  peakMonthTotal: number;
 }
 
 interface ChannelMixCardProps {
@@ -871,373 +874,212 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
   );
 });
 
-interface TopBranchesCardProps {
+interface MonthlyInstallComparisonCardProps {
   isLight: boolean;
+  theme?: ThemeMode;
   cardClass: string;
-  activePeriodLabel: string;
-  branches: BranchPerfRow[];
-  maxBranchTasks: number;
+  horizon: InstallHorizon;
+  onChangeHorizon: (horizon: InstallHorizon) => void;
+  data: MonthlyInstallComparisonData;
   onNavigateTab?: (tab: string) => void;
 }
 
-const TopBranchesCard = React.memo<TopBranchesCardProps>(({
+const INSTALL_HORIZONS: InstallHorizon[] = ['3M', '6M', '12M'];
+
+const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProps>(({
   isLight,
+  theme = 'light',
   cardClass,
-  activePeriodLabel,
-  branches,
-  maxBranchTasks: _maxBranchTasks,
+  horizon,
+  onChangeHorizon,
+  data,
   onNavigateTab,
 }) => {
-  const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
-  const totalTopTasks = useMemo(
-    () => branches.reduce((sum, b) => sum + b.totalTasks, 0),
-    [branches]
-  );
-  const inspectedBranch = useMemo(
-    () => (hoveredBranchCode ? branches.find((b) => b.code === hoveredBranchCode) : null) || branches[0] || null,
-    [hoveredBranchCode, branches]
-  );
-
-  const inspectedSharePct = useMemo(() => {
-    if (!inspectedBranch || totalTopTasks <= 0) return '0.0';
-    return ((inspectedBranch.totalTasks / totalTopTasks) * 100).toFixed(1);
-  }, [inspectedBranch, totalTopTasks]);
-
-  const leadBranch = branches[0] || null;
-  const leadTasks = Math.max(1, leadBranch?.totalTasks || 0);
-  const midBranches = branches.slice(1, 3);
-  const compactBranches = branches.slice(3);
-
-  const renderTile = (b: BranchPerfRow, rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
-    const rank = rankIdx + 1;
-    const isActive = hoveredBranchCode === b.code;
-    const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
-    const relWidth = b.totalTasks > 0 ? Math.max(8, Math.round((b.totalTasks / leadTasks) * 100)) : 0;
-    const isHero = tier === 'hero';
-    const isMid = tier === 'mid';
-    const isCompact = tier === 'compact';
-    const branchColor = isLight ? '#155484' : '#38bdf8';
-
-    // Proportional channel segments for #1 Hero tile
-    const totalCh = Math.max(1, b.totalTasks);
-    const khqrPct = (b.khqr / totalCh) * 100;
-    const posPct = (b.pos / totalCh) * 100;
-    const sbPct = (b.sb / totalCh) * 100;
-    const otherPct = Math.max(0, 100 - khqrPct - posPct - sbPct);
-
-    const tileSurfaceCls = isHero
-      ? isLight
-        ? 'bg-gradient-to-br from-[#155484]/[0.08] via-[#0ea5e9]/[0.025] to-white border-[#155484]/25 hover:border-[#155484]/55 shadow-[0_2px_10px_-4px_rgba(21,84,132,0.16)] hover:shadow-[0_10px_24px_-8px_rgba(21,84,132,0.28)]'
-        : 'bg-gradient-to-br from-sky-500/18 via-sky-500/5 to-slate-800/70 border-sky-400/35 hover:border-sky-400/65 shadow-sm'
-      : isMid
-        ? isLight
-          ? rank === 2
-            ? 'bg-gradient-to-br from-[#155484]/[0.05] via-white to-white border-[#155484]/20 hover:border-[#155484]/45 shadow-[0_1px_6px_-3px_rgba(21,84,132,0.12)] hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.22)]'
-            : 'bg-gradient-to-br from-sky-500/[0.045] via-white to-white border-sky-700/15 hover:border-[#155484]/40 shadow-[0_1px_6px_-3px_rgba(14,165,233,0.12)] hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.2)]'
-          : 'bg-gradient-to-br from-sky-500/10 to-slate-800/60 border-sky-500/25 hover:border-sky-400/50'
-        : isLight
-          ? 'bg-slate-50/75 hover:bg-white border-slate-200/75 hover:border-[#155484]/35 hover:shadow-[0_6px_16px_-6px_rgba(21,84,132,0.16)]'
-          : 'bg-slate-800/45 hover:bg-slate-800/80 border-slate-700/60 hover:border-sky-400/40';
-
-    return (
-      <button
-        key={b.code}
-        type="button"
-        data-branch-bar={b.code}
-        onMouseEnter={() => setHoveredBranchCode(b.code)}
-        onMouseLeave={() => setHoveredBranchCode(null)}
-        onFocus={() => setHoveredBranchCode(b.code)}
-        onBlur={() => setHoveredBranchCode(null)}
-        onClick={() => onNavigateTab?.('kpi_performance')}
-        title={`#${rank} ${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)}`}
-        className={`w-full h-full text-left rounded-xl border transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] active:scale-[0.99] cursor-pointer flex flex-col justify-between gap-2 min-w-0 group ${
-          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3.5 py-2.5'
-        } ${tileSurfaceCls}`}
-        style={
-          isActive
-            ? {
-                borderColor: branchColor,
-                backgroundColor: isLight ? `${branchColor}0d` : `${branchColor}24`,
-              }
-            : undefined
-        }
-      >
-        <div className="flex items-start justify-between gap-1.5 min-w-0">
-          <div className="min-w-0">
-            <span
-              className={`block truncate min-w-0 ${
-                isHero
-                  ? 'text-[13px] font-bold tracking-tight'
-                  : isMid
-                    ? 'text-[11.5px] font-bold tracking-tight'
-                    : 'text-[10.5px] font-semibold'
-              } ${isLight ? 'text-slate-800' : 'text-slate-100'}`}
-            >
-              {b.name}
-            </span>
-            {(isHero || isMid) && (
-              <span className="block text-[10px] font-mono text-slate-400 dark:text-slate-400 truncate mt-0.5">
-                Code {b.code}{isHero ? ' · #1 Leader' : ''}
-              </span>
-            )}
-          </div>
-          <span
-            aria-label={`Rank ${rank}`}
-            className={`inline-flex items-center justify-center rounded-full font-figure font-bold tabular-nums shrink-0 leading-none transition-colors ${
-              isHero
-                ? 'min-w-[22px] h-[22px] px-1.5 text-[11px] bg-[#155484] text-white shadow-xs'
-                : isMid
-                  ? `min-w-[20px] h-[20px] px-1.5 text-[10px] ${
-                      isLight
-                        ? 'bg-[#155484]/12 text-[#155484] group-hover:bg-[#155484] group-hover:text-white'
-                        : 'bg-sky-500/20 text-sky-300 group-hover:bg-sky-500 group-hover:text-slate-950'
-                    }`
-                  : `min-w-[18px] h-[18px] px-1 text-[9.5px] ${
-                      isActive
-                        ? isLight
-                          ? 'bg-[#155484]/14 text-[#155484]'
-                          : 'bg-sky-500/20 text-sky-300'
-                        : isLight
-                          ? 'bg-slate-200/75 text-slate-600 group-hover:bg-[#155484]/12 group-hover:text-[#155484]'
-                          : 'bg-slate-700/70 text-slate-300 group-hover:bg-sky-500/20 group-hover:text-sky-300'
-                    }`
-            }`}
-          >
-            {rank}
-          </span>
-        </div>
-
-        {/* #1 Hero middle channel breakdown — fills vertical space with real operational signal */}
-        {isHero && (
-          <div className={`space-y-1.5 py-2 my-0.5 border-y ${isLight ? 'border-[#155484]/10' : 'border-white/10'}`}>
-            {[
-              { label: 'KHQR', val: b.khqr, color: '#155484' },
-              { label: 'POS Terminal', val: b.pos, color: '#0ea5e9' },
-              { label: 'Sound Box', val: b.sb, color: '#6366f1' },
-            ].map((ch) => (
-              <div key={ch.label} className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-300 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
-                  <span className="truncate">{ch.label}</span>
-                </span>
-                <span className={`font-figure font-semibold tabular-nums shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                  {fmtNum(ch.val)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-end justify-between gap-1.5 min-w-0">
-            <div className="min-w-0 flex items-baseline gap-1.5 whitespace-nowrap">
-              <span
-                className={`font-bold font-figure leading-none tabular-nums ${
-                  isHero ? 'text-[23px] sm:text-[25px]' : isCompact ? 'text-[15px]' : 'text-[17.5px]'
-                } ${isLight ? 'text-slate-900' : 'text-white'}`}
-              >
-                {fmtNum(b.totalTasks)}
-              </span>
-              <span
-                className={`font-figure font-semibold tabular-nums leading-none ${
-                  isHero
-                    ? `text-[11.5px] ${isLight ? 'text-[#155484]' : 'text-sky-300'}`
-                    : isCompact
-                      ? `text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`
-                      : `text-[10.5px] ${isLight ? 'text-[#155484]/85' : 'text-sky-300/90'}`
-                }`}
-                style={isActive ? { color: isLight ? branchColor : undefined } : undefined}
-              >
-                {sharePct}%
-              </span>
-            </div>
-
-            {isMid && (b.pos > 0 || b.sb > 0) && (
-              <span className="text-[10px] font-figure text-slate-400 dark:text-slate-400 tabular-nums whitespace-nowrap shrink-0">
-                POS {fmtNum(b.pos)} · SB {fmtNum(b.sb)}
-              </span>
-            )}
-          </div>
-
-          {/* Proportional share / channel bar */}
-          {isHero ? (
-            <div className={`w-full h-1.5 rounded-full overflow-hidden flex gap-[1px] ${isLight ? 'bg-[#155484]/10' : 'bg-slate-700/70'}`}>
-              {b.totalTasks > 0 && (
-                <>
-                  <div className="h-full transition-[width] duration-300" style={{ width: `${khqrPct}%`, backgroundColor: '#155484' }} />
-                  <div className="h-full transition-[width] duration-300" style={{ width: `${posPct}%`, backgroundColor: '#0ea5e9' }} />
-                  <div className="h-full transition-[width] duration-300" style={{ width: `${sbPct}%`, backgroundColor: '#6366f1' }} />
-                  {otherPct > 0 && (
-                    <div className="h-full transition-[width] duration-300" style={{ width: `${otherPct}%`, backgroundColor: '#10b981' }} />
-                  )}
-                </>
-              )}
-            </div>
-          ) : (
-            <div
-              className={`w-full rounded-full overflow-hidden ${
-                isMid ? 'h-1.5' : 'h-[3px]'
-              } ${isLight ? 'bg-slate-200/75' : 'bg-slate-700/70'}`}
-            >
-              <div
-                className={`h-full rounded-full transition-[width,opacity] duration-300 ${
-                  isMid ? 'opacity-90 group-hover:opacity-100' : 'opacity-55 group-hover:opacity-95'
-                }`}
-                style={{
-                  width: `${relWidth}%`,
-                  background: isMid
-                    ? isLight
-                      ? 'linear-gradient(90deg, #155484 0%, #0ea5e9 100%)'
-                      : 'linear-gradient(90deg, #38bdf8 0%, #818cf8 100%)'
-                    : isLight
-                      ? '#155484'
-                      : '#38bdf8',
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </button>
-    );
-  };
+  const posColor = isLight ? CHANNEL_COLORS.pos : '#38bdf8';
+  const sbColor = isLight ? CHANNEL_COLORS.sb : '#818cf8';
+  const posShare = data.totalInstalls > 0 ? Math.round((data.totalPos / data.totalInstalls) * 100) : 0;
+  const sbShare = data.totalInstalls > 0 ? 100 - posShare : 0;
+  const horizonMonths = horizon === '3M' ? 3 : horizon === '6M' ? 6 : 12;
 
   return (
-    <section className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col`}>
-      <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+    <section
+      data-testid="monthly-install-comparison-card"
+      className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col justify-between`}
+    >
+      <div className="px-6 pt-5 pb-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-              isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'
+              isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-sky-500/20 text-sky-300'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+            <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              Top Branches — Visual Performance Graph
+            <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Monthly POS &amp; Sound Box Installations
             </h3>
-            <p className="text-xs text-slate-500 truncate">
-              {activePeriodLabel} Bento output share · hover to inspect or click to view KPI Performance
+            <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              POS Installation vs Sound Box Installation · trailing {horizonMonths} months
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <span
-            className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
-              isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+          <div
+            className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
+              isLight
+                ? 'bg-slate-100/90 border-slate-200/90'
+                : 'bg-slate-900/80 border-slate-700'
             }`}
+            role="tablist"
+            aria-label="Installation Comparison Horizon"
           >
-            Top {branches.length} · {fmtNum(totalTopTasks)} tasks
-          </span>
+            {INSTALL_HORIZONS.map((h) => {
+              const active = horizon === h;
+              return (
+                <button
+                  key={h}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => onChangeHorizon(h)}
+                  className={`relative px-2.5 py-1 rounded-full text-[11px] font-figure cursor-pointer transition-colors duration-150 ${
+                    active
+                      ? isLight
+                        ? 'text-[#003857] font-bold'
+                        : 'text-white font-bold'
+                      : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                  }`}
+                >
+                  {active && (
+                    <PillMotion
+                      layoutId="dash-hw-install-horizon-pill"
+                      transition={SPRING_TAB_PILL}
+                      className={`absolute inset-0 rounded-full pointer-events-none ${
+                        isLight
+                          ? 'bg-white shadow-[0_1px_3px_rgba(15,23,42,0.12)]'
+                          : 'bg-slate-800 shadow-2xs'
+                      }`}
+                    />
+                  )}
+                  <span className="relative z-10">{h}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {onNavigateTab && (
             <button
               type="button"
-              onClick={() => onNavigateTab('branches')}
-              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+              onClick={() => onNavigateTab('merchants')}
+              className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors duration-150 ${
+                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+              }`}
             >
-              All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+              Deployments <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
-
-        {branches.length === 0 ? (
-          <div className="py-10 text-center text-xs text-slate-400">
-            No branch activity found for the selected scope.
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col justify-between gap-3">
-            {/* Proportional 3-Tier Bento Treemap Grid */}
-            <div
-              className={`grid grid-cols-1 gap-2.5 flex-1 ${
-                midBranches.length === 0 && compactBranches.length === 0
-                  ? 'md:grid-cols-1'
-                  : compactBranches.length === 0
-                  ? 'md:grid-cols-2'
-                  : 'md:grid-cols-[1.12fr_0.92fr_1.96fr]'
+      <div className="px-6 pt-1 pb-2 flex-1 flex flex-col justify-between gap-2">
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+            isLight ? 'text-slate-600' : 'text-slate-300'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                isLight
+                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
+                  : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
               }`}
             >
-              {leadBranch && <div>{renderTile(leadBranch, 0, 'hero')}</div>}
+              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
+              <span>POS Installation</span>
+              <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {fmtNum(data.totalPos)}
+              </span>
+            </span>
 
-              {midBranches.length > 0 && (
-                <div className={`grid ${midBranches.length === 1 ? 'grid-rows-1' : 'grid-rows-2'} gap-2.5`}>
-                  {midBranches.map((b, idx) => renderTile(b, idx + 1, 'mid'))}
-                </div>
-              )}
-
-              {compactBranches.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
-                  {compactBranches.map((b, idx) => {
-                    const isTrailingOdd = compactBranches.length % 2 === 1 && idx === compactBranches.length - 1;
-                    return (
-                      <div key={b.code} className={isTrailingOdd ? 'col-span-2' : ''}>
-                        {renderTile(b, idx + 3, 'compact')}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Selected / Hovered Branch Channel Inspector Strip */}
-            {inspectedBranch && (
-              <div
-                data-branch-inspector={inspectedBranch.code}
-                className={`rounded-xl border px-3.5 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11px] ${
-                  isLight
-                    ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
-                    : 'bg-slate-800/65 border-slate-700/80 text-slate-300'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`font-bold truncate ${
-                      isLight ? 'text-[#004e75]' : 'text-sky-300'
-                    }`}
-                  >
-                    {hoveredBranchCode ? 'Inspecting' : 'Leader'}: {inspectedBranch.name}
-                  </span>
-                  <span className="text-[10.5px] font-mono text-slate-400 shrink-0">
-                    Code {inspectedBranch.code}
-                  </span>
-                  <span
-                    className={`font-figure font-bold shrink-0 ${
-                      isLight ? 'text-slate-900' : 'text-white'
-                    }`}
-                  >
-                    {fmtNum(inspectedBranch.totalTasks)} tasks ({inspectedSharePct}%)
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-figure">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#155484] shrink-0" aria-hidden="true" />
-                    KHQR <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.khqr)}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1] shrink-0" aria-hidden="true" />
-                    Sound Box <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.sb)}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0ea5e9] shrink-0" aria-hidden="true" />
-                    POS Terminal <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.pos)}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shrink-0" aria-hidden="true" />
-                    Merchant Visit <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.mv)}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] shrink-0" aria-hidden="true" />
-                    Credit Card <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.cc)}</strong>
-                  </span>
-                </div>
-              </div>
-            )}
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                isLight
+                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
+                  : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
+              <span>Sound Box Installation</span>
+              <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {fmtNum(data.totalSb)}
+              </span>
+            </span>
           </div>
-        )}
+
+          <span
+            className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
+              isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
+            {horizonMonths}M Total · {fmtNum(data.totalInstalls)} installed
+          </span>
+        </div>
+
+        <GroupedBarChart
+          labels={data.labels}
+          series1Label="POS Installation"
+          series1Data={data.pos}
+          series1Color={posColor}
+          series2Label="Sound Box Installation"
+          series2Data={data.sb}
+          series2Color={sbColor}
+          height={292}
+          showLegend={false}
+          theme={theme}
+          ariaLabel={`Monthly POS Installation and Sound Box Installation comparison over trailing ${horizonMonths} months`}
+        />
+      </div>
+
+      {/* Footer Summary Strip */}
+      <div
+        className={`px-6 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+          isLight
+            ? 'border-slate-100 bg-[#f9fafb]/80 text-slate-500'
+            : 'border-slate-800/70 bg-slate-900/50 text-slate-400'
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+          {data.latestLabel && (
+            <span>
+              Latest ({data.latestLabel}):{' '}
+              <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {fmtNum(data.latestPos)}
+              </strong>{' '}
+              POS ·{' '}
+              <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {fmtNum(data.latestSb)}
+              </strong>{' '}
+              SB
+            </span>
+          )}
+          {data.peakMonthTotal > 0 && data.peakMonthLabel && (
+            <>
+              <span className={isLight ? 'text-slate-300' : 'text-slate-700'} aria-hidden="true">·</span>
+              <span>
+                Peak ({data.peakMonthLabel}):{' '}
+                <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {fmtNum(data.peakMonthTotal)}
+                </strong>
+              </span>
+            </>
+          )}
+        </div>
+        <span className="font-figure font-semibold whitespace-nowrap">
+          {data.totalInstalls > 0 ? `POS ${posShare}% · Sound Box ${sbShare}%` : 'No installations in window'}
+        </span>
       </div>
     </section>
   );
@@ -1464,6 +1306,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const datePickerRef = useRef<HTMLDivElement | null>(null);
   const [velocityChannel, setVelocityChannel] = useState<VelocityChannelKey>('ALL');
+  const [installHorizon, setInstallHorizon] = useState<InstallHorizon>('6M');
 
   useEffect(() => {
     if (!dateMenuOpen) return;
@@ -2409,92 +2252,61 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [scopedKpiTotals, ccCounts, hardwareSummary.sb, hardwareSummary.pos, queues]);
 
-  // Top Active Branches across ALL channels (merging branch stock counts alongside KPI activity!)
-  const branchLeaderboard = useMemo(() => {
-    const stockByBranch = new Map<string, { reserve: number; installed: number; totalDevices: number; name: string }>();
-    const branchSrc = isAdminLike ? allDevices : devices;
-    for (const b of branches) {
-      stockByBranch.set(b.code, { reserve: 0, installed: 0, totalDevices: 0, name: b.name });
-    }
-    for (const d of branchSrc) {
-      if (d.archived) continue;
-      const cur = stockByBranch.get(d.branchId) || { reserve: 0, installed: 0, totalDevices: 0, name: `Branch ${d.branchId}` };
-      cur.totalDevices++;
-      if (d.stage === 'BRANCH_RESERVE') cur.reserve++;
-      else if (d.stage === 'COMPLETE') cur.installed++;
-      stockByBranch.set(d.branchId, cur);
-    }
-
-    const agg = new Map<
-      string,
-      {
-        code: string;
-        name: string;
-        pos: number;
-        sb: number;
-        khqr: number;
-        mv: number;
-        cc: number;
-        totalTasks: number;
-        reserve: number;
-        installed: number;
-      }
-    >();
-
-    for (const s of kpiData?.staff || []) {
-      const dir = ppDirectoryScope.resolveKpiStaff(s.staffId, s.staffName, s.branchId, s.branchName);
-      if (!dir) continue;
-      const code = dir.branchId || 'UNASSIGNED';
-      if (code === 'UNASSIGNED') continue;
-      if (branchScopedId && code !== branchScopedId) continue;
-      const pts = computeKpiPoints(s, ruleMap);
-      const stock = stockByBranch.get(code);
-      const row = agg.get(code) || {
-        code,
-        name: stock?.name || s.branchName || `Branch ${code}`,
+  // Monthly POS Installation vs Sound Box Installation comparison (trailing 3M / 6M / 12M Phnom Penh months)
+  const monthlyInstallComparison = useMemo<MonthlyInstallComparisonData>(() => {
+    const months = lastMonthsPP(12);
+    const map = new Map<string, { key: string; label: string; pos: number; sb: number }>();
+    const list = months.map((m) => {
+      const entry = {
+        key: m.key,
+        label: `${m.label.slice(0, 3)} ${m.label.slice(-2)}`,
         pos: 0,
         sb: 0,
-        khqr: 0,
-        mv: 0,
-        cc: 0,
-        totalTasks: 0,
-        reserve: stock?.reserve || 0,
-        installed: stock?.installed || 0,
       };
-      row.pos += pts.posTasks;
-      row.sb += pts.sbTasks;
-      row.khqr += pts.khqrTasks;
-      row.mv += pts.mvTasks;
-      row.cc += pts.ccTasks;
-      row.totalTasks += pts.totalTasks;
-      agg.set(code, row);
+      map.set(m.key, entry);
+      return entry;
+    });
+
+    for (let i = 0; i < activeDevices.length; i++) {
+      const d = activeDevices[i];
+      if (d.stage !== 'COMPLETE' || !d.deployedDate) continue;
+      const ym = d.deployedDate.trim().slice(0, 7);
+      const bucket = map.get(ym);
+      if (!bucket) continue;
+      if (d.type === 'Sound Box') bucket.sb++;
+      else bucket.pos++;
     }
 
-    // Ensure branches with stock (or fallback offline mode) still appear if KPI list is sparse
-    if (agg.size === 0) {
-      for (const b of branches) {
-        if (b.code === '100' || !ppDirectoryScope.isBranchInScope(b.code, b.name)) continue;
-        if (branchScopedId && b.code !== branchScopedId) continue;
-        const st = stockByBranch.get(b.code);
-        agg.set(b.code, {
-          code: b.code,
-          name: b.name,
-          pos: 0,
-          sb: 0,
-          khqr: 0,
-          mv: 0,
-          cc: 0,
-          totalTasks: 0,
-          reserve: st?.reserve || 0,
-          installed: st?.installed || 0,
-        });
+    const sliced =
+      installHorizon === '3M' ? list.slice(-3) : installHorizon === '6M' ? list.slice(-6) : list;
+    let totalPos = 0;
+    let totalSb = 0;
+    let peakMonthLabel = '';
+    let peakMonthTotal = 0;
+    for (const row of sliced) {
+      totalPos += row.pos;
+      totalSb += row.sb;
+      const tot = row.pos + row.sb;
+      if (tot > peakMonthTotal) {
+        peakMonthTotal = tot;
+        peakMonthLabel = row.label;
       }
     }
-
-    return Array.from(agg.values())
-      .sort((a, b) => b.totalTasks - a.totalTasks || b.installed - a.installed || b.reserve - a.reserve)
-      .slice(0, 10);
-  }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId]);
+    const latest = sliced[sliced.length - 1];
+    return {
+      labels: sliced.map((x) => x.label),
+      pos: sliced.map((x) => x.pos),
+      sb: sliced.map((x) => x.sb),
+      totalPos,
+      totalSb,
+      totalInstalls: totalPos + totalSb,
+      latestLabel: latest?.label || '',
+      latestPos: latest?.pos || 0,
+      latestSb: latest?.sb || 0,
+      peakMonthLabel,
+      peakMonthTotal,
+    };
+  }, [activeDevices, installHorizon]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
@@ -2590,11 +2402,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       [...slices].sort((a, b) => b.primaryValue - a.primaryValue)[0] || slices[0];
     return { donutSlices: slices, leadChannel: lead };
   }, [channelActivity.rows, channelActivity.totalTasks]);
-
-  const maxBranchTasks = useMemo(
-    () => Math.max(1, ...branchLeaderboard.map((b) => b.totalTasks)),
-    [branchLeaderboard]
-  );
 
   const isLight = theme !== 'dark';
   const iosCardClass = isLight
@@ -3607,15 +3414,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         />
       </div>
 
-      {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + POS TERMINAL BATTERY STATUS ───────────── */}
+      {/* ───────────── 4. ROW 2: MONTHLY POS VS SOUND BOX INSTALLATIONS + POS TERMINAL BATTERY STATUS ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 8 Cols: Memoized Top Branches Performance Graph */}
-        <TopBranchesCard
+        {/* Left 8 Cols: Monthly POS Installation vs Sound Box Installation Bar Comparison */}
+        <MonthlyInstallComparisonCard
           isLight={isLight}
+          theme={theme}
           cardClass={iosCardClass}
-          activePeriodLabel={activePeriodLabel}
-          branches={branchLeaderboard}
-          maxBranchTasks={maxBranchTasks}
+          horizon={installHorizon}
+          onChangeHorizon={setInstallHorizon}
+          data={monthlyInstallComparison}
           onNavigateTab={onNavigateTab}
         />
 
