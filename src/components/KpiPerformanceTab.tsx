@@ -1,5 +1,6 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { buildAnnularArcPath } from './Charts';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
@@ -272,21 +273,15 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_RING_CX = 120;
-const KT_RING_CY = 120;
-const KT_SINGLE_R = 94;
-const KT_STROKE_W = 24;
-
-function ktArcPath(cx: number, cy: number, r: number, f0: number, f1: number): string {
-  const rad0 = (f0 * 360 - 90) * (Math.PI / 180);
-  const rad1 = (f1 * 360 - 90) * (Math.PI / 180);
-  const x0 = cx + r * Math.cos(rad0);
-  const y0 = cy + r * Math.sin(rad0);
-  const x1 = cx + r * Math.cos(rad1);
-  const y1 = cy + r * Math.sin(rad1);
-  const large = f1 - f0 > 0.5 ? 1 : 0;
-  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
-}
+const KT_VB_W = 468;
+const KT_VB_H = 292;
+const KT_CX = 234;
+const KT_CY = 148;
+const KT_R_INNER = 64;
+const KT_R_OUTER = 86;
+const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
+const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
+const KT_R_TICK = KT_R_OUTER + 5;
 
 const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   periodLabel,
@@ -299,6 +294,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   totalWorkDays,
 }) => {
   const [hoveredKey, setHoveredKey] = useState<'actual' | 'remaining' | 'pace' | 'target' | null>(null);
+  const shadowFilterId = useId();
   const safeTarget = Math.max(0, targetPoints);
   const safeActual = Math.max(0, actualPoints);
   const gapPts = Math.max(0, safeTarget - safeActual);
@@ -313,7 +309,8 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
 
   const actualColor = isMet ? '#2d6a4f' : '#155484';
-  const paceRingColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
+  const paceColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
+  const remainingColor = '#94a3b8';
   const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) : 0;
   const paceFrac = showPacing ? Math.min(1, Math.max(0.01, effectivePaceRatio)) : 1;
 
@@ -333,14 +330,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             key: 'pace',
             f0: 0,
             f1: paceFrac,
-            color: paceRingColor,
+            color: paceColor,
             title: `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`,
           },
           {
             key: 'remaining',
             f0: paceFrac,
             f1: 1,
-            color: '#e2e8f0',
+            color: '#cbd5e1',
             title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
           },
         ];
@@ -350,7 +347,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           key: 'remaining',
           f0: 0,
           f1: 1,
-          color: '#e2e8f0',
+          color: '#cbd5e1',
           title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts`,
         },
       ];
@@ -370,7 +367,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
     const out: DonutSlice[] = [];
     if (showPacing && actualFrac < paceFrac - 0.004) {
-      // Behind pace: Actual (navy) | Behind Pace Gap (amber) | Remaining Beyond Pace (slate)
+      // Behind pace: Actual (navy) | Pace Gap (amber) | Remaining Beyond Pace (cool slate)
       out.push({
         key: 'actual',
         f0: 0,
@@ -382,7 +379,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         key: 'pace',
         f0: actualFrac,
         f1: paceFrac,
-        color: '#f59e0b',
+        color: paceColor,
         title: `Pace Gap to Day ${elapsedWorkDays}/${totalWorkDays}: ${fmtPts(Math.max(0, expectedPacePts - safeActual))} pts (${expectedPacePct}% expected)`,
       });
       if (1 - paceFrac > 0.004) {
@@ -390,7 +387,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
           key: 'remaining',
           f0: paceFrac,
           f1: 1,
-          color: '#e2e8f0',
+          color: '#cbd5e1',
           title: `Remaining Beyond Pace: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% total left)`,
         });
       }
@@ -407,14 +404,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         key: 'pace',
         f0: paceFrac,
         f1: actualFrac,
-        color: '#0284c7',
+        color: paceColor,
         title: `Ahead of Day ${elapsedWorkDays}/${totalWorkDays} Pace (+${fmtPts(safeActual - expectedPacePts)} pts vs ${expectedPacePct}%)`,
       });
       out.push({
         key: 'remaining',
         f0: actualFrac,
         f1: 1,
-        color: '#e2e8f0',
+        color: '#cbd5e1',
         title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
       });
     } else {
@@ -429,7 +426,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         key: 'remaining',
         f0: actualFrac,
         f1: 1,
-        color: '#e2e8f0',
+        color: '#cbd5e1',
         title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
       });
     }
@@ -438,13 +435,132 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
   const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
 
+  interface KpiCalloutSpec {
+    key: 'actual' | 'pace' | 'remaining';
+    rowKey: 'actual' | 'pace' | 'target';
+    label: string;
+    pctText: string;
+    subText: string;
+    color: string;
+    pctColor: string;
+    midFrac: number;
+  }
+
+  const calloutSpecs: KpiCalloutSpec[] = (() => {
+    const sliceMid = (k: 'actual' | 'pace' | 'remaining', fallbackFrac: number) => {
+      const s = ringSlices.find((sl) => sl.key === k);
+      return s ? (s.f0 + s.f1) / 2 : fallbackFrac;
+    };
+    return [
+      {
+        key: 'actual',
+        rowKey: 'actual',
+        label: 'Actual',
+        pctText: `${achievementPct}%`,
+        subText: `${fmtPts(safeActual)} pts`,
+        color: actualColor,
+        pctColor: isMet ? '#047857' : '#1e6091',
+        midFrac: isMet ? 0.25 : sliceMid('actual', Math.max(0.08, actualFrac / 2)),
+      },
+      {
+        key: 'pace',
+        rowKey: 'pace',
+        label: showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Target Pace',
+        pctText: `${expectedPacePct}%`,
+        subText: `${fmtPts(expectedPacePts)} pts`,
+        color: paceColor,
+        pctColor: isMet ? '#047857' : isAheadOfPace ? '#0284c7' : '#b45309',
+        midFrac: sliceMid('pace', Math.min(0.92, effectivePaceRatio)),
+      },
+      {
+        key: 'remaining',
+        rowKey: 'target',
+        label: isMet ? 'Surplus' : 'Remaining',
+        pctText: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
+        subText: isMet ? 'above target' : `${fmtPts(gapPts)} left`,
+        color: isMet ? '#10b981' : remainingColor,
+        pctColor: isMet ? '#047857' : '#475569',
+        midFrac: isMet ? 0.85 : sliceMid('remaining', 0.9),
+      },
+    ];
+  })();
+
+  const calloutLayouts = (() => {
+    const items = calloutSpecs.map((spec) => {
+      const midAngle = -Math.PI / 2 + spec.midFrac * Math.PI * 2;
+      const sx = KT_CX + KT_R_TICK * Math.cos(midAngle);
+      const sy = KT_CY + KT_R_TICK * Math.sin(midAngle);
+      const side: 'left' | 'right' = Math.cos(midAngle) >= 0 ? 'right' : 'left';
+      const targetY = KT_CY + (KT_R_OUTER + 28) * Math.sin(midAngle);
+      return { spec, sx, sy, side, targetY };
+    });
+
+    const CALLOUT_H = 34;
+    const MIN_GAP = 48;
+    const Y_MIN = 28;
+    const Y_MAX = KT_VB_H - 28;
+
+    const placeSide = (side: 'left' | 'right') => {
+      const group = items
+        .filter((it) => it.side === side)
+        .sort((a, b) => a.targetY - b.targetY);
+      if (!group.length) return [];
+
+      const ys = group.map((g) => Math.max(Y_MIN, Math.min(Y_MAX, g.targetY)));
+      for (let i = 1; i < ys.length; i++) {
+        if (ys[i] - ys[i - 1] < MIN_GAP) ys[i] = ys[i - 1] + MIN_GAP;
+      }
+      if (ys[ys.length - 1] > Y_MAX) {
+        ys[ys.length - 1] = Y_MAX;
+        for (let i = ys.length - 2; i >= 0; i--) {
+          if (ys[i + 1] - ys[i] < MIN_GAP) ys[i] = ys[i + 1] - MIN_GAP;
+        }
+      }
+      for (let i = 0; i < ys.length; i++) {
+        ys[i] = Math.max(Y_MIN, Math.min(Y_MAX, ys[i]));
+      }
+
+      return group.map((g, i) => {
+        const ey = ys[i];
+        const dyNearest =
+          ey + CALLOUT_H / 2 < KT_CY
+            ? KT_CY - (ey + CALLOUT_H / 2)
+            : ey - CALLOUT_H / 2 > KT_CY
+              ? ey - CALLOUT_H / 2 - KT_CY
+              : 0;
+        const minRingR = KT_R_TICK + 6;
+        const clearDx =
+          dyNearest >= minRingR
+            ? 32
+            : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
+        const rawEx =
+          side === 'left'
+            ? Math.min(g.sx - 18, KT_CX - clearDx - 6)
+            : Math.max(g.sx + 18, KT_CX + clearDx + 6);
+        const ex =
+          side === 'left'
+            ? Math.max(134, Math.min(KT_CX - 34, rawEx))
+            : Math.min(KT_VB_W - 134, Math.max(KT_CX + 34, rawEx));
+        const qpx =
+          side === 'left'
+            ? Math.min(g.sx, Math.max(ex + 10, (g.sx + ex) / 2))
+            : Math.max(g.sx, Math.min(ex - 10, (g.sx + ex) / 2));
+        return { ...g, qpx, qpy: ey, ex, ey };
+      });
+    };
+
+    return [...placeSide('left'), ...placeSide('right')];
+  })();
+
+  const isTargetHovered = hoveredKey === 'remaining' || hoveredKey === 'target';
   const centerReadout = (() => {
     if (hoveredKey === 'actual') {
       return {
         pct: `${achievementPct}%`,
         top: 'ACTUAL',
         sub: `${fmtPts(safeActual)} pts`,
-        subColor: actualColor,
+        dot: actualColor,
+        pillCls: 'bg-slate-100/95 text-slate-700',
       };
     }
     if (hoveredKey === 'pace') {
@@ -452,66 +568,86 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         pct: `${expectedPacePct}%`,
         top: showPacing ? `PACE · DAY ${elapsedWorkDays}/${totalWorkDays}` : 'TARGET PACE',
         sub: `${fmtPts(expectedPacePts)} pts`,
-        subColor: '#b45309',
+        dot: paceColor,
+        pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
       };
     }
-    if (hoveredKey === 'remaining' || hoveredKey === 'target') {
+    if (isTargetHovered) {
       return {
         pct: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
         top: isMet ? 'SURPLUS' : 'REMAINING',
         sub: `${fmtPts(gapPts)} left`,
-        subColor: '#475569',
+        dot: isMet ? '#10b981' : remainingColor,
+        pillCls: 'bg-slate-100/95 text-slate-700',
       };
     }
     return {
       pct: `${achievementPct}%`,
       top: 'OF TARGET',
       sub: showPacing ? `Pace ${expectedPacePct}%` : `${fmtPts(safeTarget)} pts`,
-      subColor: isMet ? '#047857' : isAheadOfPace ? '#0284c7' : '#b45309',
+      dot: actualColor,
+      pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
     };
   })();
 
   const centerPctFontSize =
-    centerReadout.pct.length >= 8 ? '17px' : centerReadout.pct.length >= 6 ? '21px' : '24px';
+    centerReadout.pct.length >= 8 ? '18px' : centerReadout.pct.length >= 6 ? '22px' : '26px';
 
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col"
+      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
     >
-      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100">
-        <div className="min-w-0">
+      <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100">
+        <div className="min-w-0 flex items-center justify-between gap-2">
           <h3 className="text-[13px] font-semibold text-slate-900 truncate">
             {targetTitle} vs Actual Achievement{' '}
             <span className="text-slate-400 font-normal">· {periodLabel}</span>
           </h3>
-          <p className="text-[11px] text-slate-500 truncate">
-            Split-arc attainment &amp; pace ring
-          </p>
         </div>
+        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+          Attainment &amp; pace share · Target <span className="font-figure font-semibold text-slate-700">{fmtPts(safeTarget)} pts</span>
+        </p>
       </div>
 
-      <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
-        {/* Single Split-Arc Donut + Right-Side Ledger (ring height matched to KPI Point Velocity bars) */}
-        <div className="w-full max-w-[460px] mx-auto flex flex-col @[400px]:flex-row items-center @[400px]:justify-between gap-4 @[400px]:gap-4 @[490px]:gap-6">
-          <div className="relative w-[204px] h-[204px] @[400px]:w-[206px] @[400px]:h-[206px] @[440px]:w-[222px] @[440px]:h-[222px] shrink-0">
-            <svg
-              viewBox="0 0 240 240"
-              className="w-full h-full"
-              role="img"
-              aria-label={`${targetTitle} vs Actual Achievement Split-Arc Donut: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
-              data-testid="kpi-target-donut-svg"
-            >
+      <div className="px-1.5 sm:px-2 pt-1 pb-2.5 flex-1 flex items-center justify-center">
+        {/* Dashboard-Style Sculpted Donut + Curved Leaders + 3 Floating Pill Callouts */}
+        <div className="relative w-full max-w-[500px] aspect-[468/290] flex items-center justify-center">
+          <svg
+            viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
+            className="w-full h-full overflow-visible"
+            role="img"
+            aria-label={`${targetTitle} vs Actual Achievement Donut: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
+            data-testid="kpi-target-donut-svg"
+          >
+            <defs>
+              <filter id={shadowFilterId} x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#1e6091" floodOpacity="0.16" />
+              </filter>
+            </defs>
+
+            {/* Recessed donut track */}
+            <circle
+              cx={KT_CX}
+              cy={KT_CY}
+              r={KT_R_TRACK}
+              fill="none"
+              stroke="rgba(15, 23, 42, 0.045)"
+              strokeWidth={KT_TRACK_W}
+            />
+
+            {/* Sculpted separated annular sectors */}
+            <g filter={`url(#${shadowFilterId})`}>
               {ringSlices.length === 1 ? (
                 <circle
                   data-kpi-target-slice={ringSlices[0].key}
-                  cx={KT_RING_CX}
-                  cy={KT_RING_CY}
-                  r={KT_SINGLE_R}
+                  cx={KT_CX}
+                  cy={KT_CY}
+                  r={KT_R_TRACK}
                   fill="none"
                   stroke={ringSlices[0].color}
-                  strokeWidth={hoveredKey === ringSlices[0].key ? KT_STROKE_W + 3 : KT_STROKE_W}
-                  className="cursor-pointer transition-all duration-200"
+                  strokeWidth={hoveredKey === ringSlices[0].key ? KT_TRACK_W + 4 : KT_TRACK_W}
+                  className="cursor-pointer transition-all duration-150"
                   onMouseEnter={() => setHoveredKey(ringSlices[0].key)}
                   onMouseLeave={() => setHoveredKey(null)}
                 >
@@ -519,21 +655,27 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 </circle>
               ) : (
                 ringSlices.map((sl) => {
-                  const span = sl.f1 - sl.f0;
-                  const trim = Math.min(0.0055, span * 0.25);
                   const isActive = hoveredKey === sl.key || (hoveredKey === 'target' && sl.key === 'remaining');
-                  const dimmed = Boolean(hoveredKey && !isActive);
+                  const isDimmed = hoveredKey !== null && !isActive;
+                  const spanRad = (sl.f1 - sl.f0) * Math.PI * 2;
+                  const gapTrim = Math.min(0.036, spanRad * 0.22);
+                  const startRad = -Math.PI / 2 + sl.f0 * Math.PI * 2 + gapTrim / 2;
+                  const endRad = startRad + spanRad - gapTrim;
+                  const rInner = isActive ? KT_R_INNER - 3 : KT_R_INNER;
+                  const rOuter = isActive ? KT_R_OUTER + 4 : KT_R_OUTER;
+                  const d = buildAnnularArcPath(KT_CX, KT_CY, rInner, rOuter, startRad, endRad);
                   return (
                     <path
                       key={sl.key}
                       data-kpi-target-slice={sl.key}
-                      d={ktArcPath(KT_RING_CX, KT_RING_CY, KT_SINGLE_R, sl.f0 + trim, sl.f1 - trim)}
-                      fill="none"
-                      stroke={sl.key === 'remaining' && isActive ? '#cbd5e1' : sl.color}
-                      strokeWidth={isActive ? KT_STROKE_W + 3 : KT_STROKE_W}
-                      strokeLinecap="butt"
-                      strokeOpacity={dimmed ? 0.35 : 1}
-                      className="cursor-pointer transition-all duration-200"
+                      d={d}
+                      fill={sl.key === 'remaining' && isActive ? '#94a3b8' : sl.color}
+                      opacity={isDimmed ? 0.32 : 1}
+                      style={{
+                        filter: isActive ? `drop-shadow(0 4px 10px ${sl.color}55)` : undefined,
+                        transition: 'opacity 150ms ease, filter 150ms ease',
+                      }}
+                      className="cursor-pointer"
                       onMouseEnter={() => setHoveredKey(sl.key)}
                       onMouseLeave={() => setHoveredKey(null)}
                     >
@@ -542,100 +684,130 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                   );
                 })
               )}
+            </g>
 
-              {/* Ring Center Metric */}
-              <text
-                x={KT_RING_CX}
-                y={KT_RING_CY - 8}
-                textAnchor="middle"
-                className="fill-slate-900 font-figure"
-                style={{ fontSize: centerPctFontSize, fontWeight: 700, letterSpacing: '-0.02em' }}
-              >
-                {centerReadout.pct}
-              </text>
-              <text
-                x={KT_RING_CX}
-                y={KT_RING_CY + 11}
-                textAnchor="middle"
-                className="fill-slate-500"
-                style={{ fontSize: '9.5px', fontWeight: 700, letterSpacing: '0.06em' }}
-              >
-                {centerReadout.top}
-              </text>
-              <text
-                x={KT_RING_CX}
-                y={KT_RING_CY + 27}
-                textAnchor="middle"
-                fill={centerReadout.subColor}
-                style={{ fontSize: '10.5px', fontWeight: 600 }}
-              >
-                {centerReadout.sub}
-              </text>
-            </svg>
+            {/* Smooth curved Bezier leader lines anchored at slice rim */}
+            {calloutLayouts.map((c) => {
+              const isActive = hoveredKey === c.spec.key || (hoveredKey === 'target' && c.spec.key === 'remaining');
+              const isDimmed = hoveredKey !== null && !isActive;
+              return (
+                <g
+                  key={`leader-${c.spec.key}`}
+                  opacity={isDimmed ? 0.24 : isActive ? 1 : 0.72}
+                  style={{ transition: 'opacity 150ms ease' }}
+                >
+                  <path
+                    d={`M ${c.sx.toFixed(1)} ${c.sy.toFixed(1)} Q ${c.qpx.toFixed(1)} ${c.qpy.toFixed(1)} ${c.ex.toFixed(1)} ${c.ey.toFixed(1)}`}
+                    fill="none"
+                    stroke={c.spec.color}
+                    strokeWidth={isActive ? 1.85 : 1.35}
+                    strokeLinecap="round"
+                  />
+                  <circle
+                    cx={c.sx}
+                    cy={c.sy}
+                    r={isActive ? 3.2 : 2.5}
+                    fill={c.spec.color}
+                  />
+                </g>
+              );
+            })}
+
+            {/* Elevated central frosted hub ring */}
+            <circle
+              cx={KT_CX}
+              cy={KT_CY}
+              r={KT_R_INNER - 5}
+              fill="#ffffff"
+              stroke="rgba(15, 23, 42, 0.08)"
+              strokeWidth="1"
+            />
+          </svg>
+
+          {/* Center Interactive Focus Readout */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-1.5"
+            style={{
+              left: `${(KT_CX / KT_VB_W) * 100}%`,
+              top: `${(KT_CY / KT_VB_H) * 100}%`,
+              width: `${(((KT_R_INNER - 5) * 1.72) / KT_VB_W) * 100}%`,
+            }}
+          >
+            <span className="inline-flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase text-slate-500 truncate max-w-full">
+              <i
+                className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
+                style={{ backgroundColor: centerReadout.dot }}
+              />
+              {centerReadout.top}
+            </span>
+            <span
+              className="font-bold font-figure leading-none tracking-tight mt-1 tabular-nums text-slate-900"
+              style={{ fontSize: centerPctFontSize }}
+            >
+              {centerReadout.pct}
+            </span>
+            <span
+              className={`text-[10px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
+            >
+              {centerReadout.sub}
+            </span>
           </div>
 
-          {/* Right Side Ledger Stack */}
-          <div className="w-full @[400px]:w-auto min-w-0 flex flex-col gap-3 @[490px]:gap-3.5">
-            <button
-              type="button"
-              data-kpi-comparison-row="actual"
-              onMouseEnter={() => setHoveredKey('actual')}
-              onMouseLeave={() => setHoveredKey(null)}
-              onFocus={() => setHoveredKey('actual')}
-              onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
-                isMet ? 'border-emerald-700' : 'border-[#155484]'
-              } ${hoveredKey && hoveredKey !== 'actual' ? 'opacity-45' : 'opacity-100'}`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                Actual Achievement
-              </div>
-              <div className="font-figure text-[14px] @[490px]:text-[15px] font-bold text-slate-900 tabular-nums mt-0.5">
-                {fmtPts(safeActual)} <span className="text-[11px] font-semibold text-slate-500">pts</span>
-              </div>
-            </button>
+          {/* 3 Floating Pill Callout Badges */}
+          {calloutLayouts.map((c) => {
+            const isActive = hoveredKey === c.spec.key || (hoveredKey === 'target' && c.spec.key === 'remaining');
+            const isDimmed = hoveredKey !== null && !isActive;
+            const posStyle: React.CSSProperties =
+              c.side === 'left'
+                ? {
+                    right: `${((KT_VB_W - c.ex) / KT_VB_W) * 100}%`,
+                    top: `${(c.ey / KT_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  }
+                : {
+                    left: `${(c.ex / KT_VB_W) * 100}%`,
+                    top: `${(c.ey / KT_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  };
 
-            <button
-              type="button"
-              data-kpi-comparison-row="pace"
-              onMouseEnter={() => setHoveredKey('pace')}
-              onMouseLeave={() => setHoveredKey(null)}
-              onFocus={() => setHoveredKey('pace')}
-              onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
-                isMet ? 'border-emerald-500' : isAheadOfPace ? 'border-sky-600' : 'border-amber-500'
-              } ${hoveredKey && hoveredKey !== 'pace' ? 'opacity-45' : 'opacity-100'}`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                {showPacing ? `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Period Target Benchmark'}
-              </div>
-              <div className={`font-figure text-[13px] @[490px]:text-[14px] font-bold tabular-nums mt-0.5 ${
-                isMet ? 'text-emerald-700' : isAheadOfPace ? 'text-sky-700' : 'text-amber-700'
-              }`}>
-                {fmtPts(expectedPacePts)} <span className="text-[10.5px] @[490px]:text-[11px] font-semibold text-slate-500">pts ({expectedPacePct}%)</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              data-kpi-comparison-row="target"
-              onMouseEnter={() => setHoveredKey('target')}
-              onMouseLeave={() => setHoveredKey(null)}
-              onFocus={() => setHoveredKey('target')}
-              onBlur={() => setHoveredKey(null)}
-              className={`text-left border-l-[3px] border-slate-300 pl-2.5 @[490px]:pl-3 py-0.5 transition-opacity cursor-pointer ${
-                hoveredKey && hoveredKey !== 'target' && hoveredKey !== 'remaining' ? 'opacity-45' : 'opacity-100'
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                {isMet ? 'Surplus Over Target' : 'Remaining to Target'}
-              </div>
-              <div className="font-figure text-[13px] @[490px]:text-[14px] font-bold text-slate-700 tabular-nums mt-0.5">
-                {isMet ? `+${fmtPts(surplusPts)}` : fmtPts(gapPts)}{' '}
-                <span className="text-[10.5px] @[490px]:text-[11px] font-semibold text-slate-500">/ {fmtPts(safeTarget)}</span>
-              </div>
-            </button>
-          </div>
+            return (
+              <button
+                key={c.spec.key}
+                type="button"
+                data-kpi-comparison-row={c.spec.rowKey}
+                data-donut-callout={c.spec.key}
+                onMouseEnter={() => setHoveredKey(c.spec.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+                onFocus={() => setHoveredKey(c.spec.key)}
+                onBlur={() => setHoveredKey(null)}
+                style={{
+                  ...posStyle,
+                  ...(isActive
+                    ? {
+                        borderColor: c.spec.color,
+                        backgroundColor: '#ffffff',
+                      }
+                    : undefined),
+                }}
+                className={`absolute px-2 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                  isActive
+                    ? 'shadow-sm'
+                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
+                } ${isDimmed ? 'opacity-40' : ''}`}
+              >
+                <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                  <span>{c.spec.label}</span>
+                </span>
+                <span className="text-[9px] sm:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3 text-slate-500">
+                  <strong className="font-bold" style={{ color: c.spec.pctColor }}>
+                    {c.spec.pctText}
+                  </strong>{' '}
+                  · {c.spec.subText}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
