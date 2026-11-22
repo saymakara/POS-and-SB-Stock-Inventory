@@ -83,21 +83,18 @@ function nicePercentScale(
 
 interface MomDelta {
   pct: number | null;
-  isNew: boolean;
+  isBaseline: boolean;
   text: string;
 }
 
 function calcMomDelta(cur: number, prev: number | undefined): MomDelta {
-  if (prev === undefined) return { pct: null, isNew: false, text: '' };
-  if (prev <= 0) {
-    return cur > 0
-      ? { pct: null, isNew: true, text: 'New' }
-      : { pct: null, isNew: false, text: '' };
+  if (prev === undefined || prev <= 0) {
+    return { pct: null, isBaseline: prev !== undefined && cur > 0, text: '' };
   }
   const pct = ((cur - prev) / prev) * 100;
   const rounded = Math.abs(pct) > 0 && Math.abs(pct) < 10 ? Number(pct.toFixed(1)) : Math.round(pct);
   const text = rounded > 0 ? `+${fmt(rounded)}%` : rounded < 0 ? `-${fmt(Math.abs(rounded))}%` : '0%';
-  return { pct, isNew: false, text };
+  return { pct, isBaseline: false, text };
 }
 
 interface BoxRect {
@@ -309,7 +306,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     const hasMomOverlay =
       showMomChangeLine &&
       hasData &&
-      momPoints.some((m) => m.s1.pct !== null || m.s1.isNew || m.s2.pct !== null || m.s2.isNew);
+      momPoints.some((m) => m.s1.pct !== null || m.s2.pct !== null);
     const s1LineColor = isLight ? '#0284c7' : '#38bdf8';
     const s2LineColor = isLight ? '#7c3aed' : '#a78bfa';
     const momZeroAccent = isLight ? '#64748b' : '#94a3b8';
@@ -471,7 +468,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         x: number;
         y: number;
         pct: number | null;
-        isNew: boolean;
+        isBaseline: boolean;
         text: string;
       }
 
@@ -488,18 +485,22 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
           const gx = padLeft + idx * groupW + (groupW - barW * 2 - barGap) / 2;
           const cx = seriesIdx === 1 ? gx + barW / 2 : gx + barW + barGap + barW / 2;
           if (d.pct !== null) {
-            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(d.pct), pct: d.pct, isNew: false, text: d.text };
+            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(d.pct), pct: d.pct, isBaseline: false, text: d.text };
           }
-          if (d.isNew) {
-            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(0), pct: null, isNew: true, text: d.text };
+          if (d.isBaseline) {
+            return { seriesIdx, lineColor, idx, x: cx, y: pctToY(0), pct: null, isBaseline: true, text: '' };
           }
-          return { seriesIdx, lineColor, idx, x: cx, y: baseY, pct: null, isNew: false, text: '' };
+          return { seriesIdx, lineColor, idx, x: cx, y: baseY, pct: null, isBaseline: false, text: '' };
         });
 
         const runs: TrendNode[][] = [];
         let curRun: TrendNode[] = [];
         nodes.forEach((n) => {
-          if (n.pct !== null || n.isNew) {
+          if (n.pct !== null) {
+            // Dashed starter from a non-zero baseline month (prev <= 0) directly into its first numeric %
+            if (curRun.length === 0 && n.idx > 0 && nodes[n.idx - 1].isBaseline) {
+              curRun.push(nodes[n.idx - 1]);
+            }
             curRun.push(n);
           } else if (curRun.length > 0) {
             runs.push(curRun);
@@ -513,7 +514,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
           for (let i = 1; i < run.length; i++) {
             const prev = run[i - 1];
             const curr = run[i];
-            const isStarter = prev.isNew || curr.isNew;
+            const isStarter = prev.isBaseline || curr.isBaseline;
             const midX = (prev.x + curr.x) / 2;
 
             // Crisp halo stroke so line stays readable over dark bar fills
@@ -544,7 +545,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         });
 
         nodes.forEach((n) => {
-          if (n.pct === null && !n.isNew) return;
+          if (n.pct === null) return;
           const isHov = hover?.idx === n.idx;
           const r = isHov ? 4.8 : 3.6;
           ctx.save();
@@ -616,20 +617,16 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
         placedPills.push({ x: chosenPos.x, y: chosenPos.y, w: pillW, h: pillH });
 
         const bg = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.94)';
-        const border = n.isNew
-          ? isLight ? 'rgba(148, 163, 184, 0.55)' : 'rgba(148, 163, 184, 0.45)'
-          : isUp
-            ? isLight ? 'rgba(16, 185, 129, 0.48)' : 'rgba(52, 211, 153, 0.45)'
-            : isDown
-              ? isLight ? 'rgba(244, 63, 94, 0.48)' : 'rgba(251, 113, 133, 0.45)'
-              : isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.35)';
-        const txtColor = n.isNew
-          ? isLight ? '#475569' : '#cbd5e1'
-          : isUp
-            ? isLight ? '#047857' : '#6ee7b7'
-            : isDown
-              ? isLight ? '#be123c' : '#fda4af'
-              : isLight ? '#475569' : '#cbd5e1';
+        const border = isUp
+          ? isLight ? 'rgba(16, 185, 129, 0.48)' : 'rgba(52, 211, 153, 0.45)'
+          : isDown
+            ? isLight ? 'rgba(244, 63, 94, 0.48)' : 'rgba(251, 113, 133, 0.45)'
+            : isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.35)';
+        const txtColor = isUp
+          ? isLight ? '#047857' : '#6ee7b7'
+          : isDown
+            ? isLight ? '#be123c' : '#fda4af'
+            : isLight ? '#475569' : '#cbd5e1';
 
         ctx.save();
         ctx.fillStyle = bg;
@@ -704,11 +701,11 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
       </canvas>
       {hover && hasData && labels[hover.idx] !== undefined && (() => {
         const m = chartStats.momPoints[hover.idx];
+        const hasTooltipMom = Boolean(showMomChangeLine && (m?.s1.pct !== null || m?.s2.pct !== null));
         const deltaTextCls = (d?: MomDelta) => {
-          if (!d || (!d.isNew && d.pct === null)) return 'text-slate-400';
-          if (d.isNew) return isLight ? 'text-amber-600' : 'text-amber-300';
-          if ((d.pct ?? 0) > 0) return isLight ? 'text-emerald-600' : 'text-emerald-400';
-          if ((d.pct ?? 0) < 0) return isLight ? 'text-rose-600' : 'text-rose-400';
+          if (!d || d.pct === null) return 'text-slate-400';
+          if (d.pct > 0) return isLight ? 'text-emerald-600' : 'text-emerald-400';
+          if (d.pct < 0) return isLight ? 'text-rose-600' : 'text-rose-400';
           return 'text-slate-400';
         };
         const v1 = series1Data[hover.idx] || 0;
@@ -729,7 +726,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
           >
             <div className={`flex items-center justify-between gap-3 font-bold pb-1 mb-1 border-b ${isLight ? 'border-slate-100 text-slate-900' : 'border-slate-700/70 text-white'}`}>
               <span>{labels[hover.idx]}</span>
-              {showMomChangeLine && (
+              {hasTooltipMom && (
                 <span className={`font-figure font-medium text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
                   MoM %
                 </span>

@@ -2517,7 +2517,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           text: rounded > 0 ? `+${fmtNum(rounded)}%` : rounded < 0 ? `-${fmtNum(Math.abs(rounded))}%` : '0%',
         };
       }
-      return { pct: null, text: cur > 0 ? 'New' : '' };
+      return { pct: null, text: '' };
     };
     const posMom = calcSeriesMom(latest?.pos || 0, prevLatest?.pos || 0);
     const sbMom = calcSeriesMom(latest?.sb || 0, prevLatest?.sb || 0);
