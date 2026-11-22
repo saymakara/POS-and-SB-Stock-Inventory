@@ -56,7 +56,7 @@ begin
     half_day_weight = coalesce((p->>'half_day_weight')::numeric, half_day_weight),
     updated_by = me.name, updated_at = now()
   where id = 1 returning * into s;
-  delete from app.kpi_summary_cache;                                       -- every KPI figure is worked out again
+  delete from app.kpi_summary_cache where true;                                       -- every KPI figure is worked out again
   insert into public.audit_logs (title, detail, branch_id, action, target, actor_id, actor_emp, actor_name, role, status)
   values ('KPI Booth / Standby Settings', 'Booth: ' || s.booth_mode || ' (half day ' || s.half_day_weight || ') · Standby VIP: '
           || s.standby_mode || ' · Installs: ' || case when s.install_per_submission then 'per submission' else 'per device' end,
