@@ -82,7 +82,7 @@ import {
   SIM_BTN_PRIMARY_CLS,
 } from './components/RightDrawerShell';
 import { isSupabaseConfigured } from './lib/supabase';
-import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence, commitStockBatch, type StockBatchRowError, type BatchCommitResult } from './services/supabaseService';
+import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence, commitStockBatch, type StockBatchRowError, type BatchCommitResult } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
@@ -2860,23 +2860,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     finish();
   };
 
-  /** Super Admin: remove every Merchant History record (the list and the database). */
-  const handleClearHistory = () => {
-    if (role !== 'SUPER_ADMIN') { triggerToast('Only the Super Admin can clear Merchant History.'); return; }
-    const count = historicalMerchants.length;
-    const finish = () => {
-      setHistoricalMerchants([]);
-      syncedHist.current.clear();
-      addAuditLog('Merchant History Cleared', `Removed all ${count} merchant history record(s).`);
-      triggerToast(`Merchant History cleared (${count} record(s) removed)`);
-    };
-    if (isSupabaseConfigured) {
-      deleteAllHistoricalMerchantsOnServer().then((err) => { if (err) triggerToast(`Not cleared: ${err}`); else finish(); });
-      return;
-    }
-    finish();
-  };
-
   const handleRestoreToDashboard = (serials: string[]) => {
     if (role === 'BRANCH') { triggerToast('Only HQ can restore archived units.'); return; }
     clearInventoryCache();
@@ -4695,7 +4678,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       selectedBranch={selectedBranch}
                       theme={theme}
                       devices={ppScopedDevices}
-                      onClearAll={role === 'SUPER_ADMIN' ? handleClearHistory : undefined}
                       onAddRecord={(rec) => {
                         setHistoricalMerchants((prev) => [rec, ...prev]);
                         addAuditLog(

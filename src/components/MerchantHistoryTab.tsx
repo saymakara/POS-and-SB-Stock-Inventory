@@ -52,8 +52,6 @@ interface MerchantHistoryTabProps {
   /** Name of the signed-in staff member, recorded as the officer who logged a return. */
   operatorLabel?: string;
   onAddRecord?: (record: HistoricalMerchantRecord) => void;
-  /** Super Admin only: remove every record */
-  onClearAll?: () => void;
   onReturnDeviceStock?: (
     serial: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
@@ -83,7 +81,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   role,
   selectedBranch,
   theme = 'light',
-  onClearAll,
   onSelectDevice,
   onToast,
 }) => {
@@ -301,16 +298,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Export CSV</span>
             </button>
-            {onClearAll && records.length > 0 && (
-              <button
-                type="button"
-                onClick={() => { if (window.confirm(`Delete all ${records.length} Merchant History record(s)?\n\nThis cannot be undone.`)) onClearAll(); }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 shadow-2xs transition active:scale-[0.98] cursor-pointer dark:bg-slate-800 dark:text-rose-400 dark:border-rose-900/60"
-                title="Clear all records"
-              >
-                <span>Clear All History</span>
-              </button>
-            )}
           </div>
         </div>
 

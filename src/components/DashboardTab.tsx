@@ -85,6 +85,7 @@ import {
   Calendar,
   MapPin,
   Activity,
+  Inbox,
 } from 'lucide-react';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
@@ -2805,55 +2806,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const deploymentVals = sparkDays.map((p) => p.pos + p.sb);
     const reachVals = sparkDays.map((p) => p.khqr + p.mv + p.cc);
 
-    // Hardware Pool: 6-month cumulative stocked fleet growth (single O(N) pass, falls back to 6M hardware installs)
-    const months6 = lastMonthsPP(6);
-    const mLen = months6.length;
-    const mKeys = months6.map((m) => m.key);
-    const mIdxByKey = new Map<string, number>();
-    for (let m = 0; m < mLen; m++) mIdxByKey.set(mKeys[m], m);
-    const cumStarts = new Array<number>(mLen).fill(0);
-    const hwMonthlyInstalls = new Array<number>(mLen).fill(0);
-    for (let i = 0; i < activeDevices.length; i++) {
-      const d = activeDevices[i];
-      const stockYm = (d.stockInDate || d.deployedDate || '').slice(0, 7);
-      if (!stockYm) {
-        if (mLen > 0) cumStarts[0]++;
-      } else {
-        for (let m = 0; m < mLen; m++) {
-          if (stockYm <= mKeys[m]) {
-            cumStarts[m]++;
-            break;
-          }
-        }
-      }
-      if (d.stage === 'COMPLETE' && d.deployedDate) {
-        const depIdx = mIdxByKey.get(d.deployedDate.slice(0, 7));
-        if (depIdx !== undefined) hwMonthlyInstalls[depIdx]++;
-      }
-    }
-    const hwCumulative = new Array<number>(mLen).fill(0);
-    let runningCum = 0;
-    for (let m = 0; m < mLen; m++) {
-      runningCum += cumStarts[m];
-      hwCumulative[m] = runningCum;
-    }
-    const hwCumFlat = hwCumulative.every((v) => v === hwCumulative[0]);
-    const hwVals =
-      activeDevices.length === 0
-        ? [hardwareSummary.total, hardwareSummary.total]
-        : !hwCumFlat
-          ? hwCumulative
-          : hwMonthlyInstalls.some((v) => v > 0)
-            ? hwMonthlyInstalls
-            : hwCumulative;
+    // Approval Queue: trailing 6-month pending installation backlog trajectory (falls back to current queue total)
+    const pendingHistVals = (monthlyInstallComparison.allBuckets || [])
+      .slice(-6)
+      .map((b) => b.pendingPos + b.pendingSb);
+    const hasPendingHist = pendingHistVals.some((v) => v > 0);
+    const queueVals = hasPendingHist ? pendingHistVals : [queues.total, queues.total];
 
     return {
       tasks: analyzeSparkTrend(tasksVals, { isLight, unitLabel: 'field tasks' }),
       deployments: analyzeSparkTrend(deploymentVals, { isLight, unitLabel: 'hardware ops' }),
-      hardware: analyzeSparkTrend(hwVals, { isLight, unitLabel: '6M fleet' }),
+      queue: analyzeSparkTrend(queueVals, { invertSentiment: true, isLight, unitLabel: 'approval queue' }),
       outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
     };
-  }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, activeDevices, hardwareSummary.total, isLight]);
+  }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, monthlyInstallComparison.allBuckets, queues.total, isLight]);
 
   const effDateFrom = range.fromYmd || today;
   const effDateTo = range.toYmd || effDateFrom;
@@ -3397,7 +3363,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="w-full">
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
-                  Hardware Deployments
+                  Device Deployments
                 </span>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
                   <Cpu className="w-4 h-4" aria-hidden="true" />
@@ -3435,57 +3401,88 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </button>
 
-          {/* KPI 3: Hardware Pool */}
+          {/* KPI 3: Approval Queue */}
+          {(() => {
+            const primaryQueueTab =
+              queues.posField > 0
+                ? 'mobile_sync'
+                : queues.sbField > 0
+                  ? 'mobile_sync_sb'
+                  : queues.ccPend > 0
+                    ? 'mobile_sync_cc'
+                    : queues.reqPend > 0
+                      ? 'requisitions'
+                      : queues.pushPend > 0
+                        ? 'push_configuring'
+                        : 'mobile_sync';
+            return (
           <div
             role={onNavigateTab ? 'button' : undefined}
             tabIndex={onNavigateTab ? 0 : undefined}
-            onClick={() => onNavigateTab?.('inventory_pos')}
+            onClick={() => onNavigateTab?.(primaryQueueTab)}
             onKeyDown={(e) => {
               if (!onNavigateTab) return;
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onNavigateTab('inventory_pos');
+                onNavigateTab(primaryQueueTab);
               }
             }}
-            title="Open POS Terminal"
+            title={`Pending approvals: ${fmtNum(queues.posField)} POS · ${fmtNum(queues.sbField)} SB · ${fmtNum(queues.ccPend)} CC · ${fmtNum(queues.reqPend)} Req${queues.pushPend > 0 ? ` · ${fmtNum(queues.pushPend)} push` : ''}`}
             className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}
           >
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
-                  Hardware Pool
+                  Approval Queue
                 </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                  <Boxes className="w-4 h-4" aria-hidden="true" />
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${
+                    queues.total > 0
+                      ? isLight ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-300'
+                      : isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  <Inbox className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={hardwareSummary.total} format duration={220} />
+                    <Odometer value={queues.total} format duration={220} />
                   </div>
                   <span
-                    data-kpi-delta="hardware"
+                    data-kpi-delta="queue"
                     className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
                     style={{
-                      color: kpiSparklines.hardware.colorHex,
-                      backgroundColor: `${kpiSparklines.hardware.colorHex}18`,
+                      color: kpiSparklines.queue.colorHex,
+                      backgroundColor: `${kpiSparklines.queue.colorHex}18`,
                     }}
                   >
-                    {kpiSparklines.hardware.direction === 'up' ? '▲' : kpiSparklines.hardware.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.hardware.badgeText}
+                    {kpiSparklines.queue.direction === 'up' ? '▲' : kpiSparklines.queue.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.queue.badgeText}
                   </span>
                 </div>
                 <KpiMiniSparkline
-                  metricId="hardware"
-                  summary={kpiSparklines.hardware}
+                  metricId="queue"
+                  summary={kpiSparklines.queue}
                   cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
                 />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(hardwareSummary.hq)} HQ · {fmtNum(hardwareSummary.reserve)} Res · {fmtNum(hardwareSummary.installed)} Live</span>
-              {queues.pushPend > 0 ? (
+              <span>{fmtNum(queues.posField)} POS · {fmtNum(queues.sbField)} SB · {fmtNum(queues.ccPend)} CC</span>
+              {queues.reqPend > 0 ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateTab?.('requisitions');
+                  }}
+                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+                >
+                  {fmtNum(queues.reqPend)} req
+                </button>
+              ) : queues.pushPend > 0 ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -3497,12 +3494,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   {fmtNum(queues.pushPend)} push
                 </button>
               ) : (
-                <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                  {fmtNum(materialsSummary.simTotal)} SIM
+                <span className={`font-semibold whitespace-nowrap group-hover:underline ${queues.total === 0 ? (isLight ? 'text-emerald-700' : 'text-emerald-300') : (isLight ? 'text-slate-700' : 'text-slate-200')}`}>
+                  {queues.total === 0 ? 'All clear' : '0 req'}
                 </span>
               )}
             </div>
           </div>
+            );
+          })()}
 
           {/* KPI 4: Merchant Outreach */}
           <button
