@@ -898,6 +898,7 @@ interface MonthlyInstallComparisonCardProps {
   horizon: InstallHorizon;
   onChangeHorizon: (horizon: InstallHorizon) => void;
   data: MonthlyInstallComparisonData;
+  loading?: boolean;
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -910,6 +911,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
   horizon,
   onChangeHorizon,
   data,
+  loading = false,
   onNavigateTab,
 }) => {
   const posColor = isLight ? CHANNEL_COLORS.pos : '#38bdf8';
@@ -1017,7 +1019,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: posColor }} aria-hidden="true" />
               <span>POS Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {fmtNum(data.totalPos)}
+                {loading ? '—' : fmtNum(data.totalPos)}
               </span>
             </span>
 
@@ -1031,7 +1033,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: sbColor }} aria-hidden="true" />
               <span>Sound Box Installation</span>
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {fmtNum(data.totalSb)}
+                {loading ? '—' : fmtNum(data.totalSb)}
               </span>
             </span>
           </div>
@@ -1041,23 +1043,53 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
             }`}
           >
-            {horizonMonths}M Total · {fmtNum(data.totalInstalls)} submitted{data.pendingTotal > 0 ? ` (${fmtNum(data.pendingTotal)} pending)` : ''}
+            {loading
+              ? 'Loading Merchant Visit records…'
+              : `${horizonMonths}M Total · ${fmtNum(data.totalInstalls)} submitted${data.pendingTotal > 0 ? ` (${fmtNum(data.pendingTotal)} pending)` : ''}`}
           </span>
         </div>
 
-        <GroupedBarChart
-          labels={data.labels}
-          series1Label="POS Installation"
-          series1Data={data.pos}
-          series1Color={posColor}
-          series2Label="Sound Box Installation"
-          series2Data={data.sb}
-          series2Color={sbColor}
-          height={292}
-          showLegend={false}
-          theme={theme}
-          ariaLabel={`Monthly POS Installation and Sound Box Installation comparison over trailing ${horizonMonths} months`}
-        />
+        {loading ? (
+          <div
+            className={`h-[292px] rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 ${
+              isLight ? 'border-slate-200/80 bg-slate-50/60' : 'border-slate-800 bg-slate-900/40'
+            }`}
+            aria-busy="true"
+            aria-label="Loading monthly installation chart"
+          >
+            <div className="flex items-end gap-2.5 h-16">
+              {[0.38, 0.62, 0.45, 0.8, 0.55, 0.92].map((h, i) => (
+                <div key={i} className="flex items-end gap-1">
+                  <span
+                    className={`w-2.5 rounded-t-sm animate-pulse ${isLight ? 'bg-slate-300/75' : 'bg-slate-700/75'}`}
+                    style={{ height: `${Math.round(h * 46)}px` }}
+                  />
+                  <span
+                    className={`w-2.5 rounded-t-sm animate-pulse ${isLight ? 'bg-slate-200/90' : 'bg-slate-800/90'}`}
+                    style={{ height: `${Math.round(h * 60)}px` }}
+                  />
+                </div>
+              ))}
+            </div>
+            <span className={`text-[12px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              Syncing Phnom Penh Merchant Visit installations…
+            </span>
+          </div>
+        ) : (
+          <GroupedBarChart
+            labels={data.labels}
+            series1Label="POS Installation"
+            series1Data={data.pos}
+            series1Color={posColor}
+            series2Label="Sound Box Installation"
+            series2Data={data.sb}
+            series2Color={sbColor}
+            height={292}
+            showLegend={false}
+            theme={theme}
+            ariaLabel={`Monthly POS Installation and Sound Box Installation comparison over trailing ${horizonMonths} months`}
+          />
+        )}
       </div>
 
       {/* Footer Summary Strip */}
@@ -1069,7 +1101,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
         }`}
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-          {data.latestLabel && (
+          {!loading && data.latestLabel && (
             <span>
               Latest ({data.latestLabel}):{' '}
               <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -1082,7 +1114,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               SB
             </span>
           )}
-          {data.peakMonthTotal > 0 && data.peakMonthLabel && (
+          {!loading && data.peakMonthTotal > 0 && data.peakMonthLabel && (
             <>
               <span className={isLight ? 'text-slate-300' : 'text-slate-700'} aria-hidden="true">·</span>
               <span>
@@ -1095,7 +1127,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
           )}
         </div>
         <span className="font-figure font-semibold whitespace-nowrap">
-          {data.totalInstalls > 0 ? `POS ${posShare}% · Sound Box ${sbShare}%` : 'No installations in window'}
+          {loading ? 'Loading…' : data.totalInstalls > 0 ? `POS ${posShare}% · Sound Box ${sbShare}%` : 'No installations in window'}
         </span>
       </div>
     </section>
@@ -1549,6 +1581,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [fieldInstalls, setFieldInstalls] = useState<FieldInstallSummaryRow[] | null>(
     () => getCachedMonthlyInstallFieldEvents()
   );
+  const [fieldInstallsLoading, setFieldInstallsLoading] = useState<boolean>(
+    () => isSupabaseConfigured && getCachedMonthlyInstallFieldEvents() === null
+  );
   const [syncing, setSyncing] = useState(false);
 
   const periodSeqRef = useRef(0);
@@ -1612,9 +1647,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const loadFieldInstalls = useCallback(async (force = false) => {
     const seq = ++fieldInstallsSeqRef.current;
+    if (!getCachedMonthlyInstallFieldEvents()) {
+      setFieldInstallsLoading(true);
+    }
     const rows = await fetchMonthlyInstallFieldEvents(force);
-    if (seq === fieldInstallsSeqRef.current && rows !== null) {
-      setFieldInstalls(rows);
+    if (seq === fieldInstallsSeqRef.current) {
+      if (rows !== null) setFieldInstalls(rows);
+      setFieldInstallsLoading(false);
     }
   }, []);
 
@@ -1958,7 +1997,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [activeDevices, serverStageCounts, serverTotalDevices]);
 
-  // POS Terminal Battery lifecycle status (compliance, age cohorts & placement)
+  // POS Terminal Battery lifecycle status (compliance & age cohorts)
   const batterySummary = useMemo(() => {
     let healthy = 0;
     let replaceSoon = 0;
@@ -1966,19 +2005,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     let noDate = 0;
     let fresh0to11 = 0;
     let mid12toWarn = 0;
-    let deployedHealthy = 0;
-    let deployedTotal = 0;
-    let poolHealthy = 0;
-    let poolTotal = 0;
-    let withSerial = 0;
     let monthsSum = 0;
 
     for (const d of activeDevices) {
       if (d.type !== 'POS Terminal') continue;
-      if (d.batterySerial?.trim()) withSerial++;
-      const isDeployed = d.stage === 'COMPLETE';
-      if (isDeployed) deployedTotal++;
-      else poolTotal++;
 
       if (!d.batteryInstalledDate && !d.stockInDate && !d.deployedDate) {
         noDate++;
@@ -1996,8 +2026,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         healthy++;
         if (used < 12) fresh0to11++;
         else mid12toWarn++;
-        if (isDeployed) deployedHealthy++;
-        else poolHealthy++;
       }
     }
 
@@ -2017,14 +2045,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       healthy,
       replaceSoon,
       critical,
-      noDate,
       fresh0to11,
       mid12toWarn,
-      deployedHealthy,
-      deployedTotal,
-      poolHealthy,
-      poolTotal,
-      withSerial,
       avgMonthsUsed,
       avgLifePct,
     };
@@ -2358,22 +2380,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           if (e.status === 'PENDING') bucket.pendingPos++;
         }
       });
-    } else if (!branchScopedId && kpiData?.monthly?.length) {
-      // Instant hydration from KPI summary monthly buckets (already APPROVED + PENDING) until field_events arrives
+    } else if (!fieldInstallsLoading && kpiData?.monthlyStaff?.length) {
+      // Fallback only if field_events fetch failed: aggregate strictly scoped Phnom Penh Staff Directory rows
+      for (const ms of kpiData.monthlyStaff) {
+        const dir = ppDirectoryScope.resolveKpiStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+        if (!dir) continue;
+        if (branchScopedId && dir.branchId !== branchScopedId) continue;
+        const bucket = map.get(ms.month);
+        if (!bucket) continue;
+        bucket.pos += Number(ms.posInstall) || 0;
+        bucket.sb += Number(ms.sbInstall) || 0;
+      }
+    } else if (!fieldInstallsLoading && !ppDirectoryScope.hasDirectory && !branchScopedId && kpiData?.monthly?.length) {
+      // Last-resort fallback only when Staff Directory scoping is completely unavailable
       for (const m of kpiData.monthly) {
         const bucket = map.get(m.period);
         if (!bucket) continue;
         bucket.pos += Number(m.posInstall) || 0;
         bucket.sb += Number(m.sbInstall) || 0;
-      }
-    } else if (branchScopedId && kpiData?.monthlyStaff?.length) {
-      for (const ms of kpiData.monthlyStaff) {
-        const dir = ppDirectoryScope.resolveKpiStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
-        if (!dir || dir.branchId !== branchScopedId) continue;
-        const bucket = map.get(ms.month);
-        if (!bucket) continue;
-        bucket.pos += Number(ms.posInstall) || 0;
-        bucket.sb += Number(ms.sbInstall) || 0;
       }
     }
 
@@ -2409,7 +2433,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       peakMonthLabel,
       peakMonthTotal,
     };
-  }, [fieldInstalls, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
+  }, [fieldInstalls, fieldInstallsLoading, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
@@ -3527,16 +3551,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           horizon={installHorizon}
           onChangeHorizon={setInstallHorizon}
           data={monthlyInstallComparison}
+          loading={fieldInstalls === null && fieldInstallsLoading}
           onNavigateTab={onNavigateTab}
         />
 
         {/* Right 4 Cols: POS Terminal Battery Lifecycle Status */}
-        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
-          <div className="px-5 pt-4 pb-2.5 flex flex-wrap xl:flex-nowrap items-center justify-between gap-2">
+        <section
+          data-testid="pos-battery-status-card"
+          className={`lg:col-span-4 @container ${iosCardClass} overflow-hidden flex flex-col`}
+        >
+          <div className="px-4 @[300px]:px-5 pt-5 pb-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h3
                 data-battery-card-title
-                className={`text-[13.5px] font-bold tracking-[-0.015em] flex items-center gap-1.5 whitespace-nowrap ${
+                className={`text-[14px] @[300px]:text-[14.5px] font-bold tracking-[-0.015em] flex items-center gap-1.5 whitespace-nowrap ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}
               >
@@ -3550,10 +3578,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   }`}
                   aria-hidden="true"
                 />
-                <span>POS Battery Status</span>
+                <span className="truncate">POS Battery Status</span>
               </h3>
               <p
-                className={`text-[11px] truncate ${
+                className={`text-[11.5px] truncate ${
                   isLight ? 'text-slate-500' : 'text-slate-400'
                 }`}
               >
@@ -3565,7 +3593,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigateTab('inventory_pos')}
-                className={`text-[11px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
+                className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap cursor-pointer transition ${
                   isLight
                     ? 'text-[#004e75] hover:text-[#003857]'
                     : 'text-sky-400 hover:text-sky-300'
@@ -3614,21 +3642,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div
                     className={`divide-y ${
                       isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
-                    } flex-1 flex flex-col justify-between`}
+                    } flex-1 flex flex-col`}
                   >
                     {/* Section 1: Compliance headline + stacked SLA bar + 3 status tiles */}
-                    <div className="px-5 py-3 space-y-2.5">
-                      <div className="flex items-end justify-between gap-2">
-                        <div className="flex items-baseline gap-2">
+                    <div className="px-4 @[300px]:px-5 py-4 space-y-3.5">
+                      <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1.5">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
                           <span
-                            className={`text-[28px] font-bold font-figure leading-none tracking-tight ${
+                            className={`text-[28px] @[300px]:text-[30px] font-bold font-figure leading-none tracking-tight ${
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
                             {healthyPct}%
                           </span>
                           <span
-                            className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${
+                            className={`text-[10.5px] @[300px]:text-[11px] font-semibold px-2 @[300px]:px-2.5 py-0.5 rounded-full whitespace-nowrap ${
                               batterySummary.critical > 0
                                 ? isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-500/15 text-rose-300'
                                 : batterySummary.replaceSoon > 0
@@ -3639,18 +3667,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             Healthy &lt;{batteryWarningMonths}M
                           </span>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-[11px] font-figure font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                        <div className="text-right shrink-0 ml-auto">
+                          <div className={`text-[11px] @[300px]:text-[11.5px] font-figure font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                             {batterySummary.avgLifePct}% avg life
                           </div>
-                          <div className={`text-[10px] font-figure ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <div className={`text-[10px] @[300px]:text-[10.5px] font-figure whitespace-nowrap ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                             Avg {batterySummary.avgMonthsUsed}M / {batteryLifespanMonths}M
                           </div>
                         </div>
                       </div>
 
                       <div
-                        className={`h-2.5 w-full rounded-full ${
+                        className={`h-3 w-full rounded-full ${
                           isLight ? 'bg-slate-100' : 'bg-slate-800'
                         } overflow-hidden flex gap-0.5`}
                       >
@@ -3681,7 +3709,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 @[290px]:grid-cols-3 gap-1.5 @[320px]:gap-2">
                         {[
                           {
                             key: 'healthy',
@@ -3707,24 +3735,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         ].map((tile) => (
                           <div
                             key={tile.key}
-                            className={`rounded-xl px-2.5 py-2 border ${
+                            className={`rounded-xl px-2.5 @[290px]:px-2 py-2 @[290px]:py-2.5 border flex items-center justify-between @[290px]:block ${
                               isLight
                                 ? 'bg-slate-50/80 border-slate-200/60'
                                 : 'bg-slate-800/45 border-slate-700/60'
                             }`}
                           >
-                            <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-slate-500">
+                            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
                               <i
                                 className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
                                 style={{ backgroundColor: tile.dot }}
                               />
-                              <span className="truncate">{tile.label}</span>
+                              <span className="whitespace-nowrap">{tile.label}</span>
                             </div>
-                            <div className="mt-1 flex items-baseline justify-between gap-1">
-                              <span className={`text-[15px] font-bold font-figure leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            <div className="@[290px]:mt-1.5 flex items-baseline justify-end @[290px]:justify-between gap-1.5 @[290px]:gap-1">
+                              <span className={`text-[14px] @[330px]:text-[15px] font-bold font-figure tabular-nums leading-none whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
                                 {fmtNum(tile.count)}
                               </span>
-                              <span className="text-[10px] font-figure text-slate-400">
+                              <span className="text-[10px] font-figure tabular-nums text-slate-400 whitespace-nowrap">
                                 {batterySummary.total > 0 ? `${tile.share}%` : '—'}
                               </span>
                             </div>
@@ -3734,8 +3762,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
 
                     {/* Section 2: Age Cohort Breakdown */}
-                    <div className="px-5 py-3 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
+                    <div className="px-4 @[300px]:px-5 pt-4 pb-5 flex-1 flex flex-col justify-between gap-3">
+                      <div className="flex items-center justify-between text-[12px]">
                         <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                           Age Distribution
                         </span>
@@ -3743,22 +3771,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           {fmtNum(batterySummary.total)} dated
                         </span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="flex-1 flex flex-col justify-between gap-3">
                         {cohorts.map((c) => {
                           const share = batterySummary.total > 0 ? Math.round((c.count / datedTot) * 100) : 0;
                           const barW = c.count > 0 ? Math.max(3, (c.count / datedTot) * 100) : 0;
                           return (
-                            <div key={c.key} className="space-y-0.5">
-                              <div className="flex items-center justify-between text-[10.5px]">
-                                <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                            <div key={c.key} className="space-y-1">
+                              <div className="flex items-center justify-between gap-2 text-[11.5px]">
+                                <span className={`truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                                   {c.label}
                                 </span>
-                                <span className={`font-figure font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                                <span className={`font-figure font-semibold tabular-nums whitespace-nowrap shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                                   {fmtNum(c.count)}{' '}
                                   <span className="text-slate-400 font-normal">({share}%)</span>
                                 </span>
                               </div>
-                              <div className={`h-1.5 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                              <div className={`h-2 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
                                 {barW > 0 && (
                                   <div
                                     className="h-full rounded-full transition-all duration-300"
@@ -3771,83 +3799,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         })}
                       </div>
                     </div>
-
-                    {/* Section 3: Placement split */}
-                    <div className="px-5 py-2.5 grid grid-cols-2 gap-3 text-[11px]">
-                      <div>
-                        <div className="text-slate-400 text-[10px]">Deployed Live</div>
-                        <div className={`font-figure font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {fmtNum(batterySummary.deployedTotal)}{' '}
-                          <span className="text-[10px] font-normal text-slate-500">
-                            ({fmtNum(batterySummary.deployedHealthy)} OK)
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-slate-400 text-[10px]">Branch / HQ Pool</div>
-                        <div className={`font-figure font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {fmtNum(batterySummary.poolTotal)}{' '}
-                          <span className="text-[10px] font-normal text-slate-500">
-                            ({fmtNum(batterySummary.poolHealthy)} OK)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 );
               })()}
-
-              {/* Footer Summary Strip */}
-              <div
-                className={`px-5 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
-                  isLight
-                    ? 'border-slate-100 bg-[#f9fafb]/80 text-slate-500'
-                    : 'border-slate-800/70 bg-slate-900/50 text-slate-400'
-                }`}
-              >
-                <span>
-                  {batterySummary.noDate > 0 ? (
-                    <>
-                      Undated:{' '}
-                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {fmtNum(batterySummary.noDate)}
-                      </strong>
-                    </>
-                  ) : (
-                    <>
-                      Battery S/N:{' '}
-                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {fmtNum(batterySummary.withSerial)}
-                      </strong>{' '}
-                      recorded
-                    </>
-                  )}
-                </span>
-                {batterySummary.critical + batterySummary.replaceSoon > 0 ? (
-                  onNavigateTab ? (
-                    <button
-                      type="button"
-                      onClick={() => onNavigateTab('inventory_pos')}
-                      className={`font-semibold cursor-pointer transition inline-flex items-center gap-1 ${
-                        isLight
-                          ? 'text-amber-700 hover:text-amber-800'
-                          : 'text-amber-400 hover:text-amber-300'
-                      }`}
-                    >
-                      <span>Action Needed ({fmtNum(batterySummary.critical + batterySummary.replaceSoon)})</span>
-                      <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <span className={`font-semibold ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
-                      Action Needed ({fmtNum(batterySummary.critical + batterySummary.replaceSoon)})
-                    </span>
-                  )
-                ) : (
-                  <span className={`font-semibold ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-400'}`}>
-                    All Healthy
-                  </span>
-                )}
-              </div>
         </section>
       </div>
 
