@@ -500,7 +500,7 @@ const Kpi: React.FC<{ label: string; value?: number; sub: string; tone: keyof ty
       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{label}</span>
       <span className={`w-9 h-9 rounded-xl flex items-center justify-center border ${TONES[tone]}`}><Icon className="w-4.5 h-4.5" aria-hidden /></span>
     </div>
-    <div className="font-figure text-3xl font-extrabold tabular-nums text-slate-900 my-2">{value === undefined ? '—' : value.toLocaleString()}</div>
+    <div className="font-figure text-3xl font-bold tabular-nums text-slate-700 my-2">{value === undefined ? '—' : value.toLocaleString()}</div>
     <div className="pt-2 border-t border-slate-100 text-xs text-slate-500 truncate" title={sub}>{sub}</div>
   </button>
 );

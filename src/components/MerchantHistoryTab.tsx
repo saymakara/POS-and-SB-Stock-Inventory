@@ -313,7 +313,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <RotateCcw className="w-4 h-4" />
               </div>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-700' : 'text-white'}`}>
               {stats.total.toLocaleString()}
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
@@ -332,7 +332,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <Cpu className="w-4 h-4" />
               </div>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-700' : 'text-white'}`}>
               {stats.posCount.toLocaleString()}
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
@@ -353,7 +353,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <Volume2 className="w-4 h-4" />
               </div>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-700' : 'text-white'}`}>
               {stats.sbCount.toLocaleString()}
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
@@ -374,7 +374,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <Clock className="w-4 h-4" />
               </div>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-700' : 'text-white'}`}>
               {stats.monthsN > 0 ? stats.avgDuration : '—'}{' '}
               <span className="text-sm font-bold text-slate-400">Mos</span>
             </div>
@@ -394,7 +394,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <Store className="w-4 h-4" />
               </div>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`text-2xl sm:text-3xl font-bold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-700' : 'text-white'}`}>
               {stats.total > 0
                 ? `${Math.round((stats.closedCount / stats.total) * 100)}%`
                 : '0%'}

@@ -118,15 +118,22 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
       ok(cLat < 200, `Sub-Category Tab -> ${cat}: ${cLat} ms`);
     }
 
-    // Test View Mode (Cards vs Table)
+    // Ensure rows are visible even in sparse mock windows
+    const showAllRulesBtn = p.getByRole('button', { name: /Show all \d+ rules/i }).first();
+    if (await showAllRulesBtn.count() > 0 && await showAllRulesBtn.isVisible()) {
+      await showAllRulesBtn.click();
+      await sleep(150);
+    }
+
+    // Test View Mode (Graph vs Table)
     const viewModeTrack = p.locator('[aria-label="View mode"]');
     if (await viewModeTrack.isVisible()) {
       await viewModeTrack.getByRole('tab', { name: /Table/i }).click();
       await sleep(150);
       ok(await p.locator('table').count() > 0, 'Switched to Sub-Category Table mode smoothly');
-      await viewModeTrack.getByRole('tab', { name: /Cards/i }).click();
+      await viewModeTrack.getByRole('tab', { name: /Graph/i }).click();
       await sleep(150);
-      ok(await p.locator('[class*="grid"]').count() > 0, 'Switched back to Cards mode smoothly');
+      ok(await p.locator('[data-testid="subcat-horizontal-graph"]').isVisible(), 'Switched back to Graph mode smoothly');
     }
   }
 

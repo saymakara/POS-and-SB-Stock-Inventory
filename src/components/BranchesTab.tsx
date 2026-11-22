@@ -344,7 +344,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Connected Branches
             </div>
-            <div className="text-lg font-black font-figure text-zinc-900">
+            <div className="text-lg font-bold font-figure text-slate-700">
               {metrics.totalBranches}
             </div>
             <div className="text-[10px] text-slate-400">Phnom Penh Network</div>
@@ -359,7 +359,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Total Hardware Units
             </div>
-            <div className="text-lg font-black font-figure text-zinc-900">
+            <div className="text-lg font-bold font-figure text-slate-700">
               {fmtNum(metrics.totalDevices)}
             </div>
             <div className="text-[10px] text-slate-400">
@@ -376,7 +376,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Branch Reserves
             </div>
-            <div className="text-lg font-black font-figure text-zinc-900">
+            <div className="text-lg font-bold font-figure text-slate-700">
               {fmtNum(metrics.totalReserve)}
             </div>
             <div className="text-[10px] text-slate-400">
@@ -414,7 +414,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Assigned Staff
             </div>
-            <div className="text-lg font-black font-figure text-slate-800">
+            <div className="text-lg font-bold font-figure text-slate-700">
               {fmtNum(metrics.totalStaff)}
             </div>
             <div className="text-[10px] text-slate-400">Branch Field Officers</div>

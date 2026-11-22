@@ -386,7 +386,7 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | un
     <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
       <Icon className="w-4 h-4 text-[#2d6a4f]" aria-hidden />{label}
     </div>
-    <div className="mt-1.5 text-2xl font-extrabold tabular-nums text-slate-900">{value === undefined ? '—' : value.toLocaleString()}</div>
+    <div className="mt-1.5 text-2xl font-bold tabular-nums text-slate-700">{value === undefined ? '—' : value.toLocaleString()}</div>
     <div className="mt-0.5 text-xs text-slate-500 truncate" title={sub}>{sub}</div>
   </div>
 );

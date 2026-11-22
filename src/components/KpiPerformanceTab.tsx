@@ -5,7 +5,7 @@ import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
   Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck,
-  ClipboardList, LayoutGrid, List, MapPin,
+  ClipboardList, List, MapPin,
 } from 'lucide-react';
 import {
   Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, ReferenceArea,
@@ -273,12 +273,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 524;
-const KT_VB_H = 298;
-const KT_CX = 262;
-const KT_CY = 149;
-const KT_R_INNER = 96;
-const KT_R_OUTER = 110;
+const KT_VB_W = 580;
+const KT_VB_H = 336;
+const KT_CX = 290;
+const KT_CY = 168;
+const KT_R_INNER = 88;
+const KT_R_OUTER = 102;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -491,14 +491,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       const sx = KT_CX + KT_R_TICK * Math.cos(midAngle);
       const sy = KT_CY + KT_R_TICK * Math.sin(midAngle);
       const side: 'left' | 'right' = Math.cos(midAngle) >= 0 ? 'right' : 'left';
-      const targetY = KT_CY + (KT_R_OUTER + 28) * Math.sin(midAngle);
+      const targetY = KT_CY + (KT_R_OUTER + 38) * Math.sin(midAngle);
       return { spec, sx, sy, side, targetY };
     });
 
-    const CALLOUT_H = 34;
-    const MIN_GAP = 48;
-    const Y_MIN = 28;
-    const Y_MAX = KT_VB_H - 28;
+    const CALLOUT_H = 44;
+    const MIN_GAP = 62;
+    const Y_MIN = 34;
+    const Y_MAX = KT_VB_H - 34;
 
     const placeSide = (side: 'left' | 'right') => {
       const group = items
@@ -535,16 +535,16 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
         const rawEx =
           side === 'left'
-            ? Math.min(g.sx - 14, KT_CX - clearDx - 4)
-            : Math.max(g.sx + 14, KT_CX + clearDx + 4);
+            ? KT_CX - clearDx - 6
+            : KT_CX + clearDx + 6;
         const ex =
           side === 'left'
-            ? Math.max(134, Math.min(KT_CX - 34, rawEx))
-            : Math.min(KT_VB_W - 134, Math.max(KT_CX + 34, rawEx));
+            ? Math.max(182, Math.min(KT_CX - 34, rawEx))
+            : Math.min(KT_VB_W - 182, Math.max(KT_CX + 34, rawEx));
         const qpx =
           side === 'left'
-            ? Math.min(g.sx, Math.max(ex + 10, (g.sx + ex) / 2))
-            : Math.max(g.sx, Math.min(ex - 10, (g.sx + ex) / 2));
+            ? Math.min(g.sx - 6, ex + 8)
+            : Math.max(g.sx + 6, ex - 8);
         return { ...g, qpx, qpy: ey, ex, ey };
       });
     };
@@ -590,8 +590,12 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
     };
   })();
 
-  const centerPctFontSize =
-    centerReadout.pct.length >= 8 ? '23px' : centerReadout.pct.length >= 6 ? '28px' : '33px';
+  const centerPctSizeCls =
+    centerReadout.pct.length >= 8
+      ? 'text-[15px] @[360px]:text-[19px] @[430px]:text-[22px]'
+      : centerReadout.pct.length >= 6
+        ? 'text-[18px] @[360px]:text-[22px] @[430px]:text-[27px]'
+        : 'text-[20px] @[360px]:text-[25px] @[430px]:text-[30px]';
 
   return (
     <div
@@ -613,7 +617,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Enlarged Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[540px] aspect-[524/298] flex items-center justify-center"
+          className="relative w-full max-w-[590px] aspect-[580/336] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -738,7 +742,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               width: `${(((KT_R_INNER - 6) * 1.84) / KT_VB_W) * 100}%`,
             }}
           >
-            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[9.5px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[7.5px] @[360px]:text-[8.5px] @[430px]:text-[9.5px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
               <i
                 className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
                 style={{ backgroundColor: centerReadout.dot }}
@@ -746,13 +750,12 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
               {centerReadout.top}
             </span>
             <span
-              className="font-bold font-figure leading-none tracking-tight mt-1 tabular-nums text-slate-900"
-              style={{ fontSize: centerPctFontSize }}
+              className={`font-bold font-figure leading-none tracking-tight mt-1 tabular-nums text-slate-900 ${centerPctSizeCls}`}
             >
               {centerReadout.pct}
             </span>
             <span
-              className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
+              className={`text-[8.5px] @[360px]:text-[9.5px] @[430px]:text-[10.5px] font-figure font-semibold px-2 @[430px]:px-2.5 py-0.5 rounded-full mt-1.5 @[430px]:mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
             >
               {centerReadout.sub}
             </span>
@@ -794,17 +797,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-2 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-1.5 py-0.5 @[360px]:px-2 @[360px]:py-1 @[430px]:px-3 @[430px]:py-1.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isActive
                     ? 'shadow-sm'
                     : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1 @[360px]:gap-1.5 text-[7.5px] @[360px]:text-[10px] @[430px]:text-[11.5px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 @[430px]:w-2 @[430px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[9px] sm:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3 text-slate-500">
+                <span className="text-[7px] @[360px]:text-[9.5px] @[430px]:text-[11px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[360px]:pl-3 @[430px]:pl-3.5 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -854,7 +857,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [showSubCategories, setShowSubCategories] = useState(false);
   const [subCatSearch, setSubCatSearch] = useState('');
   const [subCatActiveOnly, setSubCatActiveOnly] = useState(true);
-  const [subCatViewMode, setSubCatViewMode] = useState<'cards' | 'table'>('cards');
+  const [subCatViewMode, setSubCatViewMode] = useState<'graph' | 'table'>('graph');
+  const [hoveredSubCatCode, setHoveredSubCatCode] = useState<string | null>(null);
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
   const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
@@ -3652,14 +3656,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <button
                               type="button"
                               role="tab"
-                              aria-selected={subCatViewMode === 'cards'}
-                              onClick={() => setSubCatViewMode('cards')}
+                              aria-selected={subCatViewMode === 'graph'}
+                              onClick={() => setSubCatViewMode('graph')}
                               className={`relative px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
-                                subCatViewMode === 'cards' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                                subCatViewMode === 'graph' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                               }`}
-                              title="Card Grid View"
+                              title="Sorted Horizontal Bar Graph"
                             >
-                              {subCatViewMode === 'cards' && (
+                              {subCatViewMode === 'graph' && (
                                 <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
                                   aria-hidden
@@ -3667,8 +3671,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   className={CAPSULE_PILL_CLS}
                                 />
                               )}
-                              <LayoutGrid className="w-3.5 h-3.5 relative z-10 text-sky-600" />
-                              <span className="hidden sm:inline relative z-10">Cards</span>
+                              <BarChart3 className="w-3.5 h-3.5 relative z-10 text-sky-600" />
+                              <span className="hidden sm:inline relative z-10">Graph</span>
                             </button>
                             <button
                               type="button"
@@ -3816,81 +3820,224 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           )}
                         </div>
                       </div>
-                    ) : subCatViewMode === 'cards' ? (
-                      <div className="p-3.5 sm:p-4 bg-slate-50/50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                          {displayedSubCategories.map((sc, i) => {
-                            const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
-                            const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
-                            const catStyle = CAT_COLORS[sc.category];
-                            const Icon = catStyle.Icon;
-                            const isZero = sc.points === 0;
+                    ) : subCatViewMode === 'graph' ? (
+                      (() => {
+                        const maxPoints = displayedSubCategories.reduce((m, item) => Math.max(m, item.points), 0);
+                        const activeItem =
+                          (hoveredSubCatCode
+                            ? displayedSubCategories.find((item) => item.code === hoveredSubCatCode)
+                            : null) ?? displayedSubCategories[0];
+                        const activeRank = activeItem
+                          ? displayedSubCategories.findIndex((item) => item.code === activeItem.code) + 1
+                          : 0;
+                        const activePct =
+                          activeItem && totals.totalPoints > 0
+                            ? (activeItem.points / totals.totalPoints) * 100
+                            : 0;
+                        const activePctDisplay =
+                          activePct >= 1 ? `${Math.round(activePct)}%` : activePct > 0 ? `${activePct.toFixed(1)}%` : '0%';
+                        const fmtAxisTick = (val: number) =>
+                          val <= 0
+                            ? '0'
+                            : val >= 1000
+                            ? `${(val / 1000).toFixed(val >= 10000 || val % 1000 === 0 ? 0 : 1)}k`
+                            : fmtPts(val);
+                        const scaleTicks = maxPoints > 0 ? [0, 0.25, 0.5, 0.75, 1] : [0];
 
-                            const rankBadge =
-                              i === 0 && !isZero
-                                ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
-                                : i === 1 && !isZero
-                                ? 'bg-slate-200 text-slate-800 border-slate-300 font-bold'
-                                : i === 2 && !isZero
-                                ? 'bg-amber-50 text-amber-900 border-amber-200 font-bold'
-                                : 'bg-slate-100 text-slate-500 border-slate-200';
-
-                            return (
-                              <div
-                                key={sc.code}
-                                className={`group rounded-xl border p-3.5 transition-all duration-150 flex flex-col justify-between ${
-                                  isZero
-                                    ? 'bg-white/80 border-slate-200/60 opacity-60 hover:opacity-100 hover:shadow-xs'
-                                    : 'bg-white border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300'
-                                }`}
-                              >
-                                <div>
-                                  {/* Top Row: Rank + Category Badge + Points */}
-                                  <div className="flex items-center justify-between gap-2 mb-2">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10.5px] border ${rankBadge} shrink-0`}>
-                                        {i + 1}
+                        return (
+                          <div className="p-3.5 sm:p-5 bg-slate-50/50">
+                            <div
+                              data-testid="subcat-horizontal-graph"
+                              className="rounded-xl border border-slate-200/85 bg-white px-3.5 py-4 sm:px-5 sm:py-5 shadow-2xs"
+                            >
+                              {/* Legend + Live Task Inspector */}
+                              <div className="mb-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+                                  <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+                                    <span className="w-3 h-2.5 rounded-r-[3px] bg-[#0284c7] inline-block" />
+                                    #1 Top Contributor
+                                  </span>
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <span className="w-3 h-2.5 rounded-r-[3px] bg-[#94a3b8] inline-block" />
+                                    Sorted High → Low
+                                  </span>
+                                </div>
+                                {activeItem && (() => {
+                                  const activeStyle = CAT_COLORS[activeItem.category];
+                                  const ActiveIcon = activeStyle.Icon;
+                                  return (
+                                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1 text-slate-600 tabular-nums">
+                                      <span className="font-bold text-slate-800">#{activeRank}</span>
+                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded border text-[10px] font-semibold ${activeStyle.badge}`}>
+                                        <ActiveIcon className="w-2.5 h-2.5 shrink-0" />
+                                        {activeItem.category}
                                       </span>
-                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${catStyle.badge} truncate`}>
-                                        <Icon className="w-3 h-3 shrink-0" />
-                                        <span className="truncate">{sc.category}</span>
+                                      <span className="font-semibold text-slate-800 max-w-[180px] sm:max-w-[240px] truncate">
+                                        {activeItem.label}
                                       </span>
+                                      <span className="text-slate-400">·</span>
+                                      <span>
+                                        <span className="font-semibold text-slate-700">{fmtInt(activeItem.count)}</span> {activeItem.unit} × {activeItem.unitPts} pt
+                                      </span>
+                                      <span className="text-slate-400">=</span>
+                                      <span className="font-bold text-slate-900">
+                                        {fmtPts(activeItem.points)} pts
+                                      </span>
+                                      <span className="text-slate-400">({activePctDisplay})</span>
                                     </div>
-                                    <div className="text-right shrink-0 tabular-nums">
-                                      <span className={`font-figure font-bold text-sm ${isZero ? 'text-slate-400' : 'text-slate-900'}`}>
-                                        {fmtPts(sc.points)} <span className="text-[11px] font-normal text-slate-500">pts</span>
-                                      </span>
-                                    </div>
-                                  </div>
+                                  );
+                                })()}
+                              </div>
 
-                                  {/* Task Label */}
-                                  <h4 className="text-[13px] font-semibold text-slate-900 leading-snug group-hover:text-sky-800 transition-colors line-clamp-1" title={sc.label}>
-                                    {sc.label}
-                                  </h4>
-
-                                  {/* Metrics & Share */}
-                                  <div className="mt-1.5 flex items-center justify-between text-[11.5px] text-slate-500">
-                                    <span className="truncate">
-                                      <span className="font-semibold text-slate-700">{fmtInt(sc.count)}</span> {sc.unit} × {sc.unitPts} pt
-                                    </span>
-                                    <span className="shrink-0 font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded text-[10.5px] tabular-nums">
-                                      {pctDisplay} share
-                                    </span>
+                              {/* Sorted Horizontal Bars + Crisp Vertical Y-Axis Spine */}
+                              <div className="relative flex flex-col">
+                                {/* Vertical Y-axis spine + dashed X-axis gridlines aligned to bar scale */}
+                                <div className="pointer-events-none absolute inset-0 flex">
+                                  <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0" />
+                                  <div className="flex-1 min-w-0 relative mr-[76px] sm:mr-[136px]">
+                                    <div className="absolute inset-y-0 left-0 border-l-2 border-slate-400/85 z-10" />
+                                    {scaleTicks.slice(1).map((tick) => (
+                                      <div
+                                        key={tick}
+                                        className={`absolute inset-y-0 border-l border-dashed border-slate-200/85 ${
+                                          tick > 0 && tick < 1 ? 'hidden sm:block' : ''
+                                        }`}
+                                        style={{ left: `${tick * 100}%` }}
+                                      />
+                                    ))}
                                   </div>
                                 </div>
 
-                                {/* Mini Progress Bar */}
-                                <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-300 ${catStyle.bar}`}
-                                    style={{ width: `${Math.min(100, Math.max(isZero ? 0 : 3, pct))}%` }}
-                                  />
+                                <div className="relative z-10 py-1.5 space-y-1.5" role="list" aria-label="Sorted sub-category tasks bar graph">
+                                  {displayedSubCategories.map((sc, i) => {
+                                    const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
+                                    const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
+                                    const barPct = maxPoints > 0 ? (sc.points / maxPoints) * 100 : 0;
+                                    const catStyle = CAT_COLORS[sc.category];
+                                    const isZero = sc.points === 0;
+                                    const isTop = i === 0 && !isZero;
+                                    const isHovered = hoveredSubCatCode === sc.code;
+                                    const isHighlighted = !isZero && (isHovered || (isTop && !hoveredSubCatCode));
+
+                                    return (
+                                      <div
+                                        key={sc.code}
+                                        tabIndex={0}
+                                        role="listitem"
+                                        aria-label={`#${i + 1} ${sc.label}, ${sc.category}, ${fmtInt(sc.count)} ${sc.unit} at ${sc.unitPts} points each, ${fmtPts(sc.points)} points, ${pctDisplay} share`}
+                                        title={`${sc.label} (${sc.category}) — ${fmtInt(sc.count)} ${sc.unit} × ${sc.unitPts} pt = ${fmtPts(sc.points)} pts (${pctDisplay} share)`}
+                                        onMouseEnter={() => setHoveredSubCatCode(sc.code)}
+                                        onMouseLeave={() =>
+                                          setHoveredSubCatCode((cur) => (cur === sc.code ? null : cur))
+                                        }
+                                        onFocus={() => setHoveredSubCatCode(sc.code)}
+                                        onBlur={() =>
+                                          setHoveredSubCatCode((cur) => (cur === sc.code ? null : cur))
+                                        }
+                                        className="group flex items-center rounded-md py-0.5 transition-colors hover:bg-sky-50/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                                      >
+                                        {/* Y-Axis Label (Right-aligned up to the vertical spine) */}
+                                        <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0 pr-2.5 sm:pr-3.5 flex items-center justify-end gap-1.5 min-w-0">
+                                          <span
+                                            className={`hidden sm:inline-block text-[10px] font-mono tabular-nums shrink-0 ${
+                                              isTop
+                                                ? 'font-bold text-sky-600'
+                                                : isZero
+                                                ? 'text-slate-300'
+                                                : 'text-slate-400'
+                                            }`}
+                                          >
+                                            #{i + 1}
+                                          </span>
+                                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${catStyle.dot} ${isZero ? 'opacity-40' : ''}`} />
+                                          <span
+                                            className={`min-w-0 text-[11.5px] sm:text-[12.5px] truncate transition-colors ${
+                                              isZero
+                                                ? 'text-slate-400 font-normal'
+                                                : isHighlighted
+                                                ? 'font-semibold text-slate-900'
+                                                : 'font-medium text-slate-600 group-hover:text-slate-900'
+                                            }`}
+                                          >
+                                            {sc.label}
+                                          </span>
+                                        </div>
+
+                                        {/* Plot Track + Flush Horizontal Bar + Inline Readout */}
+                                        <div className="flex-1 min-w-0 pr-[76px] sm:pr-[136px]">
+                                          <div className="relative h-6 sm:h-[26px] flex items-center">
+                                            <div
+                                              className={`h-full rounded-r-[4px] transition-all duration-300 shrink-0 ${
+                                                isZero
+                                                  ? 'bg-slate-200/90'
+                                                  : isHovered
+                                                  ? 'bg-[#0284c7] shadow-[0_1px_4px_rgba(2,132,199,0.28)]'
+                                                  : isTop
+                                                  ? hoveredSubCatCode
+                                                    ? 'bg-[#0284c7]/70'
+                                                    : 'bg-[#0284c7]'
+                                                  : 'bg-[#94a3b8] group-hover:bg-[#0284c7]'
+                                              }`}
+                                              style={{
+                                                width: isZero ? '3px' : `${Math.max(1.2, barPct)}%`,
+                                              }}
+                                            />
+                                            <div className="ml-2 sm:ml-2.5 shrink-0 whitespace-nowrap tabular-nums text-[11px] sm:text-[11.5px] leading-none flex items-center gap-1.5">
+                                              <span
+                                                className={
+                                                  isZero
+                                                    ? 'text-slate-400 font-normal'
+                                                    : isHighlighted
+                                                    ? 'font-bold text-slate-900'
+                                                    : 'font-semibold text-slate-700'
+                                                }
+                                              >
+                                                {fmtPts(sc.points)}
+                                                <span className="hidden sm:inline font-normal text-slate-400"> pts</span>
+                                              </span>
+                                              {!isZero && (
+                                                <span className="text-[10px] font-medium text-slate-400">
+                                                  {pctDisplay}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+
+                              {/* X-Axis Points Scale */}
+                              <div className="mt-1 flex items-start">
+                                <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0 pr-2.5 sm:pr-3.5 pt-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                  Points
+                                </div>
+                                <div className="flex-1 min-w-0 pr-[76px] sm:pr-[136px]">
+                                  <div className="relative h-5 border-t border-slate-200/80">
+                                    {scaleTicks.map((tick) => (
+                                      <span
+                                        key={tick}
+                                        className={`absolute top-1.5 text-[10px] font-medium text-slate-400 tabular-nums whitespace-nowrap ${
+                                          tick === 0
+                                            ? 'left-0'
+                                            : tick === 1
+                                            ? 'right-0'
+                                            : 'hidden sm:inline -translate-x-1/2'
+                                        }`}
+                                        style={tick > 0 && tick < 1 ? { left: `${tick * 100}%` } : undefined}
+                                      >
+                                        {fmtAxisTick(maxPoints * tick)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div className="overflow-x-auto bg-white">
                         <table className="w-full text-left text-xs text-slate-700">
@@ -5841,7 +5988,7 @@ const BigKpiCard: React.FC<{
       </div>
 
       <div className="my-2.5">
-        <div className="font-figure text-[28px] font-bold tracking-tight tabular-nums leading-tight text-slate-900 truncate">
+        <div className="font-figure text-[28px] font-semibold tracking-tight tabular-nums leading-tight text-slate-700 truncate">
           {value === undefined ? '—' : value}
         </div>
       </div>

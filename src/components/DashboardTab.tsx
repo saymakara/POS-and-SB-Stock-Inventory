@@ -2758,7 +2758,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       ? 'cursor-pointer group transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] hover:bg-white hover:border-[#155484]/35 hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.18)] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#155484]/40'
       : 'cursor-pointer group transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] hover:border-sky-400/40 hover:bg-[#232938] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50'
     : '';
-  const kpiHeadingClass = isLight ? 'text-[#0f172a]' : 'text-white';
+  const kpiHeadingClass = isLight ? 'text-slate-700' : 'text-white';
   const kpiSubtextClass = isLight ? 'text-slate-500' : 'text-slate-400';
   const kpiFooterBorderClass = isLight ? 'border-slate-200/50' : 'border-slate-800/80';
 

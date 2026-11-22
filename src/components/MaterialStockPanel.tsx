@@ -283,7 +283,7 @@ const MaterialSummaryCardsStrip: React.FC<{
           </div>
 
           <div className="mt-3 flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums leading-none">
+            <span className="text-2xl font-bold font-mono text-slate-700 tabular-nums leading-none">
               {hardwareSummary.total.toLocaleString()}
             </span>
             <span className="text-[11px] text-slate-500 font-normal">Units</span>
@@ -339,7 +339,7 @@ const MaterialSummaryCardsStrip: React.FC<{
             </div>
 
             <div className="mt-3 flex items-baseline justify-between gap-2">
-              <span className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums leading-none">
+              <span className="text-2xl font-bold font-mono text-slate-700 tabular-nums leading-none">
                 {summary.total.toLocaleString()}
               </span>
               <span className="text-[11px] text-slate-500 font-normal">Controlled</span>

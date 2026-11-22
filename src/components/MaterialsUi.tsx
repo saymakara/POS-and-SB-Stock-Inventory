@@ -90,7 +90,7 @@ export const Kpi: React.FC<{ icon: React.ElementType; label: string; value: numb
     <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
       <Icon className="w-4 h-4 text-[#003857]" aria-hidden />{label}
     </div>
-    <div className={`mt-1.5 text-2xl font-extrabold tabular-nums ${tone === 'bad' ? 'text-rose-700' : 'text-slate-900'}`}>{value === undefined ? '—' : typeof value === 'number' ? value.toLocaleString() : value}</div>
+    <div className={`mt-1.5 text-2xl font-bold tabular-nums ${tone === 'bad' ? 'text-rose-700' : 'text-slate-700'}`}>{value === undefined ? '—' : typeof value === 'number' ? value.toLocaleString() : value}</div>
     {sub && <div className="mt-0.5 text-xs text-slate-500 truncate" title={sub}>{sub}</div>}
   </div>
 );

@@ -1325,7 +1325,7 @@ return (
                 <span>Total Waiting Push</span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
               <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
                 {alreadyPushedDevices.length > 0
                   ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
@@ -1354,7 +1354,7 @@ return (
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>
                 {fmtNum(lockType === 'POS Terminal' ? posCount : sbCount)}
               </div>
               <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
@@ -1377,7 +1377,7 @@ return (
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{teamGroups.length}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{teamGroups.length}</div>
               <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assigned branch teams</div>
             </button>
           </div>
@@ -1497,7 +1497,7 @@ return (
                 <span>Total Waiting Push</span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
               <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
                 {alreadyPushedDevices.length > 0
                   ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
@@ -1527,7 +1527,7 @@ return (
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(posCount)}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{fmtNum(posCount)}</div>
               <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
             </button>}
 
@@ -1552,7 +1552,7 @@ return (
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(sbCount)}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{fmtNum(sbCount)}</div>
               <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
             </button>}
 
@@ -1573,7 +1573,7 @@ return (
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
               </div>
-              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{teamGroups.length}</div>
+              <div className={`text-2xl font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-white'}`}>{teamGroups.length}</div>
               <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assigned branch teams</div>
             </button>
           </div>
