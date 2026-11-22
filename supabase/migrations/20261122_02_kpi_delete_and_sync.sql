@@ -56,7 +56,7 @@ begin
                                    deleted_at = excluded.deleted_at, deleted_by = excluded.deleted_by, rule = excluded.rule;
 
   if to_regclass('app.kpi_summary_cache') is not null then
-    delete from app.kpi_summary_cache;
+    delete from app.kpi_summary_cache where true;
   end if;
 
   insert into public.audit_logs (title, detail, branch_id, action, target, actor_id, actor_emp, actor_name, role, status)
@@ -174,7 +174,7 @@ begin
     get diagnostics v_added = row_count;
     delete from app.kpi_rule_dismissed d where d.code in (select e->>'code' from jsonb_array_elements(v_new) e);
     if to_regclass('app.kpi_summary_cache') is not null then
-      delete from app.kpi_summary_cache;
+      delete from app.kpi_summary_cache where true;
     end if;
     insert into public.audit_logs (title, detail, branch_id, action, target, actor_id, actor_emp, actor_name, role, status)
     values ('KPI Tasks Synced from Merchant Visit',

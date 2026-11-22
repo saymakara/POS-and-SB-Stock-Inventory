@@ -2018,7 +2018,7 @@ export interface FieldInstallSummaryRow {
 }
 
 const FIELD_INSTALL_SUMMARY_COLUMNS =
-  'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,mid,outlet_name,terminal_name,recorded_at,received_at';
+  'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,mid,outlet_name,terminal_name,recorded_at,received_at,updated_at';
 
 export interface MonthlyInstallSessionBucket {
   key: string;
@@ -2037,6 +2037,8 @@ let fieldInstallsCoveredDays = 0;
 let fieldInstallsInflight: Promise<FieldInstallSummaryRow[] | null> | null = null;
 let fieldInstallsInflightDays = 0;
 let fieldInstallsOwner: string | null | undefined;
+/** (23 Nov 2026, speed) the newest updated_at seen: a refresh asks only for install records changed since then */
+let fieldInstallsDeltaFrom: string | null = null;
 
 function clearMonthlyInstallSessionStorage(): void {
   try {
@@ -2058,6 +2060,7 @@ if (isSupabaseConfigured) {
         fieldInstallsCoveredDays = 0;
         fieldInstallsInflight = null;
         fieldInstallsInflightDays = 0;
+        fieldInstallsDeltaFrom = null;
         clearMonthlyInstallSessionStorage();
       }
       fieldInstallsOwner = uid;
@@ -2124,6 +2127,7 @@ export function setCachedMonthlyInstallBuckets(
 }
 
 export function clearMonthlyInstallFieldEventsCache(): void {
+  fieldInstallsDeltaFrom = null;
   fieldInstallsCache = null;
   fieldInstallsCacheAt = 0;
   fieldInstallsCoveredDays = 0;
@@ -2132,7 +2136,8 @@ export function clearMonthlyInstallFieldEventsCache(): void {
 
 async function fetchFieldInstallStatusStream(
   status: 'APPROVED' | 'PENDING',
-  sinceIso: string
+  sinceIso: string,
+  beforeIso?: string
 ): Promise<Array<Record<string, any>>> {
   const PAGE = 1000;
   const WAVE_PAGES = 3;
@@ -2140,12 +2145,14 @@ async function fetchFieldInstallStatusStream(
   const seenIds = new Set<number>();
 
   const fetchPage = async (offset: number): Promise<Array<Record<string, any>>> => {
-    const { data, error } = await supabase
+    let q = supabase
       .from('field_events')
       .select(FIELD_INSTALL_SUMMARY_COLUMNS)
       .eq('status', status)
       .eq('kind', 'INSTALL')
-      .gte('received_at', sinceIso)
+      .gte('received_at', sinceIso);
+    if (beforeIso) q = q.lt('received_at', beforeIso);
+    const { data, error } = await q
       .order('received_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(PAGE)
@@ -2192,6 +2199,66 @@ async function fetchFieldInstallStatusStream(
   return collected;
 }
 
+/** One counted install row (APPROVED or PENDING INSTALL), or null when the record no longer counts. */
+function mapFieldInstallRow(r: Record<string, any>): FieldInstallSummaryRow | null {
+  if (r.kind !== 'INSTALL') return null;
+  if (r.status !== 'APPROVED' && r.status !== 'PENDING') return null;
+  return {
+    id: Number(r.id),
+    sourceRecordId: String(r.source_record_id || ''),
+    unitNo: Number(r.unit_no) || 1,
+    revision: Number(r.revision) || 1,
+    deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
+    status: r.status,
+    branchId: r.branch_id ?? null,
+    branchText: String(r.branch_text || ''),
+    staffId: String(r.staff_id || ''),
+    staffName: String(r.staff_name || ''),
+    mid: String(r.mid || ''),
+    outletName: String(r.outlet_name || ''),
+    terminalName: String(r.terminal_name || ''),
+    recordedAt: String(r.recorded_at || ''),
+    receivedAt: String(r.received_at || ''),
+  };
+}
+
+/** Remembers the newest server updated_at (minus 2 minutes of overlap: two saves in the same moment are never missed). */
+function noteFieldInstallsSeen(rows: Array<Record<string, any>>): void {
+  let max = fieldInstallsDeltaFrom ? Date.parse(fieldInstallsDeltaFrom) + 120_000 : 0;
+  for (const r of rows) { const t = Date.parse(String(r.updated_at || '')); if (t > max) max = t; }
+  if (max) fieldInstallsDeltaFrom = new Date(max - 120_000).toISOString();
+}
+
+/** INSTALL records saved since `sinceIso` (any status: one approved, rejected or superseded since is in it too). */
+async function fetchFieldInstallChanges(sinceIso: string): Promise<Array<Record<string, any>>> {
+  const out: Array<Record<string, any>> = [];
+  for (let offset = 0; offset < 50000; offset += 1000) {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select(FIELD_INSTALL_SUMMARY_COLUMNS)
+      .eq('kind', 'INSTALL')
+      .gte('updated_at', sinceIso)
+      .order('updated_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + 999);
+    if (error) throw error;
+    out.push(...((data || []) as Array<Record<string, any>>));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+/** How many installs count (APPROVED or PENDING, received since `sinceIso`) - the check that the merged copy is complete. */
+async function countFieldInstalls(sinceIso: string): Promise<number | null> {
+  const { count, error } = await supabase
+    .from('field_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('kind', 'INSTALL')
+    .in('status', ['APPROVED', 'PENDING'])
+    .gte('received_at', sinceIso);
+  return error ? null : count ?? null;
+}
+
 /**
  * Fetches Merchant Visit app INSTALL submissions (`APPROVED` and `PENDING` — unapproved updates
  * still count) using parallel index-aligned status streams and batched parallel pagination.
@@ -2219,38 +2286,48 @@ export async function fetchMonthlyInstallFieldEvents(
   task = (async () => {
     try {
       const sinceIso = new Date(Date.now() - targetDays * 86400000).toISOString();
-      const [approvedRows, pendingRows] = await Promise.all([
-        fetchFieldInstallStatusStream('APPROVED', sinceIso),
-        fetchFieldInstallStatusStream('PENDING', sinceIso),
-      ]);
-
-      const out: FieldInstallSummaryRow[] = [];
-      const seenIds = new Set<number>();
-      for (const r of [...pendingRows, ...approvedRows]) {
-        const id = Number(r.id);
-        if (seenIds.has(id)) continue;
-        seenIds.add(id);
-        if (r.kind !== 'INSTALL') continue;
-        if (r.status !== 'APPROVED' && r.status !== 'PENDING') continue;
-        out.push({
-          id,
-          sourceRecordId: String(r.source_record_id || ''),
-          unitNo: Number(r.unit_no) || 1,
-          revision: Number(r.revision) || 1,
-          deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
-          status: r.status,
-          branchId: r.branch_id ?? null,
-          branchText: String(r.branch_text || ''),
-          staffId: String(r.staff_id || ''),
-          staffName: String(r.staff_name || ''),
-          mid: String(r.mid || ''),
-          outletName: String(r.outlet_name || ''),
-          terminalName: String(r.terminal_name || ''),
-          recordedAt: String(r.recorded_at || ''),
-          receivedAt: String(r.received_at || ''),
-        });
+      const cached = fieldInstallsCache;
+      const coveredDays = fieldInstallsCoveredDays;
+      let rows: Map<number, FieldInstallSummaryRow> | null = null;
+      if (cached && fieldInstallsDeltaFrom) {
+        // (23 Nov 2026, speed) the copy we hold is reused: only the install records changed since (and, when the window
+        // grows from 220 to 430 days, only the older days still missing) are asked for - not the whole history again
+        rows = new Map(cached.map((r) => [r.id, r]));
+        const parts: Array<Promise<Array<Record<string, any>>>> = [fetchFieldInstallChanges(fieldInstallsDeltaFrom)];
+        if (coveredDays < targetDays) {
+          const oldSince = new Date(Date.now() - coveredDays * 86400000).toISOString();
+          parts.push(fetchFieldInstallStatusStream('APPROVED', sinceIso, oldSince), fetchFieldInstallStatusStream('PENDING', sinceIso, oldSince));
+        }
+        const [changed, ...older] = await Promise.all(parts);
+        for (const r of [...older.flat(), ...changed]) {
+          const id = Number(r.id);
+          rows.delete(id);
+          const m = mapFieldInstallRow(r);
+          if (m) rows.set(id, m);
+        }
+        for (const [id, r] of rows) if (r.receivedAt && r.receivedAt < sinceIso) rows.delete(id);
+        // a record deleted on the server cannot show up as "changed": the server's count decides whether to read all again
+        const expected = await countFieldInstalls(sinceIso);
+        if (expected === null || expected !== rows.size) rows = null;
+        noteFieldInstallsSeen([...changed, ...older.flat()]);
+      }
+      if (!rows) {
+        const [approvedRows, pendingRows] = await Promise.all([
+          fetchFieldInstallStatusStream('APPROVED', sinceIso),
+          fetchFieldInstallStatusStream('PENDING', sinceIso),
+        ]);
+        rows = new Map();
+        for (const r of [...pendingRows, ...approvedRows]) {
+          const id = Number(r.id);
+          if (rows.has(id)) continue;
+          const m = mapFieldInstallRow(r);
+          if (m) rows.set(id, m);
+        }
+        fieldInstallsDeltaFrom = null;
+        noteFieldInstallsSeen([...pendingRows, ...approvedRows]);
       }
 
+      const out = [...rows.values()];
       fieldInstallsCache = out;
       fieldInstallsCacheAt = Date.now();
       fieldInstallsCoveredDays = targetDays;

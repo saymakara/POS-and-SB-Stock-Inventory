@@ -42,7 +42,7 @@ state.events = [];
 for (let i = 0; i < 3000; i++) state.events.push({ id: 1000 + i, source_record_id: 'POS-2026-' + i, unit_no: 1, revision: 1, kind: ['INSTALL','REPLACE','BATTERY','SB_MAINT'][i % 4], device_type: i % 3 === 0 ? 'Sound Box' : 'POS Terminal',
   serial: 'WP' + String(100000 + (i * 7) % N_DEV), old_serial: i % 4 === 1 ? 'WP' + String(100000 + (i * 11) % N_DEV) : null, mid: String(200000000000000 + i), tid: String(10000000 + i), outlet_name: 'Outlet ' + i, terminal_name: 'Till ' + (i % 3),
   branch_text: 'Branch ' + BR[1 + (i % 32)], branch_id: i % 50 === 0 ? '401' : BR[1 + (i % 32)], staff_id: 'S' + i, staff_name: 'Staff ' + (i % 130), recorded_at: '2026-10-20T09:00:00+07:00', payload: {},
-  issues: i % 9 === 0 ? [{ code: 'W', level: 'warn', text: 'Check this' }] : [], status: i < 1000 ? 'PENDING' : ['APPROVED','REJECTED','SUPERSEDED'][i % 3], received_at: new Date(Date.UTC(2026, 9, 1) + i * 60000).toISOString() });
+  issues: i % 9 === 0 ? [{ code: 'W', level: 'warn', text: 'Check this' }] : [], status: i < 1000 ? 'PENDING' : ['APPROVED','REJECTED','SUPERSEDED'][i % 3], received_at: new Date(Date.UTC(2026, 9, 1) + i * 60000).toISOString(), updated_at: new Date(Date.UTC(2026, 9, 1) + i * 60000).toISOString() });
 const STAFF = [];
 for (let i = 0; i < 130; i++) STAFF.push({ user_id: 'u-' + i, emp_id: String(20000 + i), name: 'STAFF Number' + i, role: i < 3 ? 'ADMIN' : 'BRANCH', branch_id: BR[i % 33], position: 'Officer', contact: null, active: true, must_change_password: i % 2 === 0, updated_at: '2026-10-22T00:00:00Z' });
 
@@ -114,10 +114,19 @@ async function api(route) {
   if (path === '/rest/v1/requisitions') return pg(route, req, url, me && me.profile.role === 'BRANCH' ? state.reqs.filter(r => r.branch_id === me.profile.branch_id) : state.reqs, 'req_id');
   if (path === '/rest/v1/historical_merchants') return json(200, []);
   if (path === '/rest/v1/field_events') {
-    const st = url.searchParams.get('status') || '';
-    const list = st === 'eq.PENDING' ? state.events.filter(e => e.status === 'PENDING') : st === 'neq.PENDING' ? state.events.filter(e => e.status !== 'PENDING') : state.events;
+    // (23 Nov 2026) PostgREST-like filters: eq / neq / in / gte / lt on any column, offset and limit
+    let list = state.events;
+    url.searchParams.forEach((v, k) => {
+      if (['select', 'order', 'offset', 'limit'].includes(k)) return;
+      if (v.startsWith('eq.')) list = list.filter((e) => String(e[k]) === v.slice(3));
+      else if (v.startsWith('neq.')) list = list.filter((e) => String(e[k]) !== v.slice(4));
+      else if (v.startsWith('in.(')) { const set = v.slice(4, -1).split(','); list = list.filter((e) => set.includes(String(e[k]))); }
+      else if (v.startsWith('gte.')) list = list.filter((e) => String(e[k] || '') >= v.slice(4));
+      else if (v.startsWith('lt.')) list = list.filter((e) => String(e[k] || '') < v.slice(3));
+    });
     if (method === 'HEAD') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', 'content-range': '0-' + Math.max(0, list.length - 1) + '/' + list.length } });
-    return json(200, list);
+    const off = Number(url.searchParams.get('offset') || 0), lim = Number(url.searchParams.get('limit') || 100000);
+    return json(200, list.slice(off, off + lim));
   }
   if (path === '/rest/v1/rpc/admin_dispatch_requisition') {
     state.dispatch = body; const r = state.reqs.find(x => x.req_id === body.p_req_id);
