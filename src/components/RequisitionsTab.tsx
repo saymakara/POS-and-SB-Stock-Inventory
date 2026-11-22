@@ -113,7 +113,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
   );
   // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
   const pg = usePager(sortedReqs.length, [reqSort]);
-  const shownReqs = useMemo(() => sortedReqs.slice(pg.start, pg.end), [sortedReqs, pg.start, pg.end]);
+  const shownReqs = useMemo(() => sortedReqs.slice(pg.start, pg.drawEnd), [sortedReqs, pg.start, pg.drawEnd]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -475,7 +475,8 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
   const navyTitleClass = isLight ? 'text-zinc-900' : 'text-zinc-100';
 
     const handleExportCsv = () => {
-    if (shownReqs.length === 0) return;
+    const pageReqs = sortedReqs.slice(pg.start, pg.end);   // the whole page, whatever has been drawn so far
+    if (pageReqs.length === 0) return;
     const headers = [
       'No.',
       'Request Date',
@@ -486,7 +487,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
       'Reason',
       'Status',
     ];
-    const rows = shownReqs.map((r, idx) => {
+    const rows = pageReqs.map((r, idx) => {
       const bName = formatBranchName(r.branchName || `Branch ${r.branchId}`);
       const staffBranch = `${r.staff || '-'} (Code ${r.branchId} · ${bName})`;
       const reqType = r.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request';

@@ -185,7 +185,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
 
   // Paging: back to page 1 whenever the filters, search or sort change.
   const pg = usePager(filteredRecords.length, [deferredQuery, branchFilter, typeFilter, reasonFilter, histSort]);
-  const pagedRecords = useMemo(() => filteredRecords.slice(pg.start, pg.end), [filteredRecords, pg.start, pg.end]);
+  const pagedRecords = useMemo(() => filteredRecords.slice(pg.start, pg.drawEnd), [filteredRecords, pg.start, pg.drawEnd]);
 
   // Analytics KPIs (lifespan averages only records that have a known service length)
   const stats = useMemo(() => {

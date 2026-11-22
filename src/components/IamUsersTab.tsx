@@ -298,7 +298,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/70 text-xs bg-white">
-              {filteredUsers.slice(pg.start, pg.end).map((u, rowIdx) => {
+              {filteredUsers.slice(pg.start, pg.drawEnd).map((u, rowIdx) => {
                 const isSelected = selectedIds.includes(u.uid);
                 const resolvedBranchName =
                   branchNameByCode.get(u.branchId) ||

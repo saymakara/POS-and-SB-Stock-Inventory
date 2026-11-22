@@ -288,7 +288,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   });
 
   const pg = usePager(enrichedBranches.length, [searchQuery, statusFilter, brSort]);
-  const pagedBranches = useMemo(() => enrichedBranches.slice(pg.start, pg.end), [enrichedBranches, pg.start, pg.end]);
+  const pagedBranches = useMemo(() => enrichedBranches.slice(pg.start, pg.drawEnd), [enrichedBranches, pg.start, pg.drawEnd]);
 
   const inspectedBranch = useMemo(
     () => enrichedBranches.find((b) => b.code === inspectedBranchCode) || null,

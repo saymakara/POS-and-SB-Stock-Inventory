@@ -648,7 +648,7 @@ export const StaffAccountsTab: React.FC<{
               </tr>
             </thead>
             <tbody>
-              {shown.slice(pg.start, pg.end).map((a, rowIdx) => (
+              {shown.slice(pg.start, pg.drawEnd).map((a, rowIdx) => (
                 <StaffRow
                   key={a.userId}
                   a={a}
