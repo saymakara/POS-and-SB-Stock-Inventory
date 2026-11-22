@@ -1048,7 +1048,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {deviceType === 'Sound Box'
                 ? 'Sound Box records from the Merchant Visit app: installations, replacements, maintenance and returns. Approve to update the stock, or reject with a reason.'
-                : 'POS Terminal records from the Merchant Visit app: installations, replacements, battery changes, maintenance, returns and offline counts. Approve to update the stock, or reject with a reason. Offline counts need no approval: they are recorded automatically and move no stock.'}
+                : 'Merchant Visit app records. Approve to update stock, or reject. Offline counts need no approval.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">

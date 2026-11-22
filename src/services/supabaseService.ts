@@ -1974,6 +1974,124 @@ export async function countPendingFieldEventsByType(
   }
 }
 
+export interface FieldInstallSummaryRow {
+  id: number;
+  sourceRecordId: string;
+  unitNo: number;
+  revision: number;
+  deviceType: 'POS Terminal' | 'Sound Box';
+  status: FieldEventStatus;
+  branchId: string | null;
+  branchText: string;
+  staffId: string;
+  staffName: string;
+  recordedAt: string;
+  receivedAt: string;
+}
+
+const FIELD_INSTALL_SUMMARY_COLUMNS =
+  'id,source_record_id,unit_no,revision,kind,device_type,status,branch_id,branch_text,staff_id,staff_name,recorded_at,received_at';
+
+let fieldInstallsCache: FieldInstallSummaryRow[] | null = null;
+let fieldInstallsCacheAt = 0;
+let fieldInstallsInflight: Promise<FieldInstallSummaryRow[] | null> | null = null;
+let fieldInstallsOwner: string | null | undefined;
+
+if (isSupabaseConfigured) {
+  try {
+    supabase.auth.onAuthStateChange((_e, session) => {
+      const uid = session?.user?.id ?? null;
+      if (fieldInstallsOwner !== undefined && uid !== fieldInstallsOwner) {
+        fieldInstallsCache = null;
+        fieldInstallsCacheAt = 0;
+        fieldInstallsInflight = null;
+      }
+      fieldInstallsOwner = uid;
+    });
+  } catch { /* cache remains inactive */ }
+}
+
+export function getCachedMonthlyInstallFieldEvents(): FieldInstallSummaryRow[] | null {
+  return fieldInstallsCache;
+}
+
+export function clearMonthlyInstallFieldEventsCache(): void {
+  fieldInstallsCache = null;
+  fieldInstallsCacheAt = 0;
+}
+
+/**
+ * Fetches Merchant Visit app INSTALL submissions (`APPROVED` and `PENDING` — unapproved updates
+ * still count) for the trailing 14 months so the Dashboard monthly comparison reflects live app activity.
+ */
+export async function fetchMonthlyInstallFieldEvents(force = false): Promise<FieldInstallSummaryRow[] | null> {
+  if (!isSupabaseConfigured) return null;
+  if (!force && fieldInstallsCache && Date.now() - fieldInstallsCacheAt < 45_000) {
+    return fieldInstallsCache;
+  }
+  if (!force && fieldInstallsInflight) return fieldInstallsInflight;
+
+  const task = (async () => {
+    try {
+      const sinceIso = new Date(Date.now() - 430 * 86400000).toISOString();
+      const out: FieldInstallSummaryRow[] = [];
+      const seenIds = new Set<number>();
+
+      for (let offset = 0; offset < 50000; offset += 1000) {
+        const { data, error } = await supabase
+          .from('field_events')
+          .select(FIELD_INSTALL_SUMMARY_COLUMNS)
+          .eq('kind', 'INSTALL')
+          .in('status', ['APPROVED', 'PENDING'])
+          .gte('received_at', sinceIso)
+          .order('received_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(1000)
+          .range(offset, offset + 999);
+        if (error) throw error;
+        const rows = data || [];
+        let added = 0;
+        for (const r of rows as Array<Record<string, any>>) {
+          const id = Number(r.id);
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            added++;
+            if (r.kind !== 'INSTALL') continue;
+            if (r.status !== 'APPROVED' && r.status !== 'PENDING') continue;
+            out.push({
+              id,
+              sourceRecordId: String(r.source_record_id || ''),
+              unitNo: Number(r.unit_no) || 1,
+              revision: Number(r.revision) || 1,
+              deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
+              status: r.status,
+              branchId: r.branch_id ?? null,
+              branchText: String(r.branch_text || ''),
+              staffId: String(r.staff_id || ''),
+              staffName: String(r.staff_name || ''),
+              recordedAt: String(r.recorded_at || ''),
+              receivedAt: String(r.received_at || ''),
+            });
+          }
+        }
+        if (added === 0 || rows.length < 1000) break;
+      }
+
+      fieldInstallsCache = out;
+      fieldInstallsCacheAt = Date.now();
+      return out;
+    } catch (err) {
+      await reportCaughtError('fetchMonthlyInstallFieldEvents', err, { showPopup: false });
+      return null;
+    } finally {
+      fieldInstallsInflight = null;
+    }
+  })();
+
+  fieldInstallsInflight = task;
+  return task;
+}
+
 export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
   const channel = supabase

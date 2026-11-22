@@ -29,7 +29,13 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import { getCachedAudit } from '../services/auditCache';
 import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
-import type { StaffAccount } from '../services/supabaseService';
+import {
+  fetchMonthlyInstallFieldEvents,
+  getCachedMonthlyInstallFieldEvents,
+  subscribeToFieldEvents,
+  type FieldInstallSummaryRow,
+  type StaffAccount,
+} from '../services/supabaseService';
 import {
   KpiDashboardData,
   KpiRawCounts,
@@ -435,11 +441,22 @@ interface MonthlyInstallComparisonData {
   totalPos: number;
   totalSb: number;
   totalInstalls: number;
+  pendingTotal: number;
   latestLabel: string;
   latestPos: number;
   latestSb: number;
   peakMonthLabel: string;
   peakMonthTotal: number;
+}
+
+function fieldEventMonthPP(recordedAt?: string | null, receivedAt?: string | null): string {
+  const raw = String(recordedAt || receivedAt || '').trim();
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 7);
+  const ms = Date.parse(raw);
+  if (!Number.isNaN(ms)) return todayPP(new Date(ms)).slice(0, 7);
+  const m = raw.match(/^(\d{4}-\d{2})/);
+  return m ? m[1] : '';
 }
 
 interface ChannelMixCardProps {
@@ -920,7 +937,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               Monthly POS &amp; Sound Box Installations
             </h3>
             <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              POS Installation vs Sound Box Installation · trailing {horizonMonths} months
+              Merchant Visit app (approved &amp; pending) · trailing {horizonMonths} months
             </p>
           </div>
         </div>
@@ -972,12 +989,12 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
           {onNavigateTab && (
             <button
               type="button"
-              onClick={() => onNavigateTab('merchants')}
+              onClick={() => onNavigateTab('mobile_sync')}
               className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors duration-150 ${
                 isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
               }`}
             >
-              Deployments <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+              App Review <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -1024,7 +1041,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
             }`}
           >
-            {horizonMonths}M Total · {fmtNum(data.totalInstalls)} installed
+            {horizonMonths}M Total · {fmtNum(data.totalInstalls)} submitted{data.pendingTotal > 0 ? ` (${fmtNum(data.pendingTotal)} pending)` : ''}
           </span>
         </div>
 
@@ -1529,10 +1546,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [simFallbackCounts, setSimFallbackCounts] = useState<Record<SerialStatus, number> | null>(
     () => getCachedSerialStatusCounts('SIM', branchScopedId || undefined) || null
   );
+  const [fieldInstalls, setFieldInstalls] = useState<FieldInstallSummaryRow[] | null>(
+    () => getCachedMonthlyInstallFieldEvents()
+  );
   const [syncing, setSyncing] = useState(false);
 
   const periodSeqRef = useRef(0);
   const assetSeqRef = useRef(0);
+  const fieldInstallsSeqRef = useRef(0);
 
   // Decoupled period metrics loader: period changes never refetch inventory/SIM pools
   const loadPeriodMetrics = useCallback(
@@ -1589,11 +1610,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [branchScopedId]
   );
 
+  const loadFieldInstalls = useCallback(async (force = false) => {
+    const seq = ++fieldInstallsSeqRef.current;
+    const rows = await fetchMonthlyInstallFieldEvents(force);
+    if (seq === fieldInstallsSeqRef.current && rows !== null) {
+      setFieldInstalls(rows);
+    }
+  }, []);
+
   const handleSyncAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPeriodMetrics(true), loadInventoryAndSims(true)]);
+    await Promise.allSettled([loadPeriodMetrics(true), loadInventoryAndSims(true), loadFieldInstalls(true)]);
     setSyncing(false);
-  }, [loadPeriodMetrics, loadInventoryAndSims]);
+  }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls]);
 
   useEffect(() => {
     void loadPeriodMetrics(false);
@@ -1602,6 +1631,27 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   useEffect(() => {
     void loadInventoryAndSims(false);
   }, [loadInventoryAndSims]);
+
+  useEffect(() => {
+    void loadFieldInstalls(false);
+  }, [loadFieldInstalls]);
+
+  // Live refresh when a staff member submits or updates an INSTALL record in the Merchant Visit app
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let timer = 0;
+    const unsub = subscribeToFieldEvents((ev) => {
+      if (ev.kind !== 'INSTALL') return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void loadFieldInstalls(true);
+      }, 900);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [loadFieldInstalls]);
 
   // Idle sequential background warm-up of Today, All time, and previous month after initial load settles
   useEffect(() => {
@@ -2252,40 +2302,92 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [scopedKpiTotals, ccCounts, hardwareSummary.sb, hardwareSummary.pos, queues]);
 
-  // Monthly POS Installation vs Sound Box Installation comparison (trailing 3M / 6M / 12M Phnom Penh months)
+  // Monthly POS Installation vs Sound Box Installation from Merchant Visit app (approved + pending updates)
   const monthlyInstallComparison = useMemo<MonthlyInstallComparisonData>(() => {
     const months = lastMonthsPP(12);
-    const map = new Map<string, { key: string; label: string; pos: number; sb: number }>();
+    const map = new Map<
+      string,
+      { key: string; label: string; pos: number; sb: number; pendingPos: number; pendingSb: number }
+    >();
     const list = months.map((m) => {
       const entry = {
         key: m.key,
         label: `${m.label.slice(0, 3)} ${m.label.slice(-2)}`,
         pos: 0,
         sb: 0,
+        pendingPos: 0,
+        pendingSb: 0,
       };
       map.set(m.key, entry);
       return entry;
     });
 
-    for (let i = 0; i < activeDevices.length; i++) {
-      const d = activeDevices[i];
-      if (d.stage !== 'COMPLETE' || !d.deployedDate) continue;
-      const ym = d.deployedDate.trim().slice(0, 7);
-      const bucket = map.get(ym);
-      if (!bucket) continue;
-      if (d.type === 'Sound Box') bucket.sb++;
-      else bucket.pos++;
+    if (fieldInstalls !== null) {
+      // Keep the latest revision per (sourceRecordId, unitNo) so phone-app edits never double-count
+      const latestByRecord = new Map<string, FieldInstallSummaryRow>();
+      for (let i = 0; i < fieldInstalls.length; i++) {
+        const e = fieldInstalls[i];
+        if (e.status !== 'APPROVED' && e.status !== 'PENDING') continue;
+        const recKey = e.sourceRecordId ? `${e.sourceRecordId}::${e.unitNo}` : `id:${e.id}`;
+        const prev = latestByRecord.get(recKey);
+        if (!prev || e.revision > prev.revision || (e.revision === prev.revision && e.id > prev.id)) {
+          latestByRecord.set(recKey, e);
+        }
+      }
+
+      latestByRecord.forEach((e) => {
+        const hasStaffMeta = Boolean((e.staffId || '').trim() || (e.staffName || '').trim());
+        const dir = ppDirectoryScope.resolveKpiStaff(e.staffId, e.staffName, e.branchId, e.branchText);
+        let resolvedBranchId = dir?.branchId || '';
+        if (!dir) {
+          if (hasStaffMeta && ppDirectoryScope.hasDirectory) return;
+          const fbBranch = String(e.branchId || '').trim();
+          if (!ppDirectoryScope.isBranchInScope(fbBranch, e.branchText)) return;
+          resolvedBranchId = fbBranch;
+        }
+        if (branchScopedId && resolvedBranchId !== branchScopedId) return;
+
+        const ym = fieldEventMonthPP(e.recordedAt, e.receivedAt);
+        const bucket = map.get(ym);
+        if (!bucket) return;
+        if (e.deviceType === 'Sound Box') {
+          bucket.sb++;
+          if (e.status === 'PENDING') bucket.pendingSb++;
+        } else {
+          bucket.pos++;
+          if (e.status === 'PENDING') bucket.pendingPos++;
+        }
+      });
+    } else if (!branchScopedId && kpiData?.monthly?.length) {
+      // Instant hydration from KPI summary monthly buckets (already APPROVED + PENDING) until field_events arrives
+      for (const m of kpiData.monthly) {
+        const bucket = map.get(m.period);
+        if (!bucket) continue;
+        bucket.pos += Number(m.posInstall) || 0;
+        bucket.sb += Number(m.sbInstall) || 0;
+      }
+    } else if (branchScopedId && kpiData?.monthlyStaff?.length) {
+      for (const ms of kpiData.monthlyStaff) {
+        const dir = ppDirectoryScope.resolveKpiStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+        if (!dir || dir.branchId !== branchScopedId) continue;
+        const bucket = map.get(ms.month);
+        if (!bucket) continue;
+        bucket.pos += Number(ms.posInstall) || 0;
+        bucket.sb += Number(ms.sbInstall) || 0;
+      }
     }
 
     const sliced =
       installHorizon === '3M' ? list.slice(-3) : installHorizon === '6M' ? list.slice(-6) : list;
     let totalPos = 0;
     let totalSb = 0;
+    let pendingTotal = 0;
     let peakMonthLabel = '';
     let peakMonthTotal = 0;
     for (const row of sliced) {
       totalPos += row.pos;
       totalSb += row.sb;
+      pendingTotal += row.pendingPos + row.pendingSb;
       const tot = row.pos + row.sb;
       if (tot > peakMonthTotal) {
         peakMonthTotal = tot;
@@ -2300,13 +2402,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       totalPos,
       totalSb,
       totalInstalls: totalPos + totalSb,
+      pendingTotal,
       latestLabel: latest?.label || '',
       latestPos: latest?.pos || 0,
       latestSb: latest?.sb || 0,
       peakMonthLabel,
       peakMonthTotal,
     };
-  }, [activeDevices, installHorizon]);
+  }, [fieldInstalls, kpiData, ppDirectoryScope, branchScopedId, installHorizon]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
