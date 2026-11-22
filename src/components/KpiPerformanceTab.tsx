@@ -2162,6 +2162,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return displayedSubCategories.reduce((acc, sc) => acc + sc.points, 0);
   }, [displayedSubCategories]);
 
+  const displayedSubCategoryTasks = useMemo(() => {
+    return displayedSubCategories.reduce(
+      (acc, sc) => acc + (sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL' ? 0 : sc.count),
+      0
+    );
+  }, [displayedSubCategories]);
+
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
     (data?.monthly || []).forEach((m) => { if (m.period) set.add(m.period); });
@@ -3186,26 +3193,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <span>Peak ({velocitySummary.peakLabel})</span>
                       </span>
                     )}
-                    {granularity === 'daily' && velocityCalendar.weekendCount > 0 && (
-                      <span
-                        data-kpi-legend="weekend"
-                        className="inline-flex items-center gap-1.5 text-slate-600"
-                        title="Weekend columns (Saturday & Sunday)"
-                      >
-                        <span className="w-2.5 h-2.5 rounded-[3px] bg-slate-400/20 border border-slate-400/50 border-t-2 border-t-slate-500 inline-block" aria-hidden />
-                        <span>Weekend ({velocityCalendar.weekendCount}d)</span>
-                      </span>
-                    )}
-                    {granularity === 'daily' && velocityCalendar.holidayCount > 0 && (
-                      <span
-                        data-kpi-legend="holiday"
-                        className="inline-flex items-center gap-1.5 text-amber-700"
-                        title={velocityCalendar.holidayTitle || 'Cambodian Official Public Holiday'}
-                      >
-                        <span className="w-2.5 h-2.5 rounded-[3px] bg-amber-500/15 border border-dashed border-amber-500/70 border-t-2 border-t-amber-600 inline-block" aria-hidden />
-                        <span>Holiday ({velocityCalendar.holidayCount}d)</span>
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -3893,7 +3880,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <div className="relative flex flex-col">
                                 {/* Vertical Y-axis spine + dashed X-axis gridlines aligned to bar scale */}
                                 <div className="pointer-events-none absolute inset-0 flex">
-                                  <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0" />
+                                  <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0" />
                                   <div className="flex-1 min-w-0 relative mr-[76px] sm:mr-[136px]">
                                     <div className="absolute inset-y-0 left-0 border-l-2 border-slate-400/85 z-10" />
                                     {scaleTicks.slice(1).map((tick) => (
@@ -3936,10 +3923,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         }
                                         className="group flex items-center rounded-md py-0.5 transition-colors hover:bg-sky-50/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                                       >
-                                        {/* Y-Axis Label (Right-aligned up to the vertical spine) */}
-                                        <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0 pr-2.5 sm:pr-3.5 flex items-center justify-end gap-1.5 min-w-0">
+                                        {/* Y-Axis Label (Aligned rank column + aligned category dot + clean left-aligned task name) */}
+                                        <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0 pl-1 sm:pl-1.5 pr-2.5 sm:pr-3.5 flex items-center gap-1.5 sm:gap-2 min-w-0">
                                           <span
-                                            className={`hidden sm:inline-block text-[10px] font-mono tabular-nums shrink-0 ${
+                                            className={`hidden sm:inline-block w-7 text-right text-[10.5px] font-mono tabular-nums shrink-0 ${
                                               isTop
                                                 ? 'font-bold text-sky-600'
                                                 : isZero
@@ -3951,7 +3938,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           </span>
                                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${catStyle.dot} ${isZero ? 'opacity-40' : ''}`} />
                                           <span
-                                            className={`min-w-0 text-[11.5px] sm:text-[12.5px] truncate transition-colors ${
+                                            className={`flex-1 min-w-0 text-left text-[11.5px] sm:text-[12.5px] truncate transition-colors ${
                                               isZero
                                                 ? 'text-slate-400 font-normal'
                                                 : isHighlighted
@@ -4011,7 +3998,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                               {/* X-Axis Points Scale */}
                               <div className="mt-1 flex items-start">
-                                <div className="w-[124px] sm:w-[225px] md:w-[260px] shrink-0 pr-2.5 sm:pr-3.5 pt-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0 pr-2.5 sm:pr-3.5 pt-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                                   Points
                                 </div>
                                 <div className="flex-1 min-w-0 pr-[76px] sm:pr-[136px]">
@@ -4057,7 +4044,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
                               const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
                               const catStyle = CAT_COLORS[sc.category];
-                              const Icon = catStyle.Icon;
                               const isZero = sc.points === 0;
 
                               return (
@@ -4068,11 +4054,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   <td className="py-2.5 px-3.5 font-semibold text-slate-900">
                                     {sc.label}
                                   </td>
-                                  <td className="py-2.5 px-3.5">
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${catStyle.badge}`}>
-                                      <Icon className="w-3 h-3 shrink-0" />
-                                      {sc.category}
-                                    </span>
+                                  <td className="py-2.5 px-3.5 text-slate-600">
+                                    {sc.category}
                                   </td>
                                   <td className="py-2.5 px-3.5 text-right font-medium text-slate-700 tabular-nums">
                                     {fmtInt(sc.count)} <span className="text-slate-400 font-normal">{sc.unit}</span>
@@ -4098,6 +4081,58 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               );
                             })}
                           </tbody>
+                          {displayedSubCategories.length > 0 && (() => {
+                            const totalSharePct =
+                              totals.totalPoints > 0 ? (displayedSubCategoryPoints / totals.totalPoints) * 100 : 0;
+                            const totalShareDisplay =
+                              totalSharePct >= 1
+                                ? `${Math.round(totalSharePct)}%`
+                                : totalSharePct > 0
+                                ? `${totalSharePct.toFixed(1)}%`
+                                : '0%';
+                            const hasBonusOnlyRules = displayedSubCategories.some(
+                              (sc) => sc.code === 'KHQR_PRINT_LAMINATE' || sc.code === 'KHQR_MATERIAL'
+                            );
+
+                            return (
+                              <tfoot>
+                                <tr className="bg-slate-50/95 border-t-2 border-slate-200 text-xs font-semibold text-slate-800">
+                                  <td colSpan={3} className="py-2.5 px-3.5 text-slate-900">
+                                    Total
+                                    <span className="ml-1.5 font-normal text-slate-500">
+                                      ({displayedSubCategories.length} sub-categories)
+                                    </span>
+                                  </td>
+                                  <td
+                                    className="py-2.5 px-3.5 text-right tabular-nums text-slate-900"
+                                    title={
+                                      hasBonusOnlyRules
+                                        ? 'Sum of KPI tasks across displayed sub-categories (excludes points-only bonus multipliers such as Print & Laminate / QR Materials)'
+                                        : 'Sum of KPI tasks across displayed sub-categories'
+                                    }
+                                  >
+                                    <span className="font-bold">{fmtInt(displayedSubCategoryTasks)}</span>{' '}
+                                    <span className="font-normal text-slate-500">Total Tasks</span>
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right text-slate-400 font-normal">—</td>
+                                  <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 tabular-nums">
+                                    {fmtPts(displayedSubCategoryPoints)} pts
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right tabular-nums">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <span className="font-bold text-slate-800 text-[11px]">{totalShareDisplay}</span>
+                                      <div className="w-12 bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full bg-slate-700"
+                                          style={{ width: `${Math.min(100, Math.max(displayedSubCategoryPoints > 0 ? 5 : 0, totalSharePct))}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            );
+                          })()}
                         </table>
                       </div>
                     )}
