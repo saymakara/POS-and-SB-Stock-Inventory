@@ -274,10 +274,19 @@ interface KpiTargetComparisonDonutProps {
 
 const KT_RING_CX = 120;
 const KT_RING_CY = 120;
-const KT_OUTER_R = 106;
-const KT_INNER_R = 78;
-const KT_OUTER_C = 2 * Math.PI * KT_OUTER_R;
-const KT_INNER_C = 2 * Math.PI * KT_INNER_R;
+const KT_SINGLE_R = 94;
+const KT_STROKE_W = 24;
+
+function ktArcPath(cx: number, cy: number, r: number, f0: number, f1: number): string {
+  const rad0 = (f0 * 360 - 90) * (Math.PI / 180);
+  const rad1 = (f1 * 360 - 90) * (Math.PI / 180);
+  const x0 = cx + r * Math.cos(rad0);
+  const y0 = cy + r * Math.sin(rad0);
+  const x1 = cx + r * Math.cos(rad1);
+  const y1 = cy + r * Math.sin(rad1);
+  const large = f1 - f0 > 0.5 ? 1 : 0;
+  return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
 
 const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   periodLabel,
@@ -305,8 +314,127 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
   const actualColor = isMet ? '#2d6a4f' : '#155484';
   const paceRingColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
-  const outerDash = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) * KT_OUTER_C : 0;
-  const innerDash = safeTarget > 0 ? Math.min(1, effectivePaceRatio) * KT_INNER_C : 0;
+  const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) : 0;
+  const paceFrac = showPacing ? Math.min(1, Math.max(0.01, effectivePaceRatio)) : 1;
+
+  interface DonutSlice {
+    key: 'actual' | 'pace' | 'remaining';
+    f0: number;
+    f1: number;
+    color: string;
+    title: string;
+  }
+
+  const ringSlices: DonutSlice[] = (() => {
+    if (safeTarget <= 0 || actualFrac <= 0.002) {
+      if (showPacing && paceFrac < 0.998) {
+        return [
+          {
+            key: 'pace',
+            f0: 0,
+            f1: paceFrac,
+            color: paceRingColor,
+            title: `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`,
+          },
+          {
+            key: 'remaining',
+            f0: paceFrac,
+            f1: 1,
+            color: '#e2e8f0',
+            title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
+          },
+        ];
+      }
+      return [
+        {
+          key: 'remaining',
+          f0: 0,
+          f1: 1,
+          color: '#e2e8f0',
+          title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts`,
+        },
+      ];
+    }
+
+    if (isMet || actualFrac >= 0.998) {
+      return [
+        {
+          key: 'actual',
+          f0: 0,
+          f1: 1,
+          color: actualColor,
+          title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
+        },
+      ];
+    }
+
+    const out: DonutSlice[] = [];
+    if (showPacing && actualFrac < paceFrac - 0.004) {
+      // Behind pace: Actual (navy) | Behind Pace Gap (amber) | Remaining Beyond Pace (slate)
+      out.push({
+        key: 'actual',
+        f0: 0,
+        f1: actualFrac,
+        color: actualColor,
+        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
+      });
+      out.push({
+        key: 'pace',
+        f0: actualFrac,
+        f1: paceFrac,
+        color: '#f59e0b',
+        title: `Pace Gap to Day ${elapsedWorkDays}/${totalWorkDays}: ${fmtPts(Math.max(0, expectedPacePts - safeActual))} pts (${expectedPacePct}% expected)`,
+      });
+      if (1 - paceFrac > 0.004) {
+        out.push({
+          key: 'remaining',
+          f0: paceFrac,
+          f1: 1,
+          color: '#e2e8f0',
+          title: `Remaining Beyond Pace: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% total left)`,
+        });
+      }
+    } else if (showPacing && actualFrac > paceFrac + 0.004) {
+      // Ahead of pace: Baseline up to Pace (navy) | Ahead-of-Pace Lead (sky) | Remaining (slate)
+      out.push({
+        key: 'actual',
+        f0: 0,
+        f1: paceFrac,
+        color: actualColor,
+        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
+      });
+      out.push({
+        key: 'pace',
+        f0: paceFrac,
+        f1: actualFrac,
+        color: '#0284c7',
+        title: `Ahead of Day ${elapsedWorkDays}/${totalWorkDays} Pace (+${fmtPts(safeActual - expectedPacePts)} pts vs ${expectedPacePct}%)`,
+      });
+      out.push({
+        key: 'remaining',
+        f0: actualFrac,
+        f1: 1,
+        color: '#e2e8f0',
+        title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
+      });
+    } else {
+      out.push({
+        key: 'actual',
+        f0: 0,
+        f1: actualFrac,
+        color: actualColor,
+        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
+      });
+      out.push({
+        key: 'remaining',
+        f0: actualFrac,
+        f1: 1,
+        color: '#e2e8f0',
+        title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
+      });
+    }
+    return out;
+  })();
 
   const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
 
@@ -358,78 +486,61 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             <span className="text-slate-400 font-normal">· {periodLabel}</span>
           </h3>
           <p className="text-[11px] text-slate-500 truncate">
-            Concentric attainment &amp; pace rings
+            Split-arc attainment &amp; pace ring
           </p>
         </div>
       </div>
 
       <div className="px-4 @[490px]:px-6 py-3 sm:py-4 flex-1 flex items-center">
-        {/* Dual Concentric Activity Rings + Right-Side Ledger (ring height matched to KPI Point Velocity bars) */}
+        {/* Single Split-Arc Donut + Right-Side Ledger (ring height matched to KPI Point Velocity bars) */}
         <div className="w-full max-w-[460px] mx-auto flex flex-col @[400px]:flex-row items-center @[400px]:justify-between gap-4 @[400px]:gap-4 @[490px]:gap-6">
           <div className="relative w-[204px] h-[204px] @[400px]:w-[206px] @[400px]:h-[206px] @[440px]:w-[222px] @[440px]:h-[222px] shrink-0">
             <svg
               viewBox="0 0 240 240"
               className="w-full h-full"
               role="img"
-              aria-label={`${targetTitle} vs Actual Achievement Concentric Rings: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
+              aria-label={`${targetTitle} vs Actual Achievement Split-Arc Donut: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
               data-testid="kpi-target-donut-svg"
             >
-              {/* Outer Ring Track & Progress (Actual Achievement) */}
-              <circle
-                cx={KT_RING_CX}
-                cy={KT_RING_CY}
-                r={KT_OUTER_R}
-                fill="none"
-                stroke="#e2e8f0"
-                strokeWidth={18}
-              />
-              <circle
-                data-kpi-target-slice="actual"
-                cx={KT_RING_CX}
-                cy={KT_RING_CY}
-                r={KT_OUTER_R}
-                fill="none"
-                stroke={actualColor}
-                strokeWidth={hoveredKey === 'actual' ? 20 : 18}
-                strokeLinecap="round"
-                strokeDasharray={`${outerDash.toFixed(1)} ${KT_OUTER_C.toFixed(1)}`}
-                strokeOpacity={outerDash > 0.5 ? (hoveredKey && hoveredKey !== 'actual' ? 0.35 : 1) : 0}
-                transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
-                className="cursor-pointer transition-all duration-200"
-                onMouseEnter={() => setHoveredKey('actual')}
-                onMouseLeave={() => setHoveredKey(null)}
-              >
-                <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
-              </circle>
-
-              {/* Inner Ring Track & Progress (Expected Pace) */}
-              <circle
-                cx={KT_RING_CX}
-                cy={KT_RING_CY}
-                r={KT_INNER_R}
-                fill="none"
-                stroke="#f1f5f9"
-                strokeWidth={14}
-              />
-              {showPacing && (
+              {ringSlices.length === 1 ? (
                 <circle
-                  data-kpi-target-slice="pace"
+                  data-kpi-target-slice={ringSlices[0].key}
                   cx={KT_RING_CX}
                   cy={KT_RING_CY}
-                  r={KT_INNER_R}
+                  r={KT_SINGLE_R}
                   fill="none"
-                  stroke={paceRingColor}
-                  strokeWidth={hoveredKey === 'pace' ? 16 : 14}
-                  strokeLinecap="round"
-                  strokeDasharray={`${innerDash.toFixed(1)} ${KT_INNER_C.toFixed(1)}`}
-                  strokeOpacity={innerDash > 0.5 ? (hoveredKey && hoveredKey !== 'pace' ? 0.35 : 0.88) : 0}
-                  transform={`rotate(-90 ${KT_RING_CX} ${KT_RING_CY})`}
+                  stroke={ringSlices[0].color}
+                  strokeWidth={hoveredKey === ringSlices[0].key ? KT_STROKE_W + 3 : KT_STROKE_W}
                   className="cursor-pointer transition-all duration-200"
-                  onMouseEnter={() => setHoveredKey('pace')}
+                  onMouseEnter={() => setHoveredKey(ringSlices[0].key)}
                   onMouseLeave={() => setHoveredKey(null)}
                 >
-                  <title>{`Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
+                  <title>{ringSlices[0].title}</title>
                 </circle>
+              ) : (
+                ringSlices.map((sl) => {
+                  const span = sl.f1 - sl.f0;
+                  const trim = Math.min(0.0055, span * 0.25);
+                  const isActive = hoveredKey === sl.key || (hoveredKey === 'target' && sl.key === 'remaining');
+                  const dimmed = Boolean(hoveredKey && !isActive);
+                  return (
+                    <path
+                      key={sl.key}
+                      data-kpi-target-slice={sl.key}
+                      d={ktArcPath(KT_RING_CX, KT_RING_CY, KT_SINGLE_R, sl.f0 + trim, sl.f1 - trim)}
+                      fill="none"
+                      stroke={sl.key === 'remaining' && isActive ? '#cbd5e1' : sl.color}
+                      strokeWidth={isActive ? KT_STROKE_W + 3 : KT_STROKE_W}
+                      strokeLinecap="butt"
+                      strokeOpacity={dimmed ? 0.35 : 1}
+                      className="cursor-pointer transition-all duration-200"
+                      onMouseEnter={() => setHoveredKey(sl.key)}
+                      onMouseLeave={() => setHoveredKey(null)}
+                    >
+                      <title>{sl.title}</title>
+                    </path>
+                  );
+                })
               )}
 
               {/* Ring Center Metric */}
