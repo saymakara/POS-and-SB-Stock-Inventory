@@ -638,9 +638,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
     return {
       pct: fmtPts(safeTarget),
       top: targetTitle.toUpperCase(),
-      sub: `pts · ${achievementPct}% done`,
+      sub: '',
       dot: actualColor,
-      pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
+      pillCls: '',
     };
   })();
 
@@ -808,11 +808,13 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             >
               {centerReadout.pct}
             </span>
-            <span
-              className={`text-[8.5px] @[360px]:text-[9.5px] @[430px]:text-[10.5px] font-figure font-semibold px-2 @[430px]:px-2.5 py-0.5 rounded-full mt-1.5 @[430px]:mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
-            >
-              {centerReadout.sub}
-            </span>
+            {centerReadout.sub && (
+              <span
+                className={`text-[8.5px] @[360px]:text-[9.5px] @[430px]:text-[10.5px] font-figure font-semibold px-2 @[430px]:px-2.5 py-0.5 rounded-full mt-1.5 @[430px]:mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
+              >
+                {centerReadout.sub}
+              </span>
+            )}
           </div>
 
           {/* 3 Floating Pill Callout Badges */}
