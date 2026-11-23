@@ -6053,7 +6053,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       className="sticky left-[36px] bg-white group-hover:bg-slate-50 z-10 px-3 py-2 text-slate-900 shadow-[2px_0_5px_rgba(15,23,42,0.06)] border-r border-slate-200/70 font-normal w-[228px] min-w-[228px] max-w-[248px]"
                                       title={`${cleanBranchName(row.name)} (${fmtBranchCode(row.branchId)})`}
                                     >
-                                      <span className="block truncate font-semibold text-slate-900 leading-snug">
+                                      <span className="block truncate font-medium text-slate-900 leading-snug">
                                         {cleanBranchName(row.name)}
                                       </span>
                                       <span className="block font-mono text-[11px] text-slate-400 tabular-nums leading-tight mt-0.5">
@@ -6066,17 +6066,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         className="sticky left-[36px] bg-white group-hover:bg-slate-50 z-10 px-3 py-2 text-slate-900 border-r border-slate-100 font-normal w-[238px] min-w-[238px] max-w-[260px]"
                                         title={`${row.name}${row.id ? ` (${row.id})` : ''}${row.subLabel ? ` · ${row.subLabel}` : ''}${row.branchName ? ` · ${cleanBranchName(row.branchName)}` : ''}`}
                                       >
-                                        <div className="flex items-center justify-between gap-2 min-w-0">
-                                          <div className="flex items-center gap-1.5 min-w-0">
-                                            {row.isManagement && <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden />}
-                                            <span className="truncate font-semibold text-slate-900 leading-snug">{row.name}</span>
-                                          </div>
+                                        <span className="flex items-baseline gap-1.5 min-w-0">
+                                          {row.isManagement && <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0 self-center" aria-hidden />}
+                                          <span className="truncate font-medium text-slate-900 leading-snug">{row.name}</span>
                                           {row.id && (
-                                            <span className="font-mono text-[10.5px] font-medium text-slate-500 bg-slate-100/90 border border-slate-200/70 px-1.5 py-0.5 rounded-md tabular-nums shrink-0 leading-none">
+                                            <span className="font-mono text-[11px] text-slate-400 tabular-nums shrink-0">
                                               {row.id}
                                             </span>
                                           )}
-                                        </div>
+                                        </span>
                                         {row.subLabel && (
                                           <span className={`block text-[11px] truncate leading-tight mt-0.5 ${row.isManagement ? 'text-indigo-600 font-medium' : 'text-slate-500'}`}>
                                             {row.subLabel}
@@ -6084,7 +6082,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         )}
                                       </td>
                                       <td
-                                        className="sticky left-[274px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-mono text-xs text-slate-600 shadow-[2px_0_5px_rgba(15,23,42,0.06)] border-r border-slate-200/70 font-medium w-[52px] min-w-[52px]"
+                                        className="sticky left-[274px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-mono text-xs text-slate-600 shadow-[2px_0_5px_rgba(15,23,42,0.06)] border-r border-slate-200/70 font-normal w-[52px] min-w-[52px]"
                                         title={`${row.branchId} - ${cleanBranchName(row.branchName)}`}
                                       >
                                         {fmtBranchCode(row.branchId)}
@@ -6138,7 +6136,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     );
                                   })}
 
-                                  <td className="px-2 py-2 text-center tabular-nums font-figure font-semibold text-[#003857] border-l border-slate-200/60 whitespace-nowrap">
+                                  <td className="px-2 py-2 text-center tabular-nums font-figure font-medium text-[#003857] border-l border-slate-200/60 whitespace-nowrap">
                                     {isTaskMode ? `${fmtInt(row.total)} tasks` : `${fmtPts(row.total)} pts`}
                                   </td>
                                   <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-700">
@@ -6178,7 +6176,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <tr className="bg-slate-100/90 font-medium text-slate-800 border-t-2 border-slate-300 text-[12px]">
                               <td
                                 colSpan={tableMode === 'staff' ? 3 : 2}
-                                className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-semibold text-slate-900 shadow-[2px_0_5px_rgba(15,23,42,0.06)] border-r border-slate-300"
+                                className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-medium text-slate-900 shadow-[2px_0_5px_rgba(15,23,42,0.06)] border-r border-slate-300"
                               >
                                 Total Across All {tableMode === 'branch' ? `Branches (${sortedMonthlyRows.length})` : `Staff (${sortedMonthlyRows.length})`}
                               </td>
@@ -6188,7 +6186,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   <td
                                     key={m.ym}
                                     className={`px-1 py-2 text-center tabular-nums text-[11.5px] font-figure border-r border-slate-200 ${
-                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-semibold' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
+                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-medium' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
                                     }`}
                                     title={`All ${tableMode === 'branch' ? 'branches' : 'staff'} in ${m.fullLabel}: ${m.isFuture ? 'Upcoming month' : isTaskMode ? `${fmtInt(mSum)} tasks` : `${fmtPts(mSum)} pts`}`}
                                   >
@@ -6196,7 +6194,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   </td>
                                 );
                               })}
-                              <td className="px-2 py-2.5 text-center tabular-nums font-semibold text-[#003857] border-l border-slate-300 text-xs">
+                              <td className="px-2 py-2.5 text-center tabular-nums font-medium text-[#003857] border-l border-slate-300 text-xs">
                                 {isTaskMode ? fmtInt(monthlyTotals.grandTotal) : fmtPts(monthlyTotals.grandTotal)}
                               </td>
                               <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs">
@@ -6439,7 +6437,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <tr className="bg-slate-100/90 font-medium text-slate-800 border-t-2 border-slate-300 text-[12px]">
                                 <td
                                   colSpan={2}
-                                  className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-semibold text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
+                                  className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-medium text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
                                 >
                                   Total Across All Branches ({sortedDailyBranchRows.length})
                                 </td>
@@ -6541,7 +6539,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? `${fmtPts(b.totalPoints)}` : fmtInt(b.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857] whitespace-nowrap pr-1">
+                            <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
                               {isTaskMode ? `${fmtInt(b.totalTasks)} tasks` : `${fmtPts(b.totalPoints)} pts`}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
@@ -6568,7 +6566,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       <div key={s.staffId} className="px-3.5 py-2 flex items-center justify-between">
                                         <div>
                                           <span className="text-slate-400 font-mono mr-2">{idx + 1}.</span>
-                                          <span className="text-slate-900">{s.staffName}</span>{' '}
+                                          <span className="font-medium text-slate-900">{s.staffName}</span>{' '}
                                           <span className="text-slate-500">({s.staffId})</span>
                                         </div>
                                         <div className="flex items-center gap-4 tabular-nums text-xs">
@@ -6851,7 +6849,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <tr className="bg-slate-100/90 font-medium text-slate-800 border-t-2 border-slate-300 text-[12px]">
                       <td
                         colSpan={3}
-                        className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-semibold text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
+                        className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-medium text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
                       >
                         Total Across All Staff ({sortedDailyStaffRows.length}{sortedDailyStaffRows.some((r) => r.isManagement) ? ` · ${sortedDailyStaffRows.filter((r) => !r.isManagement).length} Field Officers` : ''})
                       </td>
@@ -6964,7 +6962,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               className="min-w-0 block"
                               title={`${cleanBranchName(s.branchName)}${s.branchId && s.branchId !== 'UNASSIGNED' ? ` (Code ${fmtBranchCode(s.branchId)})` : ''}`}
                             >
-                              <span className="block truncate text-slate-800 leading-snug">
+                              <span className="block truncate font-medium text-slate-900 leading-snug">
                                 {cleanBranchName(s.branchName)}
                               </span>
                               <span className="block font-mono text-[11px] text-slate-400 tabular-nums leading-tight mt-0.5">
@@ -6979,7 +6977,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#003857] whitespace-nowrap pr-1">
+                            <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
                               {isTaskMode ? `${fmtInt(s.totalTasks)} tasks` : `${fmtPts(s.totalPoints)} pts`}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
