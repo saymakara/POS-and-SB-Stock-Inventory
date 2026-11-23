@@ -327,12 +327,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 468;
-const KT_VB_H = 368;
-const KT_CX = 234;
-const KT_CY = 184;
-const KT_R_INNER = 68;
-const KT_R_OUTER = 80;
+const KT_VB_W = 488;
+const KT_VB_H = 356;
+const KT_CX = 244;
+const KT_CY = 178;
+const KT_R_INNER = 82;
+const KT_R_OUTER = 96;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -593,8 +593,8 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.max(g.sx + 22, KT_CX + clearDx + 18);
         const ex =
           side === 'left'
-            ? Math.max(148, Math.min(KT_CX - 28, rawEx))
-            : Math.min(KT_VB_W - 146, Math.max(KT_CX + 28, rawEx));
+            ? Math.max(146, Math.min(KT_CX - 28, rawEx))
+            : Math.min(KT_VB_W - 144, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 8)
@@ -646,10 +646,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
   const centerPctSizeCls =
     centerReadout.pct.length >= 8
-      ? 'text-[15px] @[360px]:text-[19px] @[430px]:text-[22px]'
+      ? 'text-[16px] @[340px]:text-[20px] @[410px]:text-[23px]'
       : centerReadout.pct.length >= 6
-        ? 'text-[18px] @[360px]:text-[22px] @[430px]:text-[27px]'
-        : 'text-[20px] @[360px]:text-[25px] @[430px]:text-[30px]';
+        ? 'text-[19px] @[340px]:text-[23px] @[410px]:text-[28px]'
+        : 'text-[21px] @[340px]:text-[26px] @[410px]:text-[32px]';
 
   return (
     <div
@@ -668,10 +668,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         </p>
       </div>
 
-      <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
-        {/* Dashboard-Style Compact Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
+      <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
+        {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[440px] aspect-[468/368] flex items-center justify-center"
+          className="relative w-full max-w-[490px] aspect-[488/356] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
