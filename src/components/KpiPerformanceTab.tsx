@@ -327,12 +327,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 548;
-const KT_VB_H = 368;
-const KT_CX = 274;
-const KT_CY = 184;
-const KT_R_INNER = 78;
-const KT_R_OUTER = 92;
+const KT_VB_W = 580;
+const KT_VB_H = 312;
+const KT_CX = 290;
+const KT_CY = 156;
+const KT_R_INNER = 96;
+const KT_R_OUTER = 114;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -545,14 +545,14 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       const sx = KT_CX + KT_R_TICK * Math.cos(midAngle);
       const sy = KT_CY + KT_R_TICK * Math.sin(midAngle);
       const side: 'left' | 'right' = Math.cos(midAngle) >= 0 ? 'right' : 'left';
-      const targetY = KT_CY + (KT_R_OUTER + 38) * Math.sin(midAngle);
+      const targetY = KT_CY + (KT_R_OUTER + 28) * Math.sin(midAngle);
       return { spec, sx, sy, side, targetY };
     });
 
     const CALLOUT_H = 42;
-    const MIN_GAP = 60;
-    const Y_MIN = 38;
-    const Y_MAX = KT_VB_H - 38;
+    const MIN_GAP = 56;
+    const Y_MIN = 30;
+    const Y_MAX = KT_VB_H - 30;
 
     const placeSide = (side: 'left' | 'right') => {
       const group = items
@@ -594,7 +594,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         const ex =
           side === 'left'
             ? Math.max(156, Math.min(KT_CX - 28, rawEx))
-            : Math.min(KT_VB_W - 148, Math.max(KT_CX + 28, rawEx));
+            : Math.min(KT_VB_W - 144, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 10)
@@ -646,15 +646,15 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
   const centerPctSizeCls =
     centerReadout.pct.length >= 8
-      ? 'text-[16px] @[340px]:text-[20px] @[410px]:text-[23px]'
+      ? 'text-[17px] @[340px]:text-[21px] @[470px]:text-[26px]'
       : centerReadout.pct.length >= 6
-        ? 'text-[19px] @[340px]:text-[23px] @[410px]:text-[28px]'
-        : 'text-[21px] @[340px]:text-[26px] @[410px]:text-[32px]';
+        ? 'text-[20px] @[340px]:text-[26px] @[470px]:text-[32px]'
+        : 'text-[23px] @[340px]:text-[29px] @[470px]:text-[36px]';
 
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-4 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+      className="min-w-0 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
     >
       <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100">
         <div className="min-w-0 flex items-center justify-between gap-2">
@@ -671,7 +671,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[548px] aspect-[548/368] flex items-center justify-center"
+          className="relative w-full max-w-none aspect-[580/312] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -853,17 +853,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-1.5 py-0.5 @[340px]:px-2 @[340px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-1.5 py-0.5 @[470px]:px-2.5 @[470px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isActive
                     ? 'shadow-sm'
                     : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1 @[340px]:gap-1.5 text-[7.5px] @[340px]:text-[9.5px] @[410px]:text-[10px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 @[410px]:w-2 @[410px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1 @[470px]:gap-1.5 text-[7.5px] @[340px]:text-[8.5px] @[470px]:text-[10.5px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 @[470px]:w-2 @[470px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[7px] @[340px]:text-[8.5px] @[410px]:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[340px]:pl-3 text-slate-500">
+                <span className="text-[7px] @[340px]:text-[8px] @[470px]:text-[10px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[470px]:pl-3 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -3781,11 +3781,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Chart 1 (8 cols): Gradient Daily Columns — same proportion as Dashboard Daily Volume & Staff */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5">
+            {/* Chart 1 (~62%): Gradient Daily Columns alongside Monthly Target Donut */}
             <div
               data-testid="kpi-velocity-chart-card"
-              className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+              className="min-w-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
             >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
