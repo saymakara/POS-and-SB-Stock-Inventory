@@ -327,12 +327,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 488;
-const KT_VB_H = 356;
-const KT_CX = 244;
-const KT_CY = 178;
-const KT_R_INNER = 82;
-const KT_R_OUTER = 96;
+const KT_VB_W = 548;
+const KT_VB_H = 368;
+const KT_CX = 274;
+const KT_CY = 184;
+const KT_R_INNER = 78;
+const KT_R_OUTER = 92;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -589,16 +589,16 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
         const rawEx =
           side === 'left'
-            ? Math.min(g.sx - 12, KT_CX - clearDx - 8)
-            : Math.max(g.sx + 22, KT_CX + clearDx + 18);
+            ? Math.min(g.sx - 24, KT_CX - clearDx - 20)
+            : Math.max(g.sx + 28, KT_CX + clearDx + 24);
         const ex =
           side === 'left'
-            ? Math.max(146, Math.min(KT_CX - 28, rawEx))
-            : Math.min(KT_VB_W - 144, Math.max(KT_CX + 28, rawEx));
+            ? Math.max(156, Math.min(KT_CX - 28, rawEx))
+            : Math.min(KT_VB_W - 148, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
-            ? Math.min(g.sx - 6, ex + 8)
-            : Math.max(g.sx + 6, Math.min(ex - 8, (g.sx + ex) / 2));
+            ? Math.min(g.sx - 6, ex + 10)
+            : Math.max(g.sx + 6, ex - 10);
         return { ...g, qpx, qpy: ey, ex, ey };
       });
     };
@@ -671,7 +671,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[490px] aspect-[488/356] flex items-center justify-center"
+          className="relative w-full max-w-[548px] aspect-[548/368] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -853,17 +853,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-1.5 py-0.5 @[340px]:px-2 @[340px]:py-1 @[410px]:px-2.5 @[410px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-1.5 py-0.5 @[340px]:px-2 @[340px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isActive
                     ? 'shadow-sm'
                     : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1 @[340px]:gap-1.5 text-[7.5px] @[340px]:text-[9.5px] @[410px]:text-[11px] font-bold whitespace-nowrap text-slate-900">
+                <span className="inline-flex items-center gap-1 @[340px]:gap-1.5 text-[7.5px] @[340px]:text-[9.5px] @[410px]:text-[10px] font-bold whitespace-nowrap text-slate-900">
                   <span className="w-1.5 h-1.5 @[410px]:w-2 @[410px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[7px] @[340px]:text-[9px] @[410px]:text-[10.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[340px]:pl-3 @[410px]:pl-3.5 text-slate-500">
+                <span className="text-[7px] @[340px]:text-[8.5px] @[410px]:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[340px]:pl-3 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
