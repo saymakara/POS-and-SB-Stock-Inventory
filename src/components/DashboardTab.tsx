@@ -135,6 +135,13 @@ const VIEW_MODE_OPTIONS: { id: DashViewMode; label: string }[] = [
 ];
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** (23 Nov 2026) a figure that is still on its way: a placeholder of the same height, then the number fades in. */
+const FigureSlot = ({ pending, children }: { pending: boolean; children: React.ReactNode }) =>
+  pending
+    ? <span className="skeleton block h-6 sm:h-[27px] w-16 rounded-md" aria-label="Loading" />
+    : <span className="figure-in inline-block">{children}</span>;
+/** (23 Nov 2026, speed) one shared collator: same order as String.prototype.localeCompare() with no arguments. */
+const TEXT_ORDER = new Intl.Collator();
 
 function fmtShortDay(ymd: string): string {
   const parts = ymd.split('-');
@@ -1662,6 +1669,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       getCachedMonthlyInstallBuckets(installScopeKey, neededInstallDays) === null
   );
   const [syncing, setSyncing] = useState(false);
+  // (23 Nov 2026) until the first KPI answer the figure cards show a soft placeholder instead of a "0" that then jumps;
+  // after a failed load they show 0 as before
+  const [kpiSettled, setKpiSettled] = useState<boolean>(() => kpiData !== null);
 
   const periodSeqRef = useRef(0);
   const assetSeqRef = useRef(0);
@@ -1688,6 +1698,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       });
 
       await Promise.allSettled([kpiTask, ccTask]);
+      setKpiSettled(true);
       if (isActive()) setSyncing(false);
     },
     [range.kpiFrom, range.kpiTo, range.ccFrom, range.ccTo]
@@ -2700,6 +2711,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
+    const cmp = TEXT_ORDER.compare;   // (23 Nov 2026, speed) same order as localeCompare, without a new collator per call
     const getSortKey = (d: Device) => `${d.updatedAt || d.deployedDate || d.pushDate || d.stockInDate || ''}__${d.serial}`;
     const top: Device[] = [];
     const keys: string[] = [];
@@ -2712,18 +2724,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         if (top.length === 6) {
           for (let m = 0; m < 5; m++) {
             for (let n = m + 1; n < 6; n++) {
-              if (keys[m].localeCompare(keys[n]) < 0) {
+              if (cmp(keys[m], keys[n]) < 0) {
                 [top[m], top[n]] = [top[n], top[m]];
                 [keys[m], keys[n]] = [keys[n], keys[m]];
               }
             }
           }
         }
-      } else if (key.localeCompare(keys[5]) > 0) {
+      } else if (cmp(key, keys[5]) > 0) {
         top[5] = dev;
         keys[5] = key;
         for (let m = 5; m > 0; m--) {
-          if (keys[m].localeCompare(keys[m - 1]) > 0) {
+          if (cmp(keys[m], keys[m - 1]) > 0) {
             [top[m], top[m - 1]] = [top[m - 1], top[m]];
             [keys[m], keys[m - 1]] = [keys[m - 1], keys[m]];
           } else break;
@@ -2738,6 +2750,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     ? `Branch Code ${branchScopedId}`
     : `Phnom Penh · ${fmtNum(branches.length)} branches`;
 
+  const kpiPending = isSupabaseConfigured && kpiData === null && !kpiSettled;
+  const installsPending = isSupabaseConfigured && scopedFieldInstalls === null && fieldInstallsLoading;
   const reachTotal =
     channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
   const reachSharePct =
@@ -3374,7 +3388,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={channelActivity.totalTasks} format duration={220} />
+                    <FigureSlot pending={kpiPending}><Odometer value={channelActivity.totalTasks} format duration={220} /></FigureSlot>
                   </div>
                   <span
                     data-kpi-delta="tasks"
@@ -3424,7 +3438,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={deploymentSummary.total} format duration={220} />
+                    <FigureSlot pending={installsPending}><Odometer value={deploymentSummary.total} format duration={220} /></FigureSlot>
                   </div>
                   <span
                     data-kpi-delta="deployments"
@@ -3574,7 +3588,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={reachTotal} format duration={220} />
+                    <FigureSlot pending={kpiPending}><Odometer value={reachTotal} format duration={220} /></FigureSlot>
                   </div>
                   <span
                     data-kpi-delta="outreach"

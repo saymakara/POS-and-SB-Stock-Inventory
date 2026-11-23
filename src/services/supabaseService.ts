@@ -12,6 +12,7 @@ import {
   registerPortalCacheInvalidator,
   type SyncDomain,
 } from '../utils/portalSync';
+import { clearOnUserChange, cacheOwner } from '../utils/userScopedCache';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -2036,7 +2037,6 @@ let fieldInstallsCacheAt = 0;
 let fieldInstallsCoveredDays = 0;
 let fieldInstallsInflight: Promise<FieldInstallSummaryRow[] | null> | null = null;
 let fieldInstallsInflightDays = 0;
-let fieldInstallsOwner: string | null | undefined;
 /** (23 Nov 2026, speed) the newest updated_at seen: a refresh asks only for install records changed since then */
 let fieldInstallsDeltaFrom: string | null = null;
 
@@ -2050,23 +2050,15 @@ function clearMonthlyInstallSessionStorage(): void {
   } catch { /* ignore storage restrictions */ }
 }
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const uid = session?.user?.id ?? null;
-      if (fieldInstallsOwner !== undefined && uid !== fieldInstallsOwner) {
-        fieldInstallsCache = null;
-        fieldInstallsCacheAt = 0;
-        fieldInstallsCoveredDays = 0;
-        fieldInstallsInflight = null;
-        fieldInstallsInflightDays = 0;
-        fieldInstallsDeltaFrom = null;
-        clearMonthlyInstallSessionStorage();
-      }
-      fieldInstallsOwner = uid;
-    });
-  } catch { /* cache remains inactive */ }
-}
+clearOnUserChange(() => {
+  fieldInstallsCache = null;
+  fieldInstallsCacheAt = 0;
+  fieldInstallsCoveredDays = 0;
+  fieldInstallsInflight = null;
+  fieldInstallsInflightDays = 0;
+  fieldInstallsDeltaFrom = null;
+  clearMonthlyInstallSessionStorage();
+});
 
 export function getCachedMonthlyInstallFieldEvents(): FieldInstallSummaryRow[] | null {
   return fieldInstallsCache;
@@ -2094,7 +2086,7 @@ export function getCachedMonthlyInstallBuckets(
     if (!parsed || !Array.isArray(parsed.buckets)) return null;
     if (typeof parsed.at !== 'number' || Date.now() - parsed.at > INSTALL_SESSION_TTL_MS) return null;
     if ((parsed.coveredDays || 0) < minDays) return null;
-    if (fieldInstallsOwner !== undefined && parsed.uid !== fieldInstallsOwner) return null;
+    if (cacheOwner() !== undefined && parsed.uid !== cacheOwner()) return null;
     return {
       buckets: parsed.buckets,
       coveredDays: parsed.coveredDays || 0,
@@ -2117,7 +2109,7 @@ export function setCachedMonthlyInstallBuckets(
       `${INSTALL_SESSION_CACHE_PREFIX}${scopeKey}`,
       JSON.stringify({
         at: Date.now(),
-        uid: fieldInstallsOwner ?? null,
+        uid: cacheOwner() ?? null,
         coveredDays,
         buckets,
         ...(typeof totalMerchants === 'number' ? { totalMerchants } : {}),

@@ -1,6 +1,7 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { fetchStaffAccounts, type StaffAccount } from './supabaseService';
+import { clearOnUserChange } from '../utils/userScopedCache';
 
 /**
  * (29 Oct 2026) Staff Directory: instant opening.
@@ -11,7 +12,6 @@ import { fetchStaffAccounts, type StaffAccount } from './supabaseService';
 try { sessionStorage.removeItem('staff_accounts_cache_v2'); } catch { /* blocked: fine */ }   // the old copy on disk held contact details
 let list: StaffAccount[] | null = null;
 let at = 0;                                            // when the list in memory was fetched
-let owner: string | null | undefined;
 export const clearStaffCache = () => { list = null; at = 0; };
 registerPortalCacheInvalidator(['staff'], () => { at = 0; });
 export const getCachedStaff = () => list;
@@ -20,15 +20,7 @@ export const setCachedStaff = (x: StaffAccount[]) => { list = x; at = Date.now()
 /** Called with every fresh list (any screen that shows it stays current without a download of its own). */
 export const onStaffList = (f: (x: StaffAccount[]) => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearStaffCache();
-      owner = id;
-    });
-  } catch { /* the cache simply stays empty */ }
-}
+clearOnUserChange(clearStaffCache);
 
 /**
  * (4 Nov 2026) One shared download of the staff list. The sign-in load, the background warm-up and the Staff Directory

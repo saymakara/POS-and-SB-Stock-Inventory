@@ -171,8 +171,8 @@ const SimCardTabComponent: React.FC<{
 
   const pg = usePager(filteredRows?.length ?? 0, [status, branchId, search, hardwareFilter]);
   const displayedRows = useMemo(
-    () => (filteredRows || []).slice(pg.start, pg.end),
-    [filteredRows, pg.start, pg.end]
+    () => (filteredRows || []).slice(pg.start, pg.drawEnd),
+    [filteredRows, pg.start, pg.drawEnd]
   );
 
   const [countsKey, setCountsKey] = useState(0);

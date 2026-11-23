@@ -3,6 +3,7 @@ import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { formatProfessionalError } from '../utils/errorLogger';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 import type { Device } from '../types';
+import { clearOnUserChange } from '../utils/userScopedCache';
 
 /**
  * (5 Nov 2026) Merchant kit & materials: SIM cards, batteries, adaptors, stands and docks.
@@ -94,7 +95,6 @@ function deriveCountsFromRows(rows: MaterialSerial[]): Record<SerialStatus, numb
   return out;
 }
 
-let owner: string | null | undefined;
 
 export function clearMaterialsCache(): void {
   cachedBalances = null;
@@ -111,17 +111,7 @@ export function clearMaterialsCache(): void {
 
 registerPortalCacheInvalidator(['materials', 'devices', 'requisitions'], clearMaterialsCache);
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearMaterialsCache();
-      owner = id;
-    });
-  } catch {
-    /* cache stays empty */
-  }
-}
+clearOnUserChange(clearMaterialsCache);
 
 export function getCachedMaterialBalances(): MaterialBalance[] | null {
   return cachedBalances;

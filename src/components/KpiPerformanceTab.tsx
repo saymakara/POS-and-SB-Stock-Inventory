@@ -5659,7 +5659,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 </td>
                               </tr>
                             ) : (
-                              sortedDailyBranchRows.slice(dailyBranchPg.start, dailyBranchPg.end).map((row, idx) => {
+                              sortedDailyBranchRows.slice(dailyBranchPg.start, dailyBranchPg.drawEnd).map((row, idx) => {
                                 const rank = dailyBranchPg.start + idx + 1;
                                 return (
                                   <tr key={row.branchId} className="group hover:bg-slate-50/80 transition-colors">
@@ -5832,7 +5832,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   {statusFilteredBranches.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No branches match the current filters.</div>
                   ) : (
-                    statusFilteredBranches.slice(branchPg.start, branchPg.end).map((b, i) => {
+                    statusFilteredBranches.slice(branchPg.start, branchPg.drawEnd).map((b, i) => {
                       const rank = branchPg.start + i + 1;
                       const isOpen = openBranch === b.branchId;
                       return (
@@ -6050,7 +6050,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </td>
                     </tr>
                   ) : (
-                    sortedDailyStaffRows.slice(dailyStaffPg.start, dailyStaffPg.end).map((row, idx) => {
+                    sortedDailyStaffRows.slice(dailyStaffPg.start, dailyStaffPg.drawEnd).map((row, idx) => {
                       const rank = dailyStaffPg.start + idx + 1;
                       return (
                         <tr key={row.staffId} className="group hover:bg-slate-50/80 transition-colors">
@@ -6250,7 +6250,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   {statusFilteredStaff.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
                   ) : (
-                    statusFilteredStaff.slice(staffPg.start, staffPg.end).map((s, i) => {
+                    statusFilteredStaff.slice(staffPg.start, staffPg.drawEnd).map((s, i) => {
                       const rank = staffPg.start + i + 1;
                       const isOpen = openStaff === s.staffId;
                       return (

@@ -1,6 +1,7 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { fetchAuditLogs, type ServerAuditEntry } from './supabaseService';
+import { clearOnUserChange, rememberRecent } from '../utils/userScopedCache';
 
 /**
  * (29 Oct 2026) Audit Trail: instant opening.
@@ -9,7 +10,6 @@ import { fetchAuditLogs, type ServerAuditEntry } from './supabaseService';
  * (administrators only).
  */
 const pages = new Map<string, ServerAuditEntry[]>();
-let owner: string | null | undefined;
 const MAX_KEYS = 12;
 const key = (limit: number, offset: number) => `${limit}:${offset}`;
 
@@ -18,20 +18,10 @@ export const clearAuditCache = () => pages.clear();
 registerPortalCacheInvalidator(['audit'], clearAuditCache);
 export const getCachedAudit = (limit: number, offset: number) => pages.get(key(limit, offset));
 export function setCachedAudit(limit: number, offset: number, rows: ServerAuditEntry[]): void {
-  const k = key(limit, offset);
-  pages.delete(k); pages.set(k, rows);
-  while (pages.size > MAX_KEYS) pages.delete(pages.keys().next().value as string);
+  rememberRecent(pages, key(limit, offset), rows, MAX_KEYS);
 }
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearAuditCache();
-      owner = id;
-    });
-  } catch { /* the cache simply stays empty */ }
-}
+clearOnUserChange(clearAuditCache);
 
 let inflight: Promise<void> | null = null;
 export function prefetchAudit(): Promise<void> {

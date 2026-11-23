@@ -124,13 +124,21 @@ export function PillMotion({
       }
     }
 
-    return () => {
+    // (23 Nov 2026, speed) keep the stored box current without measuring while a screen is being swapped. Measuring in
+    // the clean-up below made the browser lay out the whole half-changed page an extra time on every tab switch
+    // (up to ~180 ms on a large list). The box is refreshed once the page has settled instead; only a pill that is still
+    // gliding is measured on the spot, so a quick second tap still continues from where it is.
+    const remember = () => {
       if (el.isConnected && track.isConnected) {
         const live = measureInTrack(el, track);
-        if (live.w > 0) {
-          lastBoxes.set(layoutId, live);
-        }
+        if (live.w > 0) lastBoxes.set(layoutId, live);
       }
+    };
+    const settle = window.setTimeout(remember, anim ? 320 : 400);
+
+    return () => {
+      window.clearTimeout(settle);
+      if (anim && anim.playState === 'running') remember();
       if (anim) {
         anim.onfinish = null;
         anim.cancel();

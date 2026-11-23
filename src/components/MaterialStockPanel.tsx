@@ -125,7 +125,10 @@ export const ProductViewToggle: React.FC<{
       pill.style.opacity = '1';
     }
     lastPill[group] = to;
-  });
+    // (23 Nov 2026, speed) only when the selected view, its count or the group changes. Before, this ran after every
+    // redraw of the Stock Inventory page and made the browser lay out the whole page each time (~280 ms when opening it);
+    // a change of size is followed by the ResizeObserver below.
+  }, [view, group, hasPush, pushCount]);
 
   useEffect(() => {
     const list = listRef.current, pill = pillRef.current;
@@ -1160,13 +1163,13 @@ const MaterialStockPanelComponent: React.FC<{
   // Pagination for both ledger views
   const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, assignmentFilter, search]);
   const displayedItems = useMemo(
-    () => combinedItems.slice(pg.start, pg.end),
-    [combinedItems, pg.start, pg.end]
+    () => combinedItems.slice(pg.start, pg.drawEnd),
+    [combinedItems, pg.start, pg.drawEnd]
   );
   const balPg = usePager(branchBalanceRows.length, [selectedCode, statusFilter, branchFilter, search]);
   const displayedBalanceRows = useMemo(
-    () => branchBalanceRows.slice(balPg.start, balPg.end),
-    [branchBalanceRows, balPg.start, balPg.end]
+    () => branchBalanceRows.slice(balPg.start, balPg.drawEnd),
+    [branchBalanceRows, balPg.start, balPg.drawEnd]
   );
 
   const exportDetailedInventoryCsv = () => {

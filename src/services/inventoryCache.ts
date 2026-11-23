@@ -1,7 +1,7 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { markFresh, clearFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import type { Device, PaginatedResult } from '../types';
+import { clearOnUserChange, rememberRecent } from '../utils/userScopedCache';
 
 /**
  * (5 Nov 2026, speed) Inventory device page cache.
@@ -10,7 +10,6 @@ import type { Device, PaginatedResult } from '../types';
  * Memory only; cleared on sign-out / user switch.
  */
 const pages = new Map<string, PaginatedResult<Device>>();
-let owner: string | null | undefined;
 const MAX_KEYS = 50;
 
 export function makeDevicePageKey(params: {
@@ -40,12 +39,7 @@ export function makeDevicePageKey(params: {
 export const getCachedDevicePage = (k: string): PaginatedResult<Device> | undefined => pages.get(k);
 
 export function setCachedDevicePage(k: string, v: PaginatedResult<Device>): void {
-  pages.delete(k);
-  pages.set(k, v);
-  while (pages.size > MAX_KEYS) {
-    const firstKey = pages.keys().next().value;
-    if (firstKey) pages.delete(firstKey);
-  }
+  rememberRecent(pages, k, v, MAX_KEYS);
   markFresh('inv:p:' + k);
 }
 
@@ -56,14 +50,4 @@ export function clearInventoryCache(): void {
 
 registerPortalCacheInvalidator(['devices'], clearInventoryCache);
 
-if (isSupabaseConfigured) {
-  try {
-    supabase.auth.onAuthStateChange((_e, session) => {
-      const id = session?.user?.id ?? null;
-      if (owner !== undefined && id !== owner) clearInventoryCache();
-      owner = id;
-    });
-  } catch {
-    /* cache stays empty */
-  }
-}
+clearOnUserChange(clearInventoryCache);

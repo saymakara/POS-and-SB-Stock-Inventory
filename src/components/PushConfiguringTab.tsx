@@ -536,7 +536,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   // 2,857 units = 108,000 page elements, a freeze of several seconds when the tab opened and again when it was left.
   // Select all, the branch file and the push actions still work on the whole filtered list.
   const pg = usePager(filteredDevices.length, [search, typeFilter, branchFilter]);
-  const pageDevices = useMemo(() => filteredDevices.slice(pg.start, pg.end), [filteredDevices, pg.start, pg.end]);
+  const pageDevices = useMemo(() => filteredDevices.slice(pg.start, pg.drawEnd), [filteredDevices, pg.start, pg.drawEnd]);
   const selectedSet = useMemo(() => new Set(selectedSns), [selectedSns]);   // one lookup per row instead of a scan
 
   const handleToggleSelectOne = (sn: string, index?: number, e?: React.MouseEvent) => {

@@ -7,7 +7,7 @@ process.env.N_DEV = process.env.N_DEV || '27649';
 const S = require('./lib/standin.js');
 const { chromium, B, sleep } = S;
 const CPU = Number(process.env.CPU || 4);
-const TABS = process.env.TABS ? process.env.TABS.split(',') : ['Dashboard', 'KPI Performance', 'Merchant Deployment', 'Merchant History', 'Stock Inventory', 'Stock Requests', 'Branch Codes', 'Staff Directory', 'Audit Trail', 'Settings'];
+const TABS = process.env.TABS ? process.env.TABS.split(',') : ['Dashboard', 'KPI Performance', 'POS Terminal', 'KHQR', 'Merchant Visit', 'Credit Card', 'Merchant Deployment', 'Merchant History', 'Stock Inventory', 'Stock Requests', 'Branch Codes', 'Staff Directory', 'Audit Trail', 'Settings'];
 
 (async () => {
   const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
@@ -33,8 +33,9 @@ const TABS = process.env.TABS ? process.env.TABS.split(',') : ['Dashboard', 'KPI
   await p.click('button[type=submit]');
   await p.waitForFunction(() => /Dashboard/.test(document.body.innerText), null, { timeout: 60000 });
   const shell = Date.now() - t1;
-  // ready: the stock numbers show the full count (all units loaded)
-  await p.waitForFunction((n) => document.body.innerText.replace(/,/g, '').includes(String(n)), Number(process.env.N_DEV), { timeout: 120000 }).catch(() => {});
+  // ready (23 Nov 2026: the redesigned Dashboard no longer prints the unit count): no loading placeholder left on the screen
+  await sleep(300);
+  await p.waitForFunction(() => !document.querySelector('main .skeleton, main [aria-busy="true"]'), null, { timeout: 120000 }).catch(() => {});
   const ready = Date.now() - t1;
   await sleep(Number(process.env.SETTLE_MS || 1500));   // SETTLE_MS: let background work (the first save of the stock copy) finish first
   const ltSign = await p.evaluate(() => window.__lt.splice(0));
