@@ -327,12 +327,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 580;
-const KT_VB_H = 336;
-const KT_CX = 284;
-const KT_CY = 168;
-const KT_R_INNER = 85;
-const KT_R_OUTER = 98;
+const KT_VB_W = 468;
+const KT_VB_H = 368;
+const KT_CX = 234;
+const KT_CY = 184;
+const KT_R_INNER = 68;
+const KT_R_OUTER = 80;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -549,10 +549,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       return { spec, sx, sy, side, targetY };
     });
 
-    const CALLOUT_H = 44;
-    const MIN_GAP = 62;
-    const Y_MIN = 34;
-    const Y_MAX = KT_VB_H - 34;
+    const CALLOUT_H = 42;
+    const MIN_GAP = 60;
+    const Y_MIN = 38;
+    const Y_MAX = KT_VB_H - 38;
 
     const placeSide = (side: 'left' | 'right') => {
       const group = items
@@ -593,8 +593,8 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.max(g.sx + 22, KT_CX + clearDx + 18);
         const ex =
           side === 'left'
-            ? Math.max(176, Math.min(KT_CX - 34, rawEx))
-            : Math.min(KT_VB_W - 173, Math.max(KT_CX + 34, rawEx));
+            ? Math.max(148, Math.min(KT_CX - 28, rawEx))
+            : Math.min(KT_VB_W - 146, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 8)
@@ -654,7 +654,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   return (
     <div
       data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+      className="lg:col-span-4 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
     >
       <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100">
         <div className="min-w-0 flex items-center justify-between gap-2">
@@ -669,9 +669,9 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       </div>
 
       <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
-        {/* Dashboard-Style Enlarged Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
+        {/* Dashboard-Style Compact Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[590px] aspect-[580/336] flex items-center justify-center"
+          className="relative w-full max-w-[440px] aspect-[468/368] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -851,17 +851,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-1.5 py-0.5 @[360px]:px-2 @[360px]:py-1 @[430px]:px-3 @[430px]:py-1.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-1.5 py-0.5 @[340px]:px-2 @[340px]:py-1 @[410px]:px-2.5 @[410px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isActive
                     ? 'shadow-sm'
                     : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1 @[360px]:gap-1.5 text-[7.5px] @[360px]:text-[10px] @[430px]:text-[11.5px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 @[430px]:w-2 @[430px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1 @[340px]:gap-1.5 text-[7.5px] @[340px]:text-[9.5px] @[410px]:text-[11px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 @[410px]:w-2 @[410px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[7px] @[360px]:text-[9.5px] @[430px]:text-[11px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[360px]:pl-3 @[430px]:pl-3.5 text-slate-500">
+                <span className="text-[7px] @[340px]:text-[9px] @[410px]:text-[10.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[340px]:pl-3 @[410px]:pl-3.5 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -3759,7 +3759,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         {loading && !data ? (
           <KpiChartsSkeleton />
         ) : (
-          <AfterPaint order={1} minHeight={502}>
+          <AfterPaint order={1} minHeight={556}>
           <section
             className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
             aria-label="Executive KPI Charts"
@@ -3779,11 +3779,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Chart 1 (8 cols): Gradient Daily Columns — same proportion as Dashboard Daily Volume & Staff */}
             <div
               data-testid="kpi-velocity-chart-card"
-              className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+              className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
             >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3872,14 +3872,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   </div>
                 </div>
 
-                <div className="h-[268px] w-full">
+                <div className="h-[316px] w-full">
                   {reversedTimeSeries.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-xs text-slate-400">
                       No trend data available for this granularity.
                     </div>
                   ) : (
-                    <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 32, right: 4, left: -14, bottom: 0 }}>
+                    <MeasuredChart height={316}>{(chartW) => (
+                      <ComposedChart width={chartW} height={316} data={reversedTimeSeries} margin={{ top: 32, right: 4, left: -14, bottom: 0 }}>
                         <defs>
                           <linearGradient id="kpiVelocityBarGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#155484" />
@@ -3966,7 +3966,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               const plotX = Number(raProps.viewBox?.x ?? 46);
                               const plotY = Number(raProps.viewBox?.y ?? 24);
                               const plotW = Number(raProps.viewBox?.width ?? Math.max(200, chartW - 50));
-                              const plotH = Number(raProps.viewBox?.height ?? 214);
+                              const plotH = Math.max(Number(raProps.viewBox?.height ?? 0), 254);
                               const count = Math.max(1, reversedTimeSeries.length);
                               const slotW = plotW / count;
                               const bandInset = slotW >= 14 ? 1.5 : 0.75;
@@ -7140,8 +7140,8 @@ const KpiCardSkeleton: React.FC = () => (
 
 const KpiChartsSkeleton: React.FC = () => (
   <section className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90" aria-label="Loading KPI charts">
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-      <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[340px] flex flex-col justify-between">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[390px] flex flex-col justify-between">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="skeleton h-4 w-48 rounded-md" />
           <div className="skeleton h-6 w-32 rounded-lg" />
@@ -7161,7 +7161,7 @@ const KpiChartsSkeleton: React.FC = () => (
           ))}
         </div>
       </div>
-      <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[340px] flex flex-col justify-between">
+      <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[390px] flex flex-col justify-between">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="skeleton h-4 w-36 rounded-md" />
           <div className="skeleton h-3.5 w-16 rounded" />
