@@ -327,12 +327,12 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 580;
-const KT_VB_H = 312;
-const KT_CX = 290;
-const KT_CY = 156;
-const KT_R_INNER = 96;
-const KT_R_OUTER = 114;
+const KT_VB_W = 568;
+const KT_VB_H = 342;
+const KT_CX = 284;
+const KT_CY = 171;
+const KT_R_INNER = 88;
+const KT_R_OUTER = 104;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
 const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
 const KT_R_TICK = KT_R_OUTER + 5;
@@ -646,10 +646,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
   const centerPctSizeCls =
     centerReadout.pct.length >= 8
-      ? 'text-[17px] @[340px]:text-[21px] @[470px]:text-[26px]'
+      ? 'text-[16px] @[340px]:text-[20px] @[440px]:text-[24px]'
       : centerReadout.pct.length >= 6
-        ? 'text-[20px] @[340px]:text-[26px] @[470px]:text-[32px]'
-        : 'text-[23px] @[340px]:text-[29px] @[470px]:text-[36px]';
+        ? 'text-[19px] @[340px]:text-[24px] @[440px]:text-[30px]'
+        : 'text-[21px] @[340px]:text-[27px] @[440px]:text-[34px]';
 
   return (
     <div
@@ -671,7 +671,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-none aspect-[580/312] flex items-center justify-center"
+          className="relative w-full max-w-[568px] aspect-[568/342] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -853,17 +853,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-1.5 py-0.5 @[470px]:px-2.5 @[470px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-1.5 py-0.5 @[440px]:px-2.5 @[440px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isActive
                     ? 'shadow-sm'
                     : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1 @[470px]:gap-1.5 text-[7.5px] @[340px]:text-[8.5px] @[470px]:text-[10.5px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 @[470px]:w-2 @[470px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1 @[440px]:gap-1.5 text-[7.5px] @[340px]:text-[8.5px] @[440px]:text-[10.5px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 @[440px]:w-2 @[440px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[7px] @[340px]:text-[8px] @[470px]:text-[10px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[470px]:pl-3 text-slate-500">
+                <span className="text-[7px] @[340px]:text-[8px] @[440px]:text-[10px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[440px]:pl-3 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -3781,7 +3781,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-5">
             {/* Chart 1 (~62%): Gradient Daily Columns alongside Monthly Target Donut */}
             <div
               data-testid="kpi-velocity-chart-card"
