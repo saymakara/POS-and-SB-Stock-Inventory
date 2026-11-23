@@ -1,6 +1,5 @@
-import React, { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { buildAnnularArcPath } from './Charts';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
@@ -120,6 +119,50 @@ function fmtMonth(ym: string): string {
   const [y, m] = ym.split('-').map(Number);
   if (!y || !m) return ym;
   return `${MONTH_NAMES[m - 1] || m} ${y}`;
+}
+function monthShortParts(ym: string): { shortMonth: string; year: string } {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return { shortMonth: ym, year: '' };
+  return { shortMonth: MONTH_NAMES[m - 1] || String(m), year: String(y) };
+}
+function emptyRawCounts(): KpiRawCounts {
+  return {
+    posInstall: 0, posReplace: 0, posBattery: 0,
+    sbInstall: 0, sbReplace: 0, sbMaint: 0, sbReturn: 0,
+    khqrInstall: 0, khqrReplace: 0, khqrMaterials: 0,
+    ccPrimary: 0, ccSupp: 0,
+    adjPts: 0,
+  };
+}
+function accumulateRawCounts(acc: KpiRawCounts, src: KpiRawCounts): void {
+  acc.posInstall += src.posInstall || 0;
+  acc.posReplace += src.posReplace || 0;
+  acc.posBattery += src.posBattery || 0;
+  acc.sbInstall += src.sbInstall || 0;
+  acc.sbReplace += src.sbReplace || 0;
+  acc.sbMaint += src.sbMaint || 0;
+  acc.sbReturn += src.sbReturn || 0;
+  acc.khqrInstall += src.khqrInstall || 0;
+  acc.khqrReplace += src.khqrReplace || 0;
+  acc.khqrMaterials += src.khqrMaterials || 0;
+  acc.ccPrimary += src.ccPrimary || 0;
+  acc.ccSupp += src.ccSupp || 0;
+  acc.adjPts = (acc.adjPts || 0) + (src.adjPts || 0);
+  addExtraCounts(acc, src);
+}
+function pickCategoryKpiVal(
+  pts: ReturnType<typeof computeKpiPoints>,
+  cat: 'ALL' | KpiCategory,
+  isTask: boolean
+): number {
+  switch (cat) {
+    case 'POS Terminal': return isTask ? pts.posTasks : pts.posPoints;
+    case 'Sound Box': return isTask ? pts.sbTasks : pts.sbPoints;
+    case 'KHQR': return isTask ? pts.khqrTasks : pts.khqrPoints;
+    case 'Credit Card': return isTask ? pts.ccTasks : pts.ccPoints;
+    case 'Merchant Visit': return isTask ? pts.mvTasks : pts.mvPoints;
+    default: return isTask ? pts.totalTasks : pts.totalPoints;
+  }
 }
 function fmtShortDate(ymd: string): string {
   const parts = ymd.split('-');
@@ -272,566 +315,6 @@ function remapMetricSortKey(key: string, next: KpiMetricMode, allowStaffPerRatio
   return key;
 }
 
-interface KpiTargetComparisonDonutProps {
-  periodLabel: string;
-  targetLabel: string;
-  actualPoints: number;
-  targetPoints: number;
-  showPacing: boolean;
-  pacingRatio: number;
-  elapsedWorkDays: number;
-  totalWorkDays: number;
-}
-
-const KT_VB_W = 580;
-const KT_VB_H = 336;
-const KT_CX = 284;
-const KT_CY = 168;
-const KT_R_INNER = 85;
-const KT_R_OUTER = 98;
-const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
-const KT_TRACK_W = KT_R_OUTER - KT_R_INNER;
-const KT_R_TICK = KT_R_OUTER + 5;
-
-const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
-  periodLabel,
-  targetLabel,
-  actualPoints,
-  targetPoints,
-  showPacing,
-  pacingRatio,
-  elapsedWorkDays,
-  totalWorkDays,
-}) => {
-  const [hoveredKey, setHoveredKey] = useState<'actual' | 'remaining' | 'pace' | 'target' | null>(null);
-  const shadowFilterId = useId();
-  const safeTarget = Math.max(0, targetPoints);
-  const safeActual = Math.max(0, actualPoints);
-  const gapPts = Math.max(0, safeTarget - safeActual);
-  const surplusPts = Math.max(0, safeActual - safeTarget);
-  const isMet = safeTarget > 0 && safeActual >= safeTarget;
-  const achievementPct = safeTarget > 0 ? Math.min(999, Math.round((safeActual / safeTarget) * 1000) / 10) : 0;
-  const gapPct = safeTarget > 0 ? Math.max(0, Math.round((gapPts / safeTarget) * 1000) / 10) : 0;
-
-  const effectivePaceRatio = showPacing ? Math.min(1, Math.max(0.01, pacingRatio)) : 1;
-  const expectedPacePct = Math.round(effectivePaceRatio * 1000) / 10;
-  const expectedPacePts = Math.round(safeTarget * effectivePaceRatio * 10) / 10;
-  const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
-
-  const actualColor = isMet ? '#2d6a4f' : '#155484';
-  const paceColor = isMet ? '#10b981' : isAheadOfPace ? '#0284c7' : '#f59e0b';
-  const remainingColor = '#94a3b8';
-  const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / safeTarget) : 0;
-  const paceFrac = showPacing ? Math.min(1, Math.max(0.01, effectivePaceRatio)) : 1;
-
-  interface DonutSlice {
-    key: 'actual' | 'pace' | 'remaining';
-    f0: number;
-    f1: number;
-    color: string;
-    title: string;
-  }
-
-  const ringSlices: DonutSlice[] = (() => {
-    if (safeTarget <= 0 || actualFrac <= 0.002) {
-      if (showPacing && paceFrac < 0.998) {
-        return [
-          {
-            key: 'pace',
-            f0: 0,
-            f1: paceFrac,
-            color: paceColor,
-            title: `Expected Pace (Day ${elapsedWorkDays}/${totalWorkDays}): ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`,
-          },
-          {
-            key: 'remaining',
-            f0: paceFrac,
-            f1: 1,
-            color: '#cbd5e1',
-            title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
-          },
-        ];
-      }
-      return [
-        {
-          key: 'remaining',
-          f0: 0,
-          f1: 1,
-          color: '#cbd5e1',
-          title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts`,
-        },
-      ];
-    }
-
-    if (isMet || actualFrac >= 0.998) {
-      return [
-        {
-          key: 'actual',
-          f0: 0,
-          f1: 1,
-          color: actualColor,
-          title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
-        },
-      ];
-    }
-
-    const out: DonutSlice[] = [];
-    if (showPacing && actualFrac < paceFrac - 0.004) {
-      // Behind pace: Actual (navy) | Pace Gap (amber) | Remaining Beyond Pace (cool slate)
-      out.push({
-        key: 'actual',
-        f0: 0,
-        f1: actualFrac,
-        color: actualColor,
-        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
-      });
-      out.push({
-        key: 'pace',
-        f0: actualFrac,
-        f1: paceFrac,
-        color: paceColor,
-        title: `Pace Gap to Day ${elapsedWorkDays}/${totalWorkDays}: ${fmtPts(Math.max(0, expectedPacePts - safeActual))} pts (${expectedPacePct}% expected)`,
-      });
-      if (1 - paceFrac > 0.004) {
-        out.push({
-          key: 'remaining',
-          f0: paceFrac,
-          f1: 1,
-          color: '#cbd5e1',
-          title: `Remaining Beyond Pace: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% total left)`,
-        });
-      }
-    } else if (showPacing && actualFrac > paceFrac + 0.004) {
-      // Ahead of pace: Baseline up to Pace (navy) | Ahead-of-Pace Lead (sky) | Remaining (slate)
-      out.push({
-        key: 'actual',
-        f0: 0,
-        f1: paceFrac,
-        color: actualColor,
-        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
-      });
-      out.push({
-        key: 'pace',
-        f0: paceFrac,
-        f1: actualFrac,
-        color: paceColor,
-        title: `Ahead of Day ${elapsedWorkDays}/${totalWorkDays} Pace (+${fmtPts(safeActual - expectedPacePts)} pts vs ${expectedPacePct}%)`,
-      });
-      out.push({
-        key: 'remaining',
-        f0: actualFrac,
-        f1: 1,
-        color: '#cbd5e1',
-        title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
-      });
-    } else {
-      out.push({
-        key: 'actual',
-        f0: 0,
-        f1: actualFrac,
-        color: actualColor,
-        title: `Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`,
-      });
-      out.push({
-        key: 'remaining',
-        f0: actualFrac,
-        f1: 1,
-        color: '#cbd5e1',
-        title: `Remaining to Target: ${fmtPts(gapPts)} / ${fmtPts(safeTarget)} pts (${gapPct}% left)`,
-      });
-    }
-    return out;
-  })();
-
-  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
-
-  interface KpiCalloutSpec {
-    key: 'actual' | 'pace' | 'remaining';
-    rowKey: 'actual' | 'pace' | 'target';
-    label: string;
-    pctText: string;
-    subText: string;
-    color: string;
-    pctColor: string;
-    midFrac: number;
-  }
-
-  const calloutSpecs: KpiCalloutSpec[] = (() => {
-    const sliceMid = (k: 'actual' | 'pace' | 'remaining', fallbackFrac: number) => {
-      const s = ringSlices.find((sl) => sl.key === k);
-      return s ? (s.f0 + s.f1) / 2 : fallbackFrac;
-    };
-    return [
-      {
-        key: 'actual',
-        rowKey: 'actual',
-        label: 'Actual',
-        pctText: `${achievementPct}%`,
-        subText: `${fmtPts(safeActual)} pts`,
-        color: actualColor,
-        pctColor: isMet ? '#047857' : '#1e6091',
-        midFrac: isMet ? 0.25 : sliceMid('actual', Math.max(0.08, actualFrac / 2)),
-      },
-      {
-        key: 'pace',
-        rowKey: 'pace',
-        label: showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Target Pace',
-        pctText: `${expectedPacePct}%`,
-        subText: `${fmtPts(expectedPacePts)} pts`,
-        color: paceColor,
-        pctColor: isMet ? '#047857' : isAheadOfPace ? '#0284c7' : '#b45309',
-        midFrac: sliceMid('pace', Math.min(0.92, effectivePaceRatio)),
-      },
-      {
-        key: 'remaining',
-        rowKey: 'target',
-        label: isMet ? 'Surplus' : 'Remaining',
-        pctText: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
-        subText: isMet ? 'above target' : `${fmtPts(gapPts)} left`,
-        color: isMet ? '#10b981' : remainingColor,
-        pctColor: isMet ? '#047857' : '#475569',
-        midFrac: isMet ? 0.85 : sliceMid('remaining', 0.9),
-      },
-    ];
-  })();
-
-  const calloutLayouts = (() => {
-    const items = calloutSpecs.map((spec) => {
-      const midAngle = -Math.PI / 2 + spec.midFrac * Math.PI * 2;
-      const sx = KT_CX + KT_R_TICK * Math.cos(midAngle);
-      const sy = KT_CY + KT_R_TICK * Math.sin(midAngle);
-      const side: 'left' | 'right' = Math.cos(midAngle) >= 0 ? 'right' : 'left';
-      const targetY = KT_CY + (KT_R_OUTER + 38) * Math.sin(midAngle);
-      return { spec, sx, sy, side, targetY };
-    });
-
-    const CALLOUT_H = 44;
-    const MIN_GAP = 62;
-    const Y_MIN = 34;
-    const Y_MAX = KT_VB_H - 34;
-
-    const placeSide = (side: 'left' | 'right') => {
-      const group = items
-        .filter((it) => it.side === side)
-        .sort((a, b) => a.targetY - b.targetY);
-      if (!group.length) return [];
-
-      const ys = group.map((g) => Math.max(Y_MIN, Math.min(Y_MAX, g.targetY)));
-      for (let i = 1; i < ys.length; i++) {
-        if (ys[i] - ys[i - 1] < MIN_GAP) ys[i] = ys[i - 1] + MIN_GAP;
-      }
-      if (ys[ys.length - 1] > Y_MAX) {
-        ys[ys.length - 1] = Y_MAX;
-        for (let i = ys.length - 2; i >= 0; i--) {
-          if (ys[i + 1] - ys[i] < MIN_GAP) ys[i] = ys[i + 1] - MIN_GAP;
-        }
-      }
-      for (let i = 0; i < ys.length; i++) {
-        ys[i] = Math.max(Y_MIN, Math.min(Y_MAX, ys[i]));
-      }
-
-      return group.map((g, i) => {
-        const ey = ys[i];
-        const dyNearest =
-          ey + CALLOUT_H / 2 < KT_CY
-            ? KT_CY - (ey + CALLOUT_H / 2)
-            : ey - CALLOUT_H / 2 > KT_CY
-              ? ey - CALLOUT_H / 2 - KT_CY
-              : 0;
-        const minRingR = KT_R_TICK + 4;
-        const clearDx =
-          dyNearest >= minRingR
-            ? 32
-            : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
-        const rawEx =
-          side === 'left'
-            ? Math.min(g.sx - 12, KT_CX - clearDx - 8)
-            : Math.max(g.sx + 22, KT_CX + clearDx + 18);
-        const ex =
-          side === 'left'
-            ? Math.max(176, Math.min(KT_CX - 34, rawEx))
-            : Math.min(KT_VB_W - 173, Math.max(KT_CX + 34, rawEx));
-        const qpx =
-          side === 'left'
-            ? Math.min(g.sx - 6, ex + 8)
-            : Math.max(g.sx + 6, Math.min(ex - 8, (g.sx + ex) / 2));
-        return { ...g, qpx, qpy: ey, ex, ey };
-      });
-    };
-
-    return [...placeSide('left'), ...placeSide('right')];
-  })();
-
-  const isTargetHovered = hoveredKey === 'remaining' || hoveredKey === 'target';
-  const centerReadout = (() => {
-    if (hoveredKey === 'actual') {
-      return {
-        pct: `${achievementPct}%`,
-        top: 'ACTUAL',
-        sub: `${fmtPts(safeActual)} pts`,
-        dot: actualColor,
-        pillCls: 'bg-slate-100/95 text-slate-700',
-      };
-    }
-    if (hoveredKey === 'pace') {
-      return {
-        pct: `${expectedPacePct}%`,
-        top: showPacing ? `PACE · DAY ${elapsedWorkDays}/${totalWorkDays}` : 'TARGET PACE',
-        sub: `${fmtPts(expectedPacePts)} pts`,
-        dot: paceColor,
-        pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
-      };
-    }
-    if (isTargetHovered) {
-      return {
-        pct: isMet ? `+${fmtPts(surplusPts)}` : `${gapPct}%`,
-        top: isMet ? 'SURPLUS' : 'REMAINING',
-        sub: `${fmtPts(gapPts)} left`,
-        dot: isMet ? '#10b981' : remainingColor,
-        pillCls: 'bg-slate-100/95 text-slate-700',
-      };
-    }
-    return {
-      pct: fmtPts(safeTarget),
-      top: targetTitle.toUpperCase(),
-      sub: `pts · ${achievementPct}% done`,
-      dot: actualColor,
-      pillCls: isMet ? 'bg-emerald-50 text-emerald-700' : isAheadOfPace ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800',
-    };
-  })();
-
-  const centerPctSizeCls =
-    centerReadout.pct.length >= 8
-      ? 'text-[15px] @[360px]:text-[19px] @[430px]:text-[22px]'
-      : centerReadout.pct.length >= 6
-        ? 'text-[18px] @[360px]:text-[22px] @[430px]:text-[27px]'
-        : 'text-[20px] @[360px]:text-[25px] @[430px]:text-[30px]';
-
-  return (
-    <div
-      data-testid="kpi-target-donut-card"
-      className="lg:col-span-5 @container bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
-    >
-      <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100">
-        <div className="min-w-0 flex items-center justify-between gap-2">
-          <h3 className="text-[13px] font-semibold text-slate-900 truncate">
-            {targetTitle} vs Actual Achievement{' '}
-            <span className="text-slate-400 font-normal">· {periodLabel}</span>
-          </h3>
-        </div>
-        <p className="text-[11px] text-slate-500 truncate mt-0.5">
-          Attainment &amp; pace share · Target <span className="font-figure font-semibold text-slate-700">{fmtPts(safeTarget)} pts</span>
-        </p>
-      </div>
-
-      <div className="px-1.5 sm:px-2 pt-1 pb-2 flex-1 flex items-center justify-center">
-        {/* Dashboard-Style Enlarged Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
-        <div
-          className="relative w-full max-w-[590px] aspect-[580/336] flex items-center justify-center"
-          onMouseLeave={() => setHoveredKey(null)}
-        >
-          <svg
-            viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
-            className="w-full h-full overflow-visible"
-            role="img"
-            aria-label={`${targetTitle} vs Actual Achievement Donut: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
-            data-testid="kpi-target-donut-svg"
-            onMouseLeave={() => setHoveredKey(null)}
-          >
-            <defs>
-              <filter id={shadowFilterId} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#1e6091" floodOpacity="0.16" />
-              </filter>
-            </defs>
-
-            {/* Recessed donut track */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_TRACK}
-              fill="none"
-              stroke="rgba(15, 23, 42, 0.045)"
-              strokeWidth={KT_TRACK_W}
-            />
-
-            {/* Sculpted separated annular sectors */}
-            <g filter={`url(#${shadowFilterId})`}>
-              {ringSlices.length === 1 ? (
-                <circle
-                  data-kpi-target-slice={ringSlices[0].key}
-                  cx={KT_CX}
-                  cy={KT_CY}
-                  r={KT_R_TRACK}
-                  fill="none"
-                  stroke={ringSlices[0].color}
-                  strokeWidth={hoveredKey === ringSlices[0].key ? KT_TRACK_W + 4 : KT_TRACK_W}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredKey(ringSlices[0].key)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                >
-                  <title>{ringSlices[0].title}</title>
-                </circle>
-              ) : (
-                ringSlices.map((sl) => {
-                  const isActive = hoveredKey === sl.key || (hoveredKey === 'target' && sl.key === 'remaining');
-                  const isDimmed = hoveredKey !== null && !isActive;
-                  const spanRad = (sl.f1 - sl.f0) * Math.PI * 2;
-                  const gapTrim = Math.min(0.036, spanRad * 0.22);
-                  const startRad = -Math.PI / 2 + sl.f0 * Math.PI * 2 + gapTrim / 2;
-                  const endRad = startRad + spanRad - gapTrim;
-                  const rInner = isActive ? KT_R_INNER - 3 : KT_R_INNER;
-                  const rOuter = isActive ? KT_R_OUTER + 4 : KT_R_OUTER;
-                  const d = buildAnnularArcPath(KT_CX, KT_CY, rInner, rOuter, startRad, endRad);
-                  return (
-                    <path
-                      key={sl.key}
-                      data-kpi-target-slice={sl.key}
-                      d={d}
-                      fill={sl.key === 'remaining' && isActive ? '#94a3b8' : sl.color}
-                      opacity={isDimmed ? 0.32 : 1}
-                      style={{
-                        filter: isActive ? `drop-shadow(0 4px 10px ${sl.color}55)` : undefined,
-                        transition: 'opacity 150ms ease, filter 150ms ease',
-                      }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey(sl.key)}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{sl.title}</title>
-                    </path>
-                  );
-                })
-              )}
-            </g>
-
-            {/* Smooth curved Bezier leader lines anchored at slice rim */}
-            {calloutLayouts.map((c) => {
-              const isActive = hoveredKey === c.spec.key || (hoveredKey === 'target' && c.spec.key === 'remaining');
-              const isDimmed = hoveredKey !== null && !isActive;
-              return (
-                <g
-                  key={`leader-${c.spec.key}`}
-                  opacity={isDimmed ? 0.24 : isActive ? 1 : 0.72}
-                  style={{ transition: 'opacity 150ms ease' }}
-                >
-                  <path
-                    d={`M ${c.sx.toFixed(1)} ${c.sy.toFixed(1)} Q ${c.qpx.toFixed(1)} ${c.qpy.toFixed(1)} ${c.ex.toFixed(1)} ${c.ey.toFixed(1)}`}
-                    fill="none"
-                    stroke={c.spec.color}
-                    strokeWidth={isActive ? 1.85 : 1.35}
-                    strokeLinecap="round"
-                  />
-                  <circle
-                    cx={c.sx}
-                    cy={c.sy}
-                    r={isActive ? 3.2 : 2.5}
-                    fill={c.spec.color}
-                  />
-                </g>
-              );
-            })}
-
-            {/* Elevated central frosted hub ring */}
-            <circle
-              cx={KT_CX}
-              cy={KT_CY}
-              r={KT_R_INNER - 5}
-              fill="#ffffff"
-              stroke="rgba(15, 23, 42, 0.08)"
-              strokeWidth="1"
-              onMouseEnter={() => setHoveredKey(null)}
-            />
-          </svg>
-
-          {/* Center Interactive Focus Readout */}
-          <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-1.5"
-            style={{
-              left: `${(KT_CX / KT_VB_W) * 100}%`,
-              top: `${(KT_CY / KT_VB_H) * 100}%`,
-              width: `${(((KT_R_INNER - 5) * 1.8) / KT_VB_W) * 100}%`,
-            }}
-          >
-            <span className="inline-flex items-center gap-1 text-[7px] @[360px]:text-[8px] @[430px]:text-[9px] font-bold tracking-wide uppercase text-slate-500 whitespace-nowrap">
-              <i
-                className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
-                style={{ backgroundColor: centerReadout.dot }}
-              />
-              {centerReadout.top}
-            </span>
-            <span
-              className={`font-bold font-figure leading-none tracking-tight mt-1 tabular-nums text-slate-900 ${centerPctSizeCls}`}
-            >
-              {centerReadout.pct}
-            </span>
-            <span
-              className={`text-[8.5px] @[360px]:text-[9.5px] @[430px]:text-[10.5px] font-figure font-semibold px-2 @[430px]:px-2.5 py-0.5 rounded-full mt-1.5 @[430px]:mt-2 tabular-nums whitespace-nowrap ${centerReadout.pillCls}`}
-            >
-              {centerReadout.sub}
-            </span>
-          </div>
-
-          {/* 3 Floating Pill Callout Badges */}
-          {calloutLayouts.map((c) => {
-            const isActive = hoveredKey === c.spec.key || (hoveredKey === 'target' && c.spec.key === 'remaining');
-            const isDimmed = hoveredKey !== null && !isActive;
-            const posStyle: React.CSSProperties =
-              c.side === 'left'
-                ? {
-                    right: `${((KT_VB_W - c.ex) / KT_VB_W) * 100}%`,
-                    top: `${(c.ey / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }
-                : {
-                    left: `${(c.ex / KT_VB_W) * 100}%`,
-                    top: `${(c.ey / KT_VB_H) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  };
-
-            return (
-              <button
-                key={c.spec.key}
-                type="button"
-                data-kpi-comparison-row={c.spec.rowKey}
-                data-donut-callout={c.spec.key}
-                onMouseEnter={() => setHoveredKey(c.spec.key)}
-                onMouseLeave={() => setHoveredKey(null)}
-                onFocus={() => setHoveredKey(c.spec.key)}
-                onBlur={() => setHoveredKey(null)}
-                style={{
-                  ...posStyle,
-                  ...(isActive
-                    ? {
-                        borderColor: c.spec.color,
-                        backgroundColor: '#ffffff',
-                      }
-                    : undefined),
-                }}
-                className={`absolute px-1.5 py-0.5 @[360px]:px-2 @[360px]:py-1 @[430px]:px-3 @[430px]:py-1.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
-                  isActive
-                    ? 'shadow-sm'
-                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
-                } ${isDimmed ? 'opacity-40' : ''}`}
-              >
-                <span className="inline-flex items-center gap-1 @[360px]:gap-1.5 text-[7.5px] @[360px]:text-[10px] @[430px]:text-[11.5px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 @[430px]:w-2 @[430px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
-                  <span>{c.spec.label}</span>
-                </span>
-                <span className="text-[7px] @[360px]:text-[9.5px] @[430px]:text-[11px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[360px]:pl-3 @[430px]:pl-3.5 text-slate-500">
-                  <strong className="font-bold" style={{ color: c.spec.pctColor }}>
-                    {c.spec.pctText}
-                  </strong>{' '}
-                  · {c.spec.subText}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-});
-
 interface Props {
   role: UserRole;
   userBranchId?: string;
@@ -875,8 +358,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     setSubCatRankBy(metricMode);
   }, [metricMode]);
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
-  const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
-  const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
+  const [branchSubView, setBranchSubView] = useState<'summary' | 'monthly' | 'daily'>('summary');
+  const [staffSubView, setStaffSubView] = useState<'summary' | 'monthly' | 'daily'>('summary');
+  const [monthlySortKey, setMonthlySortKey] = useState<string>('total');
+  const [monthlySortDir, setMonthlySortDir] = useState<'asc' | 'desc'>('desc');
   
   const [staffLevelFilter, setStaffLevelFilter] = useState<'all' | 'field' | 'management'>('all');
   const [statusFilter, setStatusFilter] = useState<'ALL' | KpiRating>('ALL');
@@ -913,22 +398,32 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     }
   }, []);
 
-  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily' | 'staff_daily') => {
-    if (mode === 'branch_daily') {
-      setTableMode('branch');
-      setBranchSubView('daily');
-    } else if (mode === 'staff_daily') {
-      setTableMode('staff');
-      setStaffSubView('daily');
-    } else if (mode === 'branch') {
-      setTableMode('branch');
-      setBranchSubView('summary');
-      setStatusFilter((prev) => (prev === 'Management (Exempt)' ? 'ALL' : prev));
-    } else if (mode === 'staff') {
-      setTableMode('staff');
-      setStaffSubView('summary');
-    }
-  }, []);
+  const handleTableModeChange = useCallback(
+    (mode: 'branch' | 'staff' | 'branch_monthly' | 'staff_monthly' | 'branch_daily' | 'staff_daily') => {
+      if (mode === 'branch_daily') {
+        setTableMode('branch');
+        setBranchSubView('daily');
+      } else if (mode === 'staff_daily') {
+        setTableMode('staff');
+        setStaffSubView('daily');
+      } else if (mode === 'branch_monthly') {
+        setTableMode('branch');
+        setBranchSubView('monthly');
+        setStatusFilter((prev) => (prev === 'Management (Exempt)' ? 'ALL' : prev));
+      } else if (mode === 'staff_monthly') {
+        setTableMode('staff');
+        setStaffSubView('monthly');
+      } else if (mode === 'branch') {
+        setTableMode('branch');
+        setBranchSubView('summary');
+        setStatusFilter((prev) => (prev === 'Management (Exempt)' ? 'ALL' : prev));
+      } else if (mode === 'staff') {
+        setTableMode('staff');
+        setStaffSubView('summary');
+      }
+    },
+    []
+  );
 
   const handleCardClick = useCallback((cardKey: string, targetView: KpiView, mode?: 'branch' | 'staff') => {
     setSelectedCard((c) => (c === cardKey ? null : cardKey));
@@ -1702,22 +1197,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     () => (statusFilter === 'ALL' ? filteredStaff : filteredStaff.filter((s) => s.rating === statusFilter)),
     [filteredStaff, statusFilter]
   );
-
-  const matrixStatusCounts = useMemo(() => {
-    const base = tableMode === 'branch' ? filteredBranches : filteredStaff;
-    const counts: Record<'ALL' | KpiRating, number> = {
-      ALL: base.length,
-      Outstanding: 0,
-      'Meet Target': 0,
-      'Near/Below Target': 0,
-      'Needs Improvement': 0,
-      'Management (Exempt)': 0,
-    };
-    for (const row of base) {
-      counts[row.rating] = (counts[row.rating] || 0) + 1;
-    }
-    return counts;
-  }, [tableMode, filteredBranches, filteredStaff]);
 
   const totals = useMemo(() => {
     const raw: KpiRawCounts = {
@@ -2689,6 +2168,556 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     };
   }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap, ppDirectoryScope, isTaskMode]);
 
+  // ── Monthly KPI Matrix (Month-by-month across available months for Staff & Branches) ──
+  const monthlyMatrixMonths = useMemo(() => {
+    const curYm = todayPP().slice(0, 7);
+    const msMonths = new Set<string>();
+    (data?.monthlyStaff || []).forEach((m) => {
+      if (m.month && m.month <= curYm) msMonths.add(m.month);
+    });
+    const list = msMonths.size > 0
+      ? Array.from(msMonths)
+      : availableMonths.filter((m) => m <= curYm);
+    if (list.length === 0) list.push(curYm);
+    return list.sort((a, b) => a.localeCompare(b)).slice(-12);
+  }, [data?.monthlyStaff, availableMonths]);
+
+  const monthlyMatrixMeta = useMemo(() => {
+    const curYm = todayPP().slice(0, 7);
+    const staffDailyTarget = data?.targets?.staffDailyTarget ?? 5;
+    const configuredMonthlyPts = data?.targets?.staffMonthlyTarget || Math.round(staffDailyTarget * (data?.targets?.workDaysInMonth || 22));
+    return monthlyMatrixMonths.map((ym) => {
+      const [yStr, mStr] = ym.split('-');
+      const yr = parseInt(yStr, 10) || new Date().getFullYear();
+      const mo = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+      const wd = getMonthWorkDaysSummary(yr, mo);
+      const workDays = wd.workDays > 0 ? wd.workDays : (data?.targets?.workDaysInMonth ?? 21);
+      const isCurrent = ym === curYm;
+      const elapsedRatio = ym < curYm ? 1 : isCurrent ? pacingInfo.pacingRatio : 0.05;
+      const staffTarget = isTaskMode ? Math.round(staffDailyTarget * workDays) : configuredMonthlyPts;
+      const staffPacingTarget = Math.max(1, Math.round(staffTarget * elapsedRatio));
+      const { shortMonth, year } = monthShortParts(ym);
+      return {
+        ym,
+        shortMonth,
+        year,
+        fullLabel: fmtMonth(ym),
+        workDays,
+        isCurrent,
+        elapsedRatio,
+        staffTarget,
+        staffPacingTarget,
+      };
+    });
+  }, [monthlyMatrixMonths, data?.targets, isTaskMode, pacingInfo.pacingRatio]);
+
+  interface MonthlyCellData {
+    ym: string;
+    val: number;
+    points: number;
+    tasks: number;
+    pts: ReturnType<typeof computeKpiPoints>;
+    pct: number;
+    pacingPct: number;
+    target: number;
+  }
+  interface MonthlyMatrixRow {
+    id: string;
+    name: string;
+    subLabel: string;
+    branchId: string;
+    branchName: string;
+    isManagement: boolean;
+    staffCount: number;
+    kpiStaffCount: number;
+    cells: MonthlyCellData[];
+    cellByMonth: Record<string, MonthlyCellData>;
+    total: number;
+    totalPoints: number;
+    totalTasks: number;
+    avgPerMonth: number;
+    targetPerMonth: number;
+    targetPct: number;
+    pacingPct: number;
+    cumulativeTarget: number;
+    cumulativePacingTarget: number;
+    rating: KpiRating;
+    rawTotal: KpiRawCounts;
+  }
+
+  const monthlyMatrixData = useMemo(() => {
+    const emptyRes = {
+      allStaffRows: [] as MonthlyMatrixRow[],
+      staffRows: [] as MonthlyMatrixRow[],
+      branchRows: [] as MonthlyMatrixRow[],
+      levelCounts: { all: 0, field: 0, management: 0 },
+    };
+    if (!data) return emptyRes;
+
+    const monthSet = new Set(monthlyMatrixMeta.map((m) => m.ym));
+    const latestMeta = monthlyMatrixMeta[monthlyMatrixMeta.length - 1];
+    const staffBuckets = new Map<string, {
+      staffId: string;
+      staffName: string;
+      branchId: string;
+      branchName: string;
+      position: string;
+      isManagement: boolean;
+      byMonth: Map<string, KpiRawCounts>;
+    }>();
+
+    const ensureStaffEntry = (
+      empIdRaw: string,
+      nameRaw: string,
+      branchIdRaw: string,
+      branchNameRaw: string,
+      positionRaw?: string,
+      isMgtOverride?: boolean
+    ) => {
+      const key = empIdRaw || nameRaw.toLowerCase();
+      if (!key) return null;
+      let entry = staffBuckets.get(key);
+      if (!entry) {
+        const meta = staffMetaMap.get(empIdRaw) || staffMetaMap.get(nameRaw.toLowerCase());
+        const isManagement = isMgtOverride ?? meta?.isManagement ?? isStaffManagementExempt(empIdRaw, nameRaw, exemptSet);
+        const position = positionRaw || meta?.position || (isManagement ? 'Management' : 'MS Officer');
+        const branchId = branchIdRaw || 'UNASSIGNED';
+        entry = {
+          staffId: empIdRaw,
+          staffName: nameRaw || empIdRaw,
+          branchId,
+          branchName: branchNameMap.get(branchId) || branchNameRaw || branchId,
+          position,
+          isManagement,
+          byMonth: new Map(),
+        };
+        staffBuckets.set(key, entry);
+      }
+      return entry;
+    };
+
+    ppDirectoryScope.members.forEach((m) => {
+      ensureStaffEntry(m.empId, m.name, m.branchId, branchNameMap.get(m.branchId) || m.branchId, m.position, m.isManagement);
+    });
+
+    (data.monthlyStaff || []).forEach((ms) => {
+      if (!ms.month || !monthSet.has(ms.month)) return;
+      const dir = ppDirectoryScope.matchPpStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+      if (!dir) return;
+      const canonId = dir.empId || ms.staffId;
+      const canonName = dir.name || ms.staffName;
+      const canonBranch = dir.branchId || ms.branchId;
+      const entry = ensureStaffEntry(canonId, canonName, canonBranch, branchNameMap.get(canonBranch) || ms.branchName || canonBranch, dir.position, dir.isManagement);
+      if (!entry) return;
+      let mRaw = entry.byMonth.get(ms.month);
+      if (!mRaw) {
+        mRaw = emptyRawCounts();
+        entry.byMonth.set(ms.month, mRaw);
+      }
+      accumulateRawCounts(mRaw, ms);
+    });
+
+    // Also build full scoped staff rows (for branch rollup and Level pill counts)
+    const builtStaffAll: MonthlyMatrixRow[] = [];
+    const branchAccum = new Map<string, {
+      branchId: string;
+      branchName: string;
+      staffCount: number;
+      kpiStaffCount: number;
+      byMonth: Map<string, KpiRawCounts>;
+    }>();
+
+    branches.filter((b) => isPhnomPenhBranch(b)).forEach((b) => {
+      if (!isAdmin && userBranchId && b.id !== userBranchId) return;
+      if (branchFilter && b.id !== branchFilter) return;
+      branchAccum.set(b.id, {
+        branchId: b.id,
+        branchName: branchNameMap.get(b.id) || b.name,
+        staffCount: 0,
+        kpiStaffCount: 0,
+        byMonth: new Map(),
+      });
+    });
+
+    const q = deferredQuery.trim().toLowerCase();
+
+    staffBuckets.forEach((s) => {
+      if (!isAdmin && userBranchId && s.branchId !== userBranchId) return;
+      if (branchFilter && s.branchId !== branchFilter) return;
+
+      // Roll into branch metrics prior to staff-level/search filtering (unless branch itself was filtered)
+      let br = branchAccum.get(s.branchId);
+      if (!br && s.branchId) {
+        br = {
+          branchId: s.branchId,
+          branchName: s.branchName,
+          staffCount: 0,
+          kpiStaffCount: 0,
+          byMonth: new Map(),
+        };
+        branchAccum.set(s.branchId, br);
+      }
+      if (br) {
+        br.staffCount += 1;
+        if (!s.isManagement) br.kpiStaffCount += 1;
+      }
+
+      const rawTotal = emptyRawCounts();
+      const cellByMonth: Record<string, MonthlyCellData> = {};
+      let total = 0;
+      let totalPoints = 0;
+      let totalTasks = 0;
+      let cumulativeTarget = 0;
+      let cumulativePacingTarget = 0;
+
+      const cells = monthlyMatrixMeta.map((m) => {
+        const mRaw = s.byMonth.get(m.ym);
+        if (mRaw) {
+          accumulateRawCounts(rawTotal, mRaw);
+          if (br) {
+            let bMonthRaw = br.byMonth.get(m.ym);
+            if (!bMonthRaw) {
+              bMonthRaw = emptyRawCounts();
+              br.byMonth.set(m.ym, bMonthRaw);
+            }
+            accumulateRawCounts(bMonthRaw, mRaw);
+          }
+        }
+        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap);
+        const val = pickCategoryKpiVal(pts, categoryFilter, isTaskMode);
+        const target = s.isManagement ? 0 : m.staffTarget;
+        const mPacingTarget = s.isManagement ? 0 : m.staffPacingTarget;
+        const pct = target > 0 ? Math.min(999, Math.round((val / target) * 1000) / 10) : 0;
+        const pacingPct = mPacingTarget > 0 ? Math.min(999, Math.round((val / mPacingTarget) * 1000) / 10) : 0;
+
+        total += val;
+        totalPoints += pts.totalPoints;
+        totalTasks += pts.totalTasks;
+        cumulativeTarget += target;
+        cumulativePacingTarget += mPacingTarget;
+
+        const cell: MonthlyCellData = {
+          ym: m.ym,
+          val: Math.round(val * 100) / 100,
+          points: pts.totalPoints,
+          tasks: pts.totalTasks,
+          pts,
+          pct,
+          pacingPct,
+          target,
+        };
+        cellByMonth[m.ym] = cell;
+        return cell;
+      });
+
+      if (q && !`${s.staffId} ${s.staffName} ${s.branchId} ${s.branchName} ${s.position}`.toLowerCase().includes(q)) {
+        return;
+      }
+      if (categoryFilter !== 'ALL' && total === 0) {
+        return;
+      }
+
+      const targetPerMonth = s.isManagement ? 0 : (latestMeta?.staffTarget ?? 0);
+      const targetPct = s.isManagement
+        ? (total > 0 && (latestMeta?.staffTarget || 0) > 0 && monthlyMatrixMeta.length > 0
+            ? Math.min(999, Math.round((total / ((latestMeta?.staffTarget || 1) * monthlyMatrixMeta.length)) * 1000) / 10)
+            : 0)
+        : (cumulativeTarget > 0 ? Math.min(999, Math.round((total / cumulativeTarget) * 1000) / 10) : 100);
+      const pacingPct = s.isManagement
+        ? 0
+        : (cumulativePacingTarget > 0 ? Math.min(999, Math.round((total / cumulativePacingTarget) * 1000) / 10) : 100);
+      const rating = getKpiRating(pacingPct, s.isManagement);
+
+      builtStaffAll.push({
+        id: s.staffId || s.staffName,
+        name: s.staffName,
+        subLabel: s.position,
+        branchId: s.branchId,
+        branchName: s.branchName,
+        isManagement: s.isManagement,
+        staffCount: 1,
+        kpiStaffCount: s.isManagement ? 0 : 1,
+        cells,
+        cellByMonth,
+        total: Math.round(total * 100) / 100,
+        totalPoints: Math.round(totalPoints * 100) / 100,
+        totalTasks,
+        avgPerMonth: monthlyMatrixMeta.length > 0 ? Math.round((total / monthlyMatrixMeta.length) * 10) / 10 : 0,
+        targetPerMonth,
+        targetPct,
+        pacingPct,
+        cumulativeTarget,
+        cumulativePacingTarget,
+        rating,
+        rawTotal,
+      });
+    });
+
+    const levelCounts = {
+      all: builtStaffAll.length,
+      field: builtStaffAll.filter((s) => !s.isManagement).length,
+      management: builtStaffAll.filter((s) => s.isManagement).length,
+    };
+
+    const staffRows = builtStaffAll.filter((s) => {
+      if (staffLevelFilter === 'field' && s.isManagement) return false;
+      if (staffLevelFilter === 'management' && !s.isManagement) return false;
+      return true;
+    });
+
+    const builtBranches: MonthlyMatrixRow[] = [];
+    branchAccum.forEach((b) => {
+      if (q && !`${b.branchId} ${b.branchName}`.toLowerCase().includes(q)) return;
+      const targetStaffMult = Math.max(1, b.kpiStaffCount > 0 ? b.kpiStaffCount : b.staffCount);
+      const rawTotal = emptyRawCounts();
+      const cellByMonth: Record<string, MonthlyCellData> = {};
+      let total = 0;
+      let totalPoints = 0;
+      let totalTasks = 0;
+      let cumulativeTarget = 0;
+      let cumulativePacingTarget = 0;
+
+      const cells = monthlyMatrixMeta.map((m) => {
+        const mRaw = b.byMonth.get(m.ym);
+        if (mRaw) accumulateRawCounts(rawTotal, mRaw);
+        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap);
+        const val = pickCategoryKpiVal(pts, categoryFilter, isTaskMode);
+        const target = m.staffTarget * targetStaffMult;
+        const mPacingTarget = m.staffPacingTarget * targetStaffMult;
+        const pct = target > 0 ? Math.min(999, Math.round((val / target) * 1000) / 10) : 0;
+        const pacingPct = mPacingTarget > 0 ? Math.min(999, Math.round((val / mPacingTarget) * 1000) / 10) : 0;
+
+        total += val;
+        totalPoints += pts.totalPoints;
+        totalTasks += pts.totalTasks;
+        cumulativeTarget += target;
+        cumulativePacingTarget += mPacingTarget;
+
+        const cell: MonthlyCellData = {
+          ym: m.ym,
+          val: Math.round(val * 100) / 100,
+          points: pts.totalPoints,
+          tasks: pts.totalTasks,
+          pts,
+          pct,
+          pacingPct,
+          target,
+        };
+        cellByMonth[m.ym] = cell;
+        return cell;
+      });
+
+      if (categoryFilter !== 'ALL' && total === 0) return;
+
+      const targetPerMonth = (latestMeta?.staffTarget ?? 0) * targetStaffMult;
+      const targetPct = cumulativeTarget > 0 ? Math.min(999, Math.round((total / cumulativeTarget) * 1000) / 10) : 100;
+      const pacingPct = cumulativePacingTarget > 0 ? Math.min(999, Math.round((total / cumulativePacingTarget) * 1000) / 10) : 100;
+      const rating = getKpiRating(pacingPct, false);
+
+      builtBranches.push({
+        id: b.branchId,
+        name: b.branchName,
+        subLabel: `${b.staffCount} staff`,
+        branchId: b.branchId,
+        branchName: b.branchName,
+        isManagement: false,
+        staffCount: b.staffCount,
+        kpiStaffCount: targetStaffMult,
+        cells,
+        cellByMonth,
+        total: Math.round(total * 100) / 100,
+        totalPoints: Math.round(totalPoints * 100) / 100,
+        totalTasks,
+        avgPerMonth: monthlyMatrixMeta.length > 0 ? Math.round((total / monthlyMatrixMeta.length) * 10) / 10 : 0,
+        targetPerMonth,
+        targetPct,
+        pacingPct,
+        cumulativeTarget,
+        cumulativePacingTarget,
+        rating,
+        rawTotal,
+      });
+    });
+
+    return {
+      allStaffRows: builtStaffAll,
+      staffRows,
+      branchRows: builtBranches,
+      levelCounts,
+    };
+  }, [
+    data,
+    monthlyMatrixMeta,
+    ppDirectoryScope,
+    staffMetaMap,
+    exemptSet,
+    branchNameMap,
+    branches,
+    isAdmin,
+    userBranchId,
+    branchFilter,
+    deferredQuery,
+    ruleMap,
+    categoryFilter,
+    isTaskMode,
+    staffLevelFilter,
+  ]);
+
+  const activeMonthlyBaseRows = tableMode === 'branch' ? monthlyMatrixData.branchRows : monthlyMatrixData.staffRows;
+
+  const matrixStatusCounts = useMemo(() => {
+    const isMonthlyView =
+      (tableMode === 'branch' && branchSubView === 'monthly') ||
+      (tableMode === 'staff' && staffSubView === 'monthly');
+    const base = isMonthlyView
+      ? activeMonthlyBaseRows
+      : tableMode === 'branch'
+      ? filteredBranches
+      : filteredStaff;
+    const counts: Record<'ALL' | KpiRating, number> = {
+      ALL: base.length,
+      Outstanding: 0,
+      'Meet Target': 0,
+      'Near/Below Target': 0,
+      'Needs Improvement': 0,
+      'Management (Exempt)': 0,
+    };
+    for (const row of base) {
+      counts[row.rating] = (counts[row.rating] || 0) + 1;
+    }
+    return counts;
+  }, [tableMode, branchSubView, staffSubView, activeMonthlyBaseRows, filteredBranches, filteredStaff]);
+
+  const statusFilteredMonthlyRows = useMemo(
+    () => (statusFilter === 'ALL' ? activeMonthlyBaseRows : activeMonthlyBaseRows.filter((r) => r.rating === statusFilter)),
+    [activeMonthlyBaseRows, statusFilter]
+  );
+
+  const sortedMonthlyRows = useMemo(() => {
+    return [...statusFilteredMonthlyRows].sort((a, b) => {
+      if (monthlySortKey.startsWith('m_')) {
+        const ym = monthlySortKey.slice(2);
+        const av = a.cellByMonth[ym]?.val ?? 0;
+        const bv = b.cellByMonth[ym]?.val ?? 0;
+        const cmp = av - bv;
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
+      if (monthlySortKey === 'name') {
+        const cmp = (tableMode === 'branch' ? cleanBranchName(a.name) : a.name).localeCompare(
+          tableMode === 'branch' ? cleanBranchName(b.name) : b.name
+        );
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
+      if (monthlySortKey === 'branchId') {
+        const cmp = a.branchId.localeCompare(b.branchId, 'en', { numeric: true });
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
+      if (monthlySortKey === 'avg') {
+        const cmp = a.avgPerMonth - b.avgPerMonth;
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
+      if (monthlySortKey === 'targetPct') {
+        const cmp = a.targetPct - b.targetPct;
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
+      const cmp = a.total - b.total || a.totalTasks - b.totalTasks;
+      return monthlySortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [statusFilteredMonthlyRows, monthlySortKey, monthlySortDir, tableMode]);
+
+  const monthlyTotals = useMemo(() => {
+    const byMonth: Record<string, number> = {};
+    monthlyMatrixMeta.forEach((m) => { byMonth[m.ym] = 0; });
+    let grandTotal = 0;
+    let totalTargetPerMonth = 0;
+    let totalCumulativeTarget = 0;
+    let totalCumulativePacingTarget = 0;
+    sortedMonthlyRows.forEach((r) => {
+      grandTotal += r.total;
+      if (!r.isManagement) {
+        totalTargetPerMonth += r.targetPerMonth;
+        totalCumulativeTarget += r.cumulativeTarget;
+        totalCumulativePacingTarget += r.cumulativePacingTarget;
+      }
+      r.cells.forEach((c) => {
+        byMonth[c.ym] = (byMonth[c.ym] || 0) + c.val;
+      });
+    });
+    const avgPerMonth = monthlyMatrixMeta.length > 0 ? Math.round((grandTotal / monthlyMatrixMeta.length) * 10) / 10 : 0;
+    const pct = totalCumulativeTarget > 0 ? Math.round((grandTotal / totalCumulativeTarget) * 1000) / 10 : 0;
+    return {
+      byMonth,
+      grandTotal: Math.round(grandTotal * 100) / 100,
+      avgPerMonth,
+      totalTargetPerMonth,
+      totalCumulativeTarget,
+      totalCumulativePacingTarget,
+      pct,
+    };
+  }, [sortedMonthlyRows, monthlyMatrixMeta]);
+
+  const monthlyPg = usePager(sortedMonthlyRows.length, [
+    tableMode, branchSubView, staffSubView, branchFilter, categoryFilter, deferredQuery,
+    staffLevelFilter, statusFilter, metricMode, monthlyMatrixMonths.length,
+  ]);
+
+  const exportMonthlyCsv = async () => {
+    if (!sortedMonthlyRows.length) return 0;
+    const isBr = tableMode === 'branch';
+    const unitTag = isTaskMode ? 'Tasks' : 'Points';
+    const spanTag =
+      monthlyMatrixMonths.length > 1
+        ? `${monthlyMatrixMonths[0]}_to_${monthlyMatrixMonths[monthlyMatrixMonths.length - 1]}`
+        : monthlyMatrixMonths[0] || 'all';
+    const header = isBr
+      ? [
+          'No.', 'Branch Name', 'Branch Code', 'Active Staff',
+          ...monthlyMatrixMeta.map((m) => `${m.fullLabel} (${unitTag})`),
+          `Total ${unitTag}`, `Monthly Avg (${unitTag})`, `Target / Month (${unitTag})`, 'Achievement %', 'Performance',
+        ]
+      : [
+          'No.', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code',
+          ...monthlyMatrixMeta.map((m) => `${m.fullLabel} (${unitTag})`),
+          `Total ${unitTag}`, `Monthly Avg (${unitTag})`, `Target / Month (${unitTag})`, 'Achievement %', 'Performance',
+        ];
+
+    const rows = sortedMonthlyRows.map((r, i) =>
+      isBr
+        ? [
+            i + 1, cleanBranchName(r.name), r.branchId, r.staffCount,
+            ...r.cells.map((c) => c.val),
+            r.total, r.avgPerMonth, r.targetPerMonth, `${r.targetPct}%`, r.rating,
+          ]
+        : [
+            i + 1, r.name, r.id, r.subLabel || 'MS Officer',
+            r.isManagement ? 'Management (Exempt)' : 'Field Officer',
+            cleanBranchName(r.branchName), r.branchId,
+            ...r.cells.map((c) => c.val),
+            r.total, r.avgPerMonth,
+            r.isManagement ? 'Exempt' : r.targetPerMonth,
+            r.isManagement ? 'Exempt' : `${r.targetPct}%`,
+            r.rating,
+          ]
+    );
+
+    rows.push(
+      isBr
+        ? [
+            'Total', `All Branches (${sortedMonthlyRows.length})`, 'ALL', '',
+            ...monthlyMatrixMeta.map((m) => Math.round((monthlyTotals.byMonth[m.ym] || 0) * 100) / 100),
+            monthlyTotals.grandTotal, monthlyTotals.avgPerMonth, monthlyTotals.totalTargetPerMonth, `${monthlyTotals.pct}%`, '',
+          ]
+        : [
+            'Total', `All Staff (${sortedMonthlyRows.length})`, '', '', '', '', '',
+            ...monthlyMatrixMeta.map((m) => Math.round((monthlyTotals.byMonth[m.ym] || 0) * 100) / 100),
+            monthlyTotals.grandTotal, monthlyTotals.avgPerMonth, monthlyTotals.totalTargetPerMonth, `${monthlyTotals.pct}%`, '',
+          ]
+    );
+
+    downloadCsv(`KPI_Monthly_${isBr ? 'Branch' : 'Staff'}_${unitTag}_${spanTag}`, header, rows);
+    return sortedMonthlyRows.length;
+  };
+
   const branchPg = usePager(statusFilteredBranches.length, [period, branchFilter, categoryFilter, deferredQuery, statusFilter]);
   const staffPg = usePager(statusFilteredStaff.length, [period, branchFilter, categoryFilter, deferredQuery, staffLevelFilter, statusFilter]);
 
@@ -3137,20 +3166,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Performance Velocity &amp; Monthly Target Attainment</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Performance Velocity</h3>
                   <p className="text-[11.5px] text-slate-500 font-medium">
                     {isTaskMode
-                      ? 'Task count trajectory across time and actual vs target attainment'
-                      : 'Point output trajectory across time and actual vs target attainment'}
+                      ? 'Task count trajectory across time'
+                      : 'Point output trajectory across time'}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Style 1 — Gradient Daily Columns */}
             <div
               data-testid="kpi-velocity-chart-card"
-              className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
             >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3517,19 +3544,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-
-            {/* Chart 2 (5 cols): Monthly Target vs Actual Achievement & Pace Donut */}
-            <KpiTargetComparisonDonut
-              periodLabel={KPI_PERIOD_LABEL[period]}
-              targetLabel={activeTargets.label}
-              actualPoints={totals.totalPoints}
-              targetPoints={totals.totalBranchTargetPoints}
-              showPacing={period === 'MONTH' || period === 'ALL'}
-              pacingRatio={pacingInfo.pacingRatio}
-              elapsedWorkDays={pacingInfo.elapsedWorkDays}
-              totalWorkDays={pacingInfo.totalWorkDays}
-            />
-          </div>
         </section>
           </AfterPaint>
         )}
@@ -4844,26 +4858,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           )}
 
           {/* Section 7 Header Bar */}
-          <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
                 <BarChart3 className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900 leading-snug">Branch &amp; Staff Performance Matrix</h3>
-                <p className="text-[11.5px] text-slate-500 font-medium">Rankings, points, targets &amp; daily activity</p>
+                <p className="text-[11.5px] text-slate-500 font-medium">Rankings, points, targets, monthly &amp; daily activity</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap xl:flex-nowrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 max-w-full ml-auto">
               <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
-                <div className={`${CAPSULE_TRACK_CLS} text-xs shrink-0 whitespace-nowrap`} role="tablist" aria-label="Matrix mode">
+                <div className={`${CAPSULE_TRACK_CLS} text-[11px] shrink-0 whitespace-nowrap`} role="tablist" aria-label="Matrix mode">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'summary'}
-                  onClick={() => { handleTableModeChange('staff'); setStaffSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                  onClick={() => handleTableModeChange('staff')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
                     tableMode === 'staff' && staffSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
@@ -4885,8 +4899,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'summary'}
-                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                  onClick={() => handleTableModeChange('branch')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
                     tableMode === 'branch' && branchSubView === 'summary' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
@@ -4907,9 +4921,55 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <button
                   type="button"
                   role="tab"
+                  aria-selected={tableMode === 'staff' && staffSubView === 'monthly'}
+                  onClick={() => handleTableModeChange('staff_monthly')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'staff' && staffSubView === 'monthly' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                  }`}
+                >
+                  {tableMode === 'staff' && staffSubView === 'monthly' && (
+                    <PillMotion
+                      layoutId="kpi-table-mode-pill"
+                      aria-hidden
+                      transition={SPRING}
+                      className={CAPSULE_PILL_CLS}
+                    />
+                  )}
+                  <Users className="w-3.5 h-3.5 relative z-10 text-teal-600" aria-hidden />
+                  <span className="relative z-10">Staff Monthly KPI</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'monthly' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+                    {monthlyMatrixMonths.length}m
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tableMode === 'branch' && branchSubView === 'monthly'}
+                  onClick={() => handleTableModeChange('branch_monthly')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
+                    tableMode === 'branch' && branchSubView === 'monthly' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                  }`}
+                >
+                  {tableMode === 'branch' && branchSubView === 'monthly' && (
+                    <PillMotion
+                      layoutId="kpi-table-mode-pill"
+                      aria-hidden
+                      transition={SPRING}
+                      className={CAPSULE_PILL_CLS}
+                    />
+                  )}
+                  <Building2 className="w-3.5 h-3.5 relative z-10 text-cyan-600" aria-hidden />
+                  <span className="relative z-10">Branch Monthly KPI</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'monthly' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
+                    {monthlyMatrixMonths.length}m
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
                   aria-selected={tableMode === 'staff' && staffSubView === 'daily'}
-                  onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                  onClick={() => handleTableModeChange('staff_daily')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
                     tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
@@ -4931,8 +4991,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={tableMode === 'branch' && branchSubView === 'daily'}
-                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
+                  onClick={() => handleTableModeChange('branch_daily')}
+                  className={`relative inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full cursor-pointer transition-colors ${
                     tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
@@ -4950,26 +5010,36 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     1–{matrixDays.length}d
                   </span>
                 </button>
-                
+
                 </div>
               </div>
 
               <ExportCsvButton
                 onExport={
                   tableMode === 'staff'
-                    ? (staffSubView === 'daily' ? exportDailyStaffCsv : exportStaffCsv)
+                    ? staffSubView === 'daily'
+                      ? exportDailyStaffCsv
+                      : staffSubView === 'monthly'
+                      ? exportMonthlyCsv
+                      : exportStaffCsv
                     : branchSubView === 'daily'
                     ? exportDailyBranchCsv
+                    : branchSubView === 'monthly'
+                    ? exportMonthlyCsv
                     : exportBranchCsv
                 }
                 toast={triggerToast}
                 title={`Export ${
                   tableMode === 'staff'
-                    ? (staffSubView === 'daily'
-                        ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Staff`
-                        : 'KPI Performance by Staff')
+                    ? staffSubView === 'daily'
+                      ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Staff`
+                      : staffSubView === 'monthly'
+                      ? 'Monthly KPI Matrix by Staff'
+                      : 'KPI Performance by Staff'
                     : branchSubView === 'daily'
                     ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Branch`
+                    : branchSubView === 'monthly'
+                    ? 'Monthly KPI Matrix by Branch'
                     : 'KPI Performance by Branch'
                 } to CSV`}
               />
@@ -5024,7 +5094,29 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   className="text-slate-600"
                   title="Weekends (Sat/Sun) and Cambodian public holidays are excluded from KPI work days"
                 >
-                  {tableMode === 'branch' ? (
+                  {(tableMode === 'branch' && branchSubView === 'monthly') || (tableMode === 'staff' && staffSubView === 'monthly') ? (
+                    <>
+                      <strong className="font-semibold text-slate-800 tabular-nums">{sortedMonthlyRows.length}</strong>{' '}
+                      {tableMode === 'branch' ? 'branches' : 'staff'}
+                      {statusFilter !== 'ALL' && (
+                        <span className="text-slate-400 font-normal"> of {activeMonthlyBaseRows.length}</span>
+                      )}
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span>
+                        <strong className="font-semibold text-slate-800 tabular-nums">{monthlyMatrixMonths.length}</strong> months (
+                        {monthlyMatrixMeta.length > 1
+                          ? `${monthlyMatrixMeta[0].fullLabel} – ${monthlyMatrixMeta[monthlyMatrixMeta.length - 1].fullLabel}`
+                          : monthlyMatrixMeta[0]?.fullLabel || ''}
+                        )
+                      </span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      Target{' '}
+                      <strong className="font-semibold text-slate-800 tabular-nums">
+                        {fmtPts(monthlyMatrixMeta[monthlyMatrixMeta.length - 1]?.staffTarget ?? activeTargets.staff)}
+                      </strong>{' '}
+                      {isTaskMode ? 'tasks' : 'pts'}/staff{tableMode === 'branch' ? ' × active officers' : '/mo'}
+                    </>
+                  ) : tableMode === 'branch' ? (
                     <>
                       <strong className="font-semibold text-slate-800 tabular-nums">{statusFilteredBranches.length}</strong> branches
                       {statusFilter !== 'ALL' && (
@@ -5080,7 +5172,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </button>
                     )}
                   </div>
-                  {tableMode === 'staff' && (
+                  {tableMode === 'staff' && (() => {
+                    const isMon = staffSubView === 'monthly';
+                    const allLvlCount = isMon ? monthlyMatrixData.levelCounts.all : enrichedStaff.length;
+                    const fldLvlCount = isMon ? monthlyMatrixData.levelCounts.field : enrichedStaff.filter((s) => !s.isManagement).length;
+                    const mgtLvlCount = isMon ? monthlyMatrixData.levelCounts.management : enrichedStaff.filter((s) => s.isManagement).length;
+                    return (
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] text-slate-500 font-medium">Level:</span>
                       <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-xs`} role="tablist" aria-label="Staff level filter">
@@ -5102,7 +5199,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             />
                           )}
                           <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-[#004e75]" aria-hidden />
-                          <span className="relative z-10">All ({enrichedStaff.length})</span>
+                          <span className="relative z-10">All ({allLvlCount})</span>
                         </button>
                         <button
                           type="button"
@@ -5122,7 +5219,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             />
                           )}
                           <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-emerald-500" aria-hidden />
-                          <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
+                          <span className="relative z-10">Field Officers ({fldLvlCount})</span>
                         </button>
                         <button
                           type="button"
@@ -5143,11 +5240,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             />
                           )}
                           <span className="w-2 h-2 rounded-full relative z-10 shrink-0 bg-amber-500" aria-hidden />
-                          <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
+                          <span className="relative z-10">Management ({mgtLvlCount})</span>
                         </button>
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -5159,7 +5257,289 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
           ) : (
             <div>
-                {tableMode === 'branch' ? (
+                {((tableMode === 'branch' && branchSubView === 'monthly') || (tableMode === 'staff' && staffSubView === 'monthly')) ? (
+                  <>
+                    <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
+                      <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
+                        <thead>
+                          <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
+                            <th className="sticky left-0 bg-[#003857] z-30 px-1.5 py-2.5 text-center w-[32px] min-w-[32px] font-semibold text-[11px] text-white/90 border-b border-white/20">
+                              No.
+                            </th>
+                            <th
+                              className={`sticky left-[32px] bg-[#003857] z-30 px-2.5 py-2.5 text-left ${tableMode === 'staff' ? 'w-[150px] min-w-[150px]' : 'w-[184px] min-w-[184px] border-r border-slate-700/90 shadow-[2px_0_4px_rgba(0,0,0,0.18)]'} cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20`}
+                              onClick={() => {
+                                setMonthlySortKey('name');
+                                setMonthlySortDir((d) => (monthlySortKey === 'name' ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
+                              }}
+                            >
+                              <div className="flex items-center gap-1 font-semibold text-[11px] text-white">
+                                <span>{tableMode === 'branch' ? 'Branch' : 'Staff'}</span>
+                                <SortIcon active={monthlySortKey === 'name'} dir={monthlySortDir} />
+                              </div>
+                            </th>
+                            {tableMode === 'staff' && (
+                              <th
+                                className="sticky left-[182px] bg-[#003857] z-30 px-1.5 py-2.5 text-left w-[46px] min-w-[46px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_4px_rgba(0,0,0,0.18)]"
+                                onClick={() => {
+                                  setMonthlySortKey('branchId');
+                                  setMonthlySortDir((d) => (monthlySortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
+                                }}
+                              >
+                                <div className="flex items-center gap-1 font-semibold text-[11px] text-white">
+                                  <span>Code</span>
+                                  <SortIcon active={monthlySortKey === 'branchId'} dir={monthlySortDir} />
+                                </div>
+                              </th>
+                            )}
+
+                            {monthlyMatrixMeta.map((m) => {
+                              const sKey = `m_${m.ym}`;
+                              return (
+                                <th
+                                  key={m.ym}
+                                  onClick={() => {
+                                    setMonthlySortKey(sKey);
+                                    setMonthlySortDir((d) => (monthlySortKey === sKey ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                  }}
+                                  title={`${m.fullLabel} (${m.workDays} official work days)${m.isCurrent ? ' · Current month-to-date' : ''} — Click to sort`}
+                                  className={`px-1 py-2 text-center min-w-[56px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                                    m.isCurrent ? 'bg-sky-400/20 text-sky-100 hover:bg-sky-400/30' : 'text-white hover:bg-white/10'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-center gap-0.5">
+                                    <div className="leading-tight flex flex-col items-center">
+                                      <span className="text-[11px] font-semibold leading-none">{m.shortMonth}</span>
+                                      <span className="text-[9.5px] font-normal text-sky-200/85 mt-0.5 leading-none">
+                                        {m.isCurrent ? 'MTD' : m.year}
+                                      </span>
+                                    </div>
+                                    <SortIcon active={monthlySortKey === sKey} dir={monthlySortDir} />
+                                  </div>
+                                </th>
+                              );
+                            })}
+
+                            <th
+                              className="px-1.5 py-2.5 text-center w-[78px] min-w-[78px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              onClick={() => {
+                                setMonthlySortKey('total');
+                                setMonthlySortDir((d) => (monthlySortKey === 'total' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-1 font-medium text-[11px] text-white whitespace-nowrap">
+                                <span>{isTaskMode ? 'Total Tasks' : 'Total Pts'}</span>
+                                <SortIcon active={monthlySortKey === 'total'} dir={monthlySortDir} />
+                              </div>
+                            </th>
+                            <th
+                              className="px-1.5 py-2.5 text-center w-[62px] min-w-[62px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              onClick={() => {
+                                setMonthlySortKey('avg');
+                                setMonthlySortDir((d) => (monthlySortKey === 'avg' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-1 font-medium text-[11px] text-white whitespace-nowrap">
+                                <span>Avg/Mo</span>
+                                <SortIcon active={monthlySortKey === 'avg'} dir={monthlySortDir} />
+                              </div>
+                            </th>
+                            <th className="px-1.5 py-2.5 text-center w-[66px] min-w-[66px] font-medium text-[11px] text-white border-b border-white/20 whitespace-nowrap">
+                              Target/Mo
+                            </th>
+                            <th
+                              className="px-1.5 py-2.5 text-center w-[56px] min-w-[56px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              onClick={() => {
+                                setMonthlySortKey('targetPct');
+                                setMonthlySortDir((d) => (monthlySortKey === 'targetPct' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-1 font-medium text-[11px] text-white whitespace-nowrap">
+                                <span>% Tgt</span>
+                                <SortIcon active={monthlySortKey === 'targetPct'} dir={monthlySortDir} />
+                              </div>
+                            </th>
+                            <th className="px-2 py-2.5 text-center w-[134px] min-w-[134px] font-medium text-[11px] text-white border-b border-white/20">
+                              Performance
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {sortedMonthlyRows.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={monthlyMatrixMeta.length + (tableMode === 'staff' ? 8 : 7)}
+                                className="p-10 text-center text-sm text-slate-500"
+                              >
+                                No {tableMode === 'branch' ? 'branch' : 'staff'} records match the current filters.
+                              </td>
+                            </tr>
+                          ) : (
+                            sortedMonthlyRows.slice(monthlyPg.start, monthlyPg.end).map((row, idx) => {
+                              const rank = monthlyPg.start + idx + 1;
+                              return (
+                                <tr key={row.id} className="group hover:bg-slate-50/80 transition-colors">
+                                  <td className="sticky left-0 bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center tabular-nums text-slate-400 text-xs border-r border-slate-100 font-normal">
+                                    {rank}
+                                  </td>
+                                  {tableMode === 'branch' ? (
+                                    <td
+                                      className="sticky left-[32px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-200/70 font-normal max-w-[184px]"
+                                      title={`${cleanBranchName(row.name)} (${fmtBranchCode(row.branchId)})`}
+                                    >
+                                      <span className="block truncate font-medium text-slate-900 leading-snug">
+                                        {cleanBranchName(row.name)}
+                                      </span>
+                                      <span className="block font-mono text-[11px] text-slate-400 tabular-nums leading-tight mt-0.5">
+                                        {row.branchId && row.branchId !== 'UNASSIGNED' ? `Code ${fmtBranchCode(row.branchId)}` : 'Unassigned'} · {row.staffCount} staff
+                                      </span>
+                                    </td>
+                                  ) : (
+                                    <>
+                                      <td
+                                        className="sticky left-[32px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 text-slate-900 border-r border-slate-100 font-normal max-w-[150px]"
+                                        title={`${row.name}${row.id ? ` (${row.id})` : ''}${row.subLabel ? ` · ${row.subLabel}` : ''}`}
+                                      >
+                                        <span className="flex items-baseline gap-1.5 min-w-0">
+                                          {row.isManagement && <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0 self-center" aria-hidden />}
+                                          <span className="truncate font-medium text-slate-900 leading-snug">{row.name}</span>
+                                          {row.id && (
+                                            <span className="font-mono text-[11px] text-slate-400 tabular-nums shrink-0">{row.id}</span>
+                                          )}
+                                        </span>
+                                        {row.subLabel && (
+                                          <span className={`block text-[11px] truncate leading-tight mt-0.5 ${row.isManagement ? 'text-indigo-600 font-medium' : 'text-slate-500'}`}>
+                                            {row.subLabel}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td
+                                        className="sticky left-[182px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 font-mono text-xs text-slate-600 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-200/70 font-normal truncate max-w-[46px]"
+                                        title={`${row.branchId} - ${cleanBranchName(row.branchName)}`}
+                                      >
+                                        {fmtBranchCode(row.branchId)}
+                                      </td>
+                                    </>
+                                  )}
+
+                                  {row.cells.map((c, mIdx) => {
+                                    const meta = monthlyMatrixMeta[mIdx];
+                                    const hasVal = c.val > 0;
+                                    const paceRatio = c.pacingPct;
+                                    const tip = `${tableMode === 'branch' ? cleanBranchName(row.name) : `${row.name} (${row.id})`} · ${meta.fullLabel}: ${
+                                      isTaskMode ? `${fmtInt(c.val)} tasks (${fmtPts(c.points)} pts)` : `${fmtPts(c.val)} pts (${fmtInt(c.tasks)} tasks)`
+                                    }${c.target > 0 ? `\nTarget: ${fmtPts(c.target)} (${c.pct}%${meta.isCurrent ? ` · MTD pace ${c.pacingPct}%` : ''})` : ''}\nPOS: ${c.pts.posTasks} (${fmtPts(c.pts.posPoints)} pts) · SB: ${c.pts.sbTasks} (${fmtPts(c.pts.sbPoints)} pts) · KHQR: ${c.pts.khqrTasks} (${fmtPts(c.pts.khqrPoints)} pts) · CC: ${c.pts.ccTasks} (${fmtPts(c.pts.ccPoints)} pts)${c.pts.mvTasks > 0 ? ` · MV: ${c.pts.mvTasks} (${fmtPts(c.pts.mvPoints)} pts)` : ''}`;
+                                    return (
+                                      <td
+                                        key={c.ym}
+                                        title={tip}
+                                        className={`px-1 py-1.5 text-center border-r border-slate-100 transition-colors ${
+                                          meta.isCurrent ? 'bg-sky-50/35' : ''
+                                        }`}
+                                      >
+                                        {hasVal ? (
+                                          <span
+                                            className={`inline-flex items-center justify-center min-w-[40px] h-[23px] px-1.5 rounded text-[11.5px] font-figure tabular-nums font-medium ${
+                                              row.isManagement
+                                                ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80'
+                                                : paceRatio >= 100
+                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                                                : paceRatio >= 70
+                                                ? 'bg-sky-50 text-sky-800 border border-sky-300'
+                                                : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                            }`}
+                                          >
+                                            {isTaskMode ? fmtInt(c.val) : fmtPts(c.val)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-300 text-xs font-light select-none">·</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+
+                                  <td className="px-2 py-2 text-center tabular-nums font-figure font-semibold text-[#003857] border-l border-slate-200/60 whitespace-nowrap">
+                                    {isTaskMode ? `${fmtInt(row.total)} tasks` : `${fmtPts(row.total)} pts`}
+                                  </td>
+                                  <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-700">
+                                    {fmtPts(row.avgPerMonth)}
+                                  </td>
+                                  <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-500">
+                                    {row.isManagement ? '—' : fmtPts(row.targetPerMonth)}
+                                  </td>
+                                  <td
+                                    className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-900"
+                                    title={row.isManagement ? 'Exempt from field KPI target' : `Cumulative attainment: ${fmtPts(row.total)} / ${fmtPts(row.cumulativeTarget)} across ${monthlyMatrixMeta.length} month(s) (Pacing: ${row.pacingPct}%)`}
+                                  >
+                                    {row.isManagement ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200/80">
+                                        <ShieldCheck className="w-2.5 h-2.5 text-indigo-600 shrink-0" aria-hidden />
+                                        <span>Exempt</span>
+                                      </span>
+                                    ) : (
+                                      `${row.targetPct}%`
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-2 text-center whitespace-nowrap">
+                                    <RatingBadge
+                                      rating={row.rating}
+                                      pacingPct={row.pacingPct}
+                                      title={row.isManagement ? 'Management level staff are exempt from individual field KPIs' : `Pacing across ${monthlyMatrixMeta.length} month(s): ${row.pacingPct}% (${fmtPts(row.total)} / ${fmtPts(row.cumulativePacingTarget)} pacing target)`}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+
+                        {sortedMonthlyRows.length > 0 && (
+                          <tfoot>
+                            <tr className="bg-slate-100/90 font-medium text-slate-800 border-t-2 border-slate-300 text-[12px]">
+                              <td
+                                colSpan={tableMode === 'staff' ? 3 : 2}
+                                className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-semibold text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
+                              >
+                                Total Across All {tableMode === 'branch' ? `Branches (${sortedMonthlyRows.length})` : `Staff (${sortedMonthlyRows.length})`}
+                              </td>
+                              {monthlyMatrixMeta.map((m) => {
+                                const mSum = Math.round((monthlyTotals.byMonth[m.ym] || 0) * 100) / 100;
+                                return (
+                                  <td
+                                    key={m.ym}
+                                    className={`px-1 py-2 text-center tabular-nums text-[11.5px] font-figure border-r border-slate-200 ${
+                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-semibold' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
+                                    }`}
+                                    title={`All ${tableMode === 'branch' ? 'branches' : 'staff'} in ${m.fullLabel}: ${isTaskMode ? `${fmtInt(mSum)} tasks` : `${fmtPts(mSum)} pts`}`}
+                                  >
+                                    {mSum > 0 ? (isTaskMode ? fmtInt(mSum) : fmtPts(mSum)) : '·'}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-2 py-2.5 text-center tabular-nums font-semibold text-[#003857] border-l border-slate-300 text-xs">
+                                {isTaskMode ? fmtInt(monthlyTotals.grandTotal) : fmtPts(monthlyTotals.grandTotal)}
+                              </td>
+                              <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs">
+                                {fmtPts(monthlyTotals.avgPerMonth)}
+                              </td>
+                              <td className="px-1.5 py-2.5 text-center tabular-nums text-slate-500 text-xs">
+                                {fmtPts(monthlyTotals.totalTargetPerMonth)}
+                              </td>
+                              <td className="px-1.5 py-2.5 text-center tabular-nums font-medium text-slate-900 text-xs">
+                                {monthlyTotals.pct}%
+                              </td>
+                              <td className="px-2 py-2.5 text-center">
+                                <span className="text-[11px] text-slate-500 font-medium">{monthlyMatrixMonths.length}m Total</span>
+                              </td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                    <Pager pg={monthlyPg} label={tableMode === 'branch' ? 'branches' : 'staff members'} />
+                  </>
+                ) : tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
                       <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
@@ -6083,41 +6463,24 @@ const KpiCardSkeleton: React.FC = () => (
 
 const KpiChartsSkeleton: React.FC = () => (
   <section className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90" aria-label="Loading KPI charts">
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-      <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[340px] flex flex-col justify-between">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="skeleton h-4 w-48 rounded-md" />
-          <div className="skeleton h-6 w-32 rounded-lg" />
-        </div>
-        <div className="flex items-center gap-4 py-2">
-          <div className="skeleton h-3 w-20 rounded" />
-          <div className="skeleton h-3 w-20 rounded" />
-          <div className="skeleton h-3 w-20 rounded" />
-          <div className="skeleton h-3 w-20 rounded" />
-        </div>
-        <div className="h-[220px] w-full flex items-end gap-3 px-2 pt-4">
-          {[45, 65, 80, 50, 92, 75, 60, 85, 95, 70].map((h, i) => (
-            <div key={i} className="flex-1 flex flex-col gap-1 items-center h-full justify-end">
-              <div className="skeleton w-full rounded-t-md" style={{ height: `${h}%` }} />
-              <div className="skeleton h-2.5 w-6 rounded mt-1" />
-            </div>
-          ))}
-        </div>
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[340px] flex flex-col justify-between">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="skeleton h-4 w-48 rounded-md" />
+        <div className="skeleton h-6 w-32 rounded-lg" />
       </div>
-      <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-4 min-h-[340px] flex flex-col justify-between">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="skeleton h-4 w-36 rounded-md" />
-          <div className="skeleton h-3.5 w-16 rounded" />
-        </div>
-        <div className="space-y-3 py-3">
-          {[88, 74, 65, 55, 48, 40, 32].map((w, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className="skeleton h-3 w-20 rounded shrink-0" />
-              <div className="skeleton h-4 rounded-md flex-1" style={{ width: `${w}%` }} />
-              <div className="skeleton h-3 w-10 rounded shrink-0" />
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center gap-4 py-2">
+        <div className="skeleton h-3 w-20 rounded" />
+        <div className="skeleton h-3 w-20 rounded" />
+        <div className="skeleton h-3 w-20 rounded" />
+        <div className="skeleton h-3 w-20 rounded" />
+      </div>
+      <div className="h-[220px] w-full flex items-end gap-3 px-2 pt-4">
+        {[45, 65, 80, 50, 92, 75, 60, 85, 95, 70].map((h, i) => (
+          <div key={i} className="flex-1 flex flex-col gap-1 items-center h-full justify-end">
+            <div className="skeleton w-full rounded-t-md" style={{ height: `${h}%` }} />
+            <div className="skeleton h-2.5 w-6 rounded mt-1" />
+          </div>
+        ))}
       </div>
     </div>
   </section>
