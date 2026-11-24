@@ -5270,11 +5270,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 </div>
                               </td>
                               <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
-                                {isTaskMode ? <>{fmtPts(s.totalPoints)} pts</> : fmtInt(s.totalTasks)}
+                                {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                               </td>
                               <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                                 <span className="font-bold text-[#003857] text-[13.5px]">
-                                  {isTaskMode ? <>{fmtInt(s.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
+                                  {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                                 </span>
                               </td>
                             </tr>
@@ -5333,11 +5333,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <TaskPtsCell tasks={b.tasksPerStaff} pts={b.ptsPerStaff} mode={metricMode} align="right" decimalTasks />
                             </td>
                             <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
-                              {isTaskMode ? <>{fmtPts(b.totalPoints)} pts</> : fmtInt(b.totalTasks)}
+                              {isTaskMode ? fmtPts(b.totalPoints) : fmtInt(b.totalTasks)}
                             </td>
                             <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                               <span className="font-bold text-[#003857] text-[13.5px]">
-                                {isTaskMode ? <>{fmtInt(b.totalTasks)} <span className="text-xs font-semibold">tasks</span></> : <>{fmtPts(b.totalPoints)} <span className="text-xs font-semibold">pts</span></>}
+                                {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                               </span>
                             </td>
                           </tr>
@@ -5472,10 +5472,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <TaskPtsCell tasks={t.tasksPerStaff} pts={t.ptsPerStaff} mode={metricMode} align="right" decimalTasks />
                     </span>
                     <span className="text-right tabular-nums font-normal text-slate-800">
-                      {isTaskMode ? `${fmtPts(t.totalPoints)} pts` : fmtInt(t.totalTasks)}
+                      {isTaskMode ? fmtPts(t.totalPoints) : fmtInt(t.totalTasks)}
                     </span>
                     <span className="text-right tabular-nums font-figure font-normal text-[#003857]">
-                      {isTaskMode ? `${fmtInt(t.totalTasks)} tasks` : `${fmtPts(t.totalPoints)} pts`}
+                      {isTaskMode ? fmtInt(t.totalTasks) : fmtPts(t.totalPoints)}
                     </span>
                     <span className="text-right tabular-nums">
                       {t.growthPct === null ? (
@@ -6199,10 +6199,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     return (
                                       <>
                                         <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-600 border-l border-slate-200/60 whitespace-nowrap">
-                                          {isTaskMode ? `${fmtPts(rowPts)} pts` : fmtInt(rowTasks)}
+                                          {isTaskMode ? fmtPts(rowPts) : fmtInt(rowTasks)}
                                         </td>
                                         <td className="px-2 py-2 text-center tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap">
-                                          {isTaskMode ? `${fmtInt(row.total)} tasks` : `${fmtPts(row.total)} pts`}
+                                          {isTaskMode ? fmtInt(row.total) : fmtPts(row.total)}
                                         </td>
                                         <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-700">
                                           {fmtPts(row.avgPerMonth)}
@@ -6265,10 +6265,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 );
                               })}
                               <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 border-l border-slate-300 text-xs whitespace-nowrap">
-                                {isTaskMode ? `${fmtPts(monthlyTotals.grandPoints)} pts` : fmtInt(monthlyTotals.grandTasks)}
+                                {isTaskMode ? fmtPts(monthlyTotals.grandPoints) : fmtInt(monthlyTotals.grandTasks)}
                               </td>
                               <td className="px-2 py-2.5 text-center tabular-nums font-medium text-[#003857] text-xs whitespace-nowrap">
-                                {isTaskMode ? `${fmtInt(monthlyTotals.grandTotal)} tasks` : `${fmtPts(monthlyTotals.grandTotal)} pts`}
+                                {isTaskMode ? fmtInt(monthlyTotals.grandTotal) : fmtPts(monthlyTotals.grandTotal)}
                               </td>
                               <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs">
                                 {fmtPts(monthlyTotals.avgPerMonth)}
@@ -6613,7 +6613,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               {isTaskMode ? `${fmtPts(b.totalPoints)}` : fmtInt(b.totalTasks)}
                             </span>
                             <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
-                              {isTaskMode ? `${fmtInt(b.totalTasks)} tasks` : `${fmtPts(b.totalPoints)} pts`}
+                              {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
                             <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={b.rating} pacingPct={b.pacingPct} title={`Pacing: ${b.pacingPct}% (${fmtPts(b.totalPoints)} / ${fmtPts(b.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
@@ -7051,7 +7051,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                             </span>
                             <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
-                              {isTaskMode ? `${fmtInt(s.totalTasks)} tasks` : `${fmtPts(s.totalPoints)} pts`}
+                              {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
                             <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={s.rating} pacingPct={s.pacingPct} title={`Pacing: ${s.pacingPct}% (${fmtPts(s.totalPoints)} / ${fmtPts(s.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
@@ -7128,15 +7128,7 @@ const TaskPtsCell: React.FC<{
       className={`font-figure tabular-nums block w-full whitespace-nowrap ${alignCls} ${primaryColor}`}
       title={`${ptsStr} pts · ${taskStr} ${taskUnit}`}
     >
-      {isTasks ? (
-        <>
-          {taskStr} <span className="text-[11px] font-normal text-slate-400">{taskUnit}</span>
-        </>
-      ) : (
-        <>
-          {ptsStr} <span className="text-[11px] font-normal text-slate-400">pts</span>
-        </>
-      )}
+      {isTasks ? taskStr : ptsStr}
     </span>
   );
 });
