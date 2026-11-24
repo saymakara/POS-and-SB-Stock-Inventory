@@ -3596,6 +3596,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       badge={KPI_PERIOD_LABEL[period]}
                       onClick={() => handleCardClick('points', 'all')}
                       active={selectedCard === 'points'}
+                      staggerIndex={0}
                     />
                     <BigKpiCard
                       label="Branches & Staff"
@@ -3622,6 +3623,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       badge={`${totals.staffOnTarget} on target`}
                       onClick={() => handleCardClick('staff', 'all', 'staff')}
                       active={selectedCard === 'staff' || selectedCard === 'branches'}
+                      staggerIndex={1}
                     />
                     <BigKpiCard
                       label="Leading Branch"
@@ -3632,6 +3634,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       badge={leadBranch ? `${leadBranch.staffCount} staff` : undefined}
                       onClick={() => handleCardClick('leading-branch', 'all', 'branch')}
                       active={selectedCard === 'leading-branch'}
+                      staggerIndex={2}
                     />
                     <BigKpiCard
                       label="Top Performer"
@@ -3642,6 +3645,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       badge={leadStaff ? cleanBranchName(leadStaff.branchName) : undefined}
                       onClick={() => handleCardClick('top-performer', 'top10')}
                       active={selectedCard === 'top-performer'}
+                      staggerIndex={3}
                     />
                     <BigKpiCard
                       label="Target Achievement"
@@ -3652,6 +3656,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       badge={activeTargets.label}
                       onClick={() => handleCardClick('achievement', 'all', 'branch')}
                       active={selectedCard === 'achievement'}
+                      staggerIndex={4}
                     />
                   </>
                 );
@@ -3662,7 +3667,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       </section>
 
       {/* ───────────── Navigation & Filter Bar ───────────── */}
-      <section className="bg-white rounded-2xl border border-slate-200/90 px-3.5 py-2.5 shadow-2xs" aria-label="KPI Navigation and Filters">
+      <section
+        className="bg-white rounded-2xl border border-slate-200/90 px-3.5 py-2.5 shadow-2xs silk-lift"
+        style={{ '--silk-i': 4 } as React.CSSProperties}
+        aria-label="KPI Navigation and Filters"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
             <div className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`} role="tablist" aria-label="KPI Views">
@@ -3763,7 +3772,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         ) : (
           <AfterPaint order={1} minHeight={556}>
           <section
-            className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
+            className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4 silk-lift"
+            style={{ '--silk-i': 5 } as React.CSSProperties}
             aria-label="Executive KPI Charts"
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -4174,7 +4184,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       <div className={showSection('all') ? 'contents' : 'hidden'}>
         <AfterPaint order={2} minHeight={249}>
         <section
-          className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
+          className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4 silk-lift"
+          style={{ '--silk-i': 6 } as React.CSSProperties}
           aria-label="Most KPI Types Consumed"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -4977,7 +4988,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       <div className={showSection('all') || showSection('top10') ? 'contents' : 'hidden'}>
         <AfterPaint order={view === 'all' ? 2 : 1} minHeight={420}>
         <section
-          className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
+          className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4 silk-lift"
+          style={{ '--silk-i': view === 'all' ? 6 : 4 } as React.CSSProperties}
           aria-label="Top 10 Institutional Leaderboard"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -5317,7 +5329,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Overall Performance Breakdown by Daily, Weekly, Monthly & Quarterly ───────────── */}
       <div className={showSection('all') || showSection('timeline') ? 'contents' : 'hidden'}>
         <AfterPaint order={view === 'all' ? 3 : 1} minHeight={timelineExpanded ? 1100 : 480}>
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden" aria-label="Overall Performance by Period">
+        <section
+          className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden silk-lift"
+          style={{ '--silk-i': view === 'all' ? 7 : 4 } as React.CSSProperties}
+          aria-label="Overall Performance by Period"
+        >
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#003857] border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
@@ -5473,7 +5489,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}
       <div className={showSection('all') || showSection('branches') || showSection('staff') ? 'contents' : 'hidden'}>
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative" aria-label="KPI Performance Table">
+        <section
+          className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative silk-lift"
+          style={{ '--silk-i': view === 'all' ? 7 : 4 } as React.CSSProperties}
+          aria-label="KPI Performance Table"
+        >
           {loading && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 via-[#1e5b88] to-teal-400 animate-pulse z-20" />
           )}
@@ -7212,7 +7232,8 @@ const BigKpiCard: React.FC<{
   badge?: string;
   onClick?: () => void;
   active?: boolean;
-}> = React.memo(({ label, value, valueNode, sub, icon: Icon, accentColor = 'blue', badge, onClick, active }) => {
+  staggerIndex?: number;
+}> = React.memo(({ label, value, valueNode, sub, icon: Icon, accentColor = 'blue', badge, onClick, active, staggerIndex = 0 }) => {
   const theme = {
     blue: {
       iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
@@ -7233,7 +7254,8 @@ const BigKpiCard: React.FC<{
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`relative flex flex-col justify-between p-4 2xl:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group ${
+      style={{ '--silk-i': staggerIndex } as React.CSSProperties}
+      className={`relative flex flex-col justify-between p-4 2xl:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group silk-lift ${
         active ? 'border-[#1e5b88] ring-2 ring-sky-100' : 'border-slate-200/90'
       }`}
     >

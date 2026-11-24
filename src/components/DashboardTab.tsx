@@ -652,7 +652,10 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
   const shadowFilterId = useId();
 
   return (
-    <section className={`lg:col-span-4 ${cardClass} overflow-hidden flex flex-col justify-between`}>
+    <section
+      className={`lg:col-span-4 ${cardClass} overflow-hidden flex flex-col justify-between silk-lift`}
+      style={{ '--silk-i': 5 } as React.CSSProperties}
+    >
       <div className="px-5 pt-4 pb-1 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h3 className={`text-sm sm:text-[14.5px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -947,7 +950,8 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
   return (
     <section
       data-testid="monthly-install-comparison-card"
-      className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col justify-between`}
+      className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col justify-between silk-lift`}
+      style={{ '--silk-i': 6 } as React.CSSProperties}
     >
       <div className="px-6 pt-5 pb-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -3384,7 +3388,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             type="button"
             onClick={() => onNavigateTab?.('kpi_performance')}
             title="Open KPI Performance"
-            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left silk-lift`}
+            style={{ '--silk-i': 0 } as React.CSSProperties}
           >
             <div className="w-full">
               <div className="flex items-center justify-between gap-2">
@@ -3434,7 +3439,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 ? `Merchant Visit review deployments: ${fmtNum(deploymentSummary.approvedTotal)} approved · ${fmtNum(deploymentSummary.pendingTotal)} pending — open Merchant Deployment`
                 : 'Open Merchant Deployment'
             }
-            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left silk-lift`}
+            style={{ '--silk-i': 1 } as React.CSSProperties}
           >
             <div className="w-full">
               <div className="flex items-center justify-between gap-2">
@@ -3504,7 +3510,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               }
             }}
             title={`Pending approvals: ${fmtNum(queues.posField)} POS · ${fmtNum(queues.sbField)} SB · ${fmtNum(queues.ccPend)} CC · ${fmtNum(queues.reqPend)} Req${queues.pushPend > 0 ? ` · ${fmtNum(queues.pushPend)} push` : ''}`}
-            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 silk-lift`}
+            style={{ '--silk-i': 2 } as React.CSSProperties}
           >
             <div>
               <div className="flex items-center justify-between gap-2">
@@ -3584,7 +3591,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             type="button"
             onClick={() => onNavigateTab?.('mobile_sync_khqr')}
             title="Open KHQR Review"
-            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left`}
+            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left silk-lift`}
+            style={{ '--silk-i': 3 } as React.CSSProperties}
           >
             <div className="w-full">
               <div className="flex items-center justify-between gap-2">
@@ -3631,7 +3639,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left 8 Cols: Cross-Channel Daily Velocity & Active Staff */}
-        <section className={`lg:col-span-8 ${iosCardClass} overflow-hidden flex flex-col`}>
+        <section
+          className={`lg:col-span-8 ${iosCardClass} overflow-hidden flex flex-col silk-lift`}
+          style={{ '--silk-i': 4 } as React.CSSProperties}
+        >
           <div className="px-6 pt-5 pb-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div
@@ -3819,7 +3830,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {/* Right 4 Cols: POS Terminal Battery Lifecycle Status */}
         <section
           data-testid="pos-battery-status-card"
-          className={`lg:col-span-4 @container ${iosCardClass} overflow-hidden flex flex-col`}
+          className={`lg:col-span-4 @container ${iosCardClass} overflow-hidden flex flex-col silk-lift`}
+          style={{ '--silk-i': 7 } as React.CSSProperties}
         >
           <div className="px-4 @[300px]:px-5 pt-5 pb-3 flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -3914,7 +3926,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
-                            {!batterySettled && batterySummary.fleetTotal === 0 ? '—' : `${healthyPct}%`}
+                            <FigureSlot pending={!batterySettled && batterySummary.fleetTotal === 0}>
+                              {`${healthyPct}%`}
+                            </FigureSlot>
                           </span>
                           <span
                             className={`text-[10.5px] @[300px]:text-[11px] font-semibold px-2 @[300px]:px-2.5 py-0.5 rounded-full whitespace-nowrap ${
