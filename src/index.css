@@ -1087,83 +1087,22 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 /* live dot: a soft opacity pulse; skeleton lines while the first records load */
 .sync-dot { animation: syncPulse 1.6s var(--ease-standard) infinite; }
 
-/* (24 Nov 2026) T11 Executive Navy-Silver Mist loading placeholders:
-   #e6eff6 cool slate-blue base with a subtle #003857-tinted specular sheen sweeping purely on the GPU (transform only). */
-@keyframes skeletonSweep {
-  from { transform: translate3d(-100%, 0, 0); }
-  to { transform: translate3d(100%, 0, 0); }
+/* (24 Nov 2026) Q01 Pure Quiet Crossfade — mid-work-laptop friendly (1 opacity layer, zero blur, zero header line):
+   First-load placeholders gently breathe with a single opacity pass (no pseudo-element shimmer layer). */
+@keyframes quietBreathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
 }
 .skeleton {
-  position: relative;
-  overflow: hidden;
-  background-color: #e6eff6;
+  background-color: #e8f0f7;
   border-radius: 8px;
-  contain: paint;
-}
-.skeleton::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.88) 46%, rgba(0, 56, 87, 0.06) 62%, rgba(255, 255, 255, 0) 100%);
-  transform: translate3d(-100%, 0, 0);
-  animation: skeletonSweep 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: transform;
+  animation: quietBreathe 1.6s ease-in-out infinite;
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="dark"] .skeleton { background-color: #1e293b; }
-  html[data-theme="dark"] .skeleton::after { background: linear-gradient(90deg, rgba(51, 65, 85, 0) 0%, rgba(148, 163, 184, 0.22) 48%, rgba(56, 189, 248, 0.08) 64%, rgba(51, 65, 85, 0) 100%); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after { animation: none; display: none; }
-}
-/* (24 Nov 2026) T13 Dual-Track Table Header Progress Hairline:
-   A crisp 2.5px dual-velocity light seam (#38bdf8 -> #2d6a4f + white specular glint) that glides beneath #003857 table
-   headers (or at the top edge with --top) during filter/sort/page reloads while existing rows remain visible & softly dimmed. */
-@keyframes seamSlideA {
-  0% { transform: translate3d(-110%, 0, 0); }
-  100% { transform: translate3d(260%, 0, 0); }
-}
-@keyframes seamSlideB {
-  0% { transform: translate3d(-160%, 0, 0); }
-  100% { transform: translate3d(440%, 0, 0); }
-}
-.table-progress-seam {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2.5px;
-  background: rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 25;
-}
-.table-progress-seam--top {
-  top: 0;
-  bottom: auto;
-  background: rgba(0, 56, 87, 0.08);
-}
-.table-progress-seam::before,
-.table-progress-seam::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  will-change: transform;
-}
-.table-progress-seam::before {
-  width: 44%;
-  background: linear-gradient(90deg, transparent, #38bdf8, #2d6a4f, transparent);
-  animation: seamSlideA 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-.table-progress-seam::after {
-  width: 24%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
-  animation: seamSlideB 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-.table-progress-seam--top::after {
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.9), transparent);
+  .skeleton { animation: none; }
 }
 /* (24 Nov 2026) M01 Apple Staggered Silk Lift: crisp 10px upward glide + micro-scale (0.985 -> 1) in a 50ms cascade.
    Uses animation-fill-mode: backwards so transform clears back to none on settle (never traps fixed/sticky layers). */
@@ -1180,34 +1119,25 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .silk-lift {
   animation: silkLift 480ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--silk-i, 0) * 50ms) backwards;
 }
-/* (24 Nov 2026) T11 Silk Row Cascade (matches M01): proportional row reveal gliding 9px -> 0 in a 38ms waterfall.
-   Only the first 10 visible rows animate individually (at most 10 short-lived GPU layers, zero jank on 50-row pages);
-   animation-fill-mode: backwards clears transform to none on settle so sticky columns and ClearType text stay crisp. */
-@keyframes silkRowIn {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 9px, 0) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* (24 Nov 2026) Q01 Pure Quiet Crossfade for all portal tables:
+   Reloads softly dim the table body to 44% opacity and crossfade cleanly back to 100% in 300ms (no line below navy header,
+   no spinner, 1 compositor layer, zero per-row transform layers — stays locked at 60fps on mid-range work laptops). */
+@keyframes quietTableFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.data-table tbody tr:nth-child(-n+10),
-.kpi-matrix-table tbody tr:nth-child(-n+10),
-.top10-table tbody tr:nth-child(-n+10),
-.silk-rows > :nth-child(-n+10) {
-  animation: silkRowIn 460ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+.data-table tbody,
+.kpi-matrix-table tbody,
+.top10-table tbody,
+.silk-rows {
+  animation: quietTableFade 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
-.data-table tbody tr:nth-child(2), .kpi-matrix-table tbody tr:nth-child(2), .top10-table tbody tr:nth-child(2), .silk-rows > :nth-child(2) { animation-delay: 38ms; }
-.data-table tbody tr:nth-child(3), .kpi-matrix-table tbody tr:nth-child(3), .top10-table tbody tr:nth-child(3), .silk-rows > :nth-child(3) { animation-delay: 76ms; }
-.data-table tbody tr:nth-child(4), .kpi-matrix-table tbody tr:nth-child(4), .top10-table tbody tr:nth-child(4), .silk-rows > :nth-child(4) { animation-delay: 114ms; }
-.data-table tbody tr:nth-child(5), .kpi-matrix-table tbody tr:nth-child(5), .top10-table tbody tr:nth-child(5), .silk-rows > :nth-child(5) { animation-delay: 152ms; }
-.data-table tbody tr:nth-child(6), .kpi-matrix-table tbody tr:nth-child(6), .top10-table tbody tr:nth-child(6), .silk-rows > :nth-child(6) { animation-delay: 190ms; }
-.data-table tbody tr:nth-child(7), .kpi-matrix-table tbody tr:nth-child(7), .top10-table tbody tr:nth-child(7), .silk-rows > :nth-child(7) { animation-delay: 228ms; }
-.data-table tbody tr:nth-child(8), .kpi-matrix-table tbody tr:nth-child(8), .top10-table tbody tr:nth-child(8), .silk-rows > :nth-child(8) { animation-delay: 266ms; }
-.data-table tbody tr:nth-child(9), .kpi-matrix-table tbody tr:nth-child(9), .top10-table tbody tr:nth-child(9), .silk-rows > :nth-child(9) { animation-delay: 304ms; }
-.data-table tbody tr:nth-child(10), .kpi-matrix-table tbody tr:nth-child(10), .top10-table tbody tr:nth-child(10), .silk-rows > :nth-child(10) { animation-delay: 342ms; }
+.table-quiet-body {
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.table-quiet-body.is-loading {
+  opacity: 0.44;
+}
 
 /* (24 Nov 2026) M01 figure reveal: loading placeholder settles smoothly upward into live data */
 @keyframes figureIn {
@@ -1228,15 +1158,13 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .skeleton-dark { background: rgba(255, 255, 255, 0.08); border-radius: 8px; animation: syncPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .silk-lift,
-  .data-table tbody tr:nth-child(-n+10),
-  .kpi-matrix-table tbody tr:nth-child(-n+10),
-  .top10-table tbody tr:nth-child(-n+10),
-  .silk-rows > :nth-child(-n+10),
+  .data-table tbody,
+  .kpi-matrix-table tbody,
+  .top10-table tbody,
+  .silk-rows,
   .figure-in,
   .loading-in { animation: none; }
-  .table-progress-seam { background: linear-gradient(90deg, rgba(56, 189, 248, 0.35), rgba(45, 106, 79, 0.5), rgba(56, 189, 248, 0.35)); }
-  .table-progress-seam::before,
-  .table-progress-seam::after { animation: none; display: none; }
+  .table-quiet-body { transition: none; }
   .skeleton-dark { animation: none; }
 }
 

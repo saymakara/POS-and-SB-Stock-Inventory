@@ -556,8 +556,7 @@ const SimCardTabComponent: React.FC<{
           </div>
         </div>
 
-        <div className="relative overflow-x-auto overflow-y-hidden">
-          {loading && rows && <div className="table-progress-seam table-progress-seam--top" aria-hidden="true" />}
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="w-full min-w-[960px] text-xs">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider border-b border-slate-200">
@@ -573,7 +572,7 @@ const SimCardTabComponent: React.FC<{
                 <th className="text-right font-semibold px-2.5 py-2.5">Action</th>
               </tr>
             </thead>
-            <tbody key={pg.page} data-page-content className={`silk-rows divide-y divide-slate-100 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+            <tbody key={pg.page} data-page-content className={`silk-rows divide-y divide-slate-100 table-quiet-body ${loading && rows ? 'is-loading' : ''}`}>
               {rows === null && [0, 1, 2, 3].map((i) => (
                 <tr key={i}>
                   <td colSpan={10} className="px-3.5 py-3.5">

@@ -5331,11 +5331,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       <div className={showSection('all') || showSection('timeline') ? 'contents' : 'hidden'}>
         <AfterPaint order={view === 'all' ? 3 : 1} minHeight={timelineExpanded ? 1100 : 480}>
         <section
-          className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative silk-lift"
+          className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden silk-lift"
           style={{ '--silk-i': view === 'all' ? 7 : 4 } as React.CSSProperties}
           aria-label="Overall Performance by Period"
         >
-          {loading && data && <div className="table-progress-seam table-progress-seam--top" aria-hidden="true" />}
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#003857] border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
@@ -5423,7 +5422,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Points'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Change" sortKey="growthPct" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
             </div>
-            <div className={`divide-y divide-slate-200/80 silk-rows transition-opacity ${loading && data ? 'opacity-65' : ''}`}>
+            <div className={`divide-y divide-slate-200/80 silk-rows table-quiet-body ${loading && data ? 'is-loading' : ''}`}>
               {timeSeries.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400">No historical records found.</div>
               ) : (
@@ -5496,7 +5495,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           style={{ '--silk-i': view === 'all' ? 7 : 4 } as React.CSSProperties}
           aria-label="KPI Performance Table"
         >
-          {loading && <div className="table-progress-seam table-progress-seam--top" aria-hidden="true" />}
 
           {/* Section 7 Header Bar */}
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
@@ -5937,7 +5935,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <KpiTableSkeleton rows={8} />
             </div>
           ) : (
-            <div className={`transition-opacity ${loading && data ? 'opacity-65' : ''}`}>
+            <div className={`table-quiet-body ${loading && data ? 'is-loading' : ''}`}>
                 {((tableMode === 'branch' && branchSubView === 'monthly') || (tableMode === 'staff' && staffSubView === 'monthly')) ? (
                   <>
                     <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">

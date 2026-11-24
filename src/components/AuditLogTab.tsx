@@ -464,10 +464,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           </div>
         </div>
 
-        <div className="relative overflow-x-auto overflow-y-hidden border-t border-slate-200/80 dark:border-[#182c49]">
-          {serverMode && loading && rows.length > 0 && (
-            <div className="table-progress-seam table-progress-seam--top" aria-hidden="true" />
-          )}
+        <div className="overflow-x-auto overflow-y-hidden border-t border-slate-200/80 dark:border-[#182c49]">
           <table
             className={`audit-table w-full table-fixed text-left text-xs min-w-[1060px] ${
               isLight ? 'bg-white' : 'bg-[#11141e]'
@@ -496,9 +493,9 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               </tr>
             </thead>
             <tbody
-              className={`divide-y silk-rows transition-opacity ${
+              className={`divide-y silk-rows table-quiet-body ${
                 isLight ? 'divide-slate-100 bg-white' : 'divide-[#182c49] bg-[#11141e]'
-              } ${serverMode && loading && rows.length > 0 ? 'opacity-60' : ''}`}
+              } ${serverMode && loading && rows.length > 0 ? 'is-loading' : ''}`}
             >
               {paginatedRows.map((row, rowIdx) => {
                 const isExpanded = expandedRowKey === row.key;

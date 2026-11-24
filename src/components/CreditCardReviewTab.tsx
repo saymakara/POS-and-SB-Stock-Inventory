@@ -414,8 +414,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
           }} />
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Credit Card entries">
           <div className="min-w-[1080px]">
-            <div className={`${GRID} relative glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
-              {loading && rows && <div className="table-progress-seam" aria-hidden="true" />}
+            <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
               {(() => {
                 const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
                 const allHeader = headerItems.length > 0 && headerItems.every((i) => pick.sel.has(i.id));
@@ -456,7 +455,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 {review === 'PENDING' ? 'Nothing is waiting for review.' : 'No Credit Card entries match the current filters.'}
               </div>
             )}
-            <div data-page-content className={`divide-y divide-slate-200/90 silk-rows transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+            <div data-page-content className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${loading && rows ? 'is-loading' : ''}`}>
               {(rows || []).slice(0, pg.drawEnd - pg.start).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                   canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast}

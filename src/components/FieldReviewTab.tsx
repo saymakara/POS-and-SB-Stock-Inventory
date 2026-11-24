@@ -1595,12 +1595,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="min-w-[1185px]">
           <div
-            className={`${GRID} relative glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
+            className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
           >
-            {Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady)) && (
-              <div className="table-progress-seam" aria-hidden="true" />
-            )}
             <span className="flex justify-center">
               {isAdmin && shownPending.length > 0 && (
                 <SelectBox
@@ -1675,7 +1672,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           <div
             data-page-content
             key={`${filter}-${typeFilter}-${activeScope}-${effRange.from}-${effRange.to}`}
-            className={`divide-y divide-slate-200/90 silk-rows transition-opacity ${Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady)) ? 'opacity-60' : ''}`}
+            className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady)) ? 'is-loading' : ''}`}
           >
             {visibleRows.map((e, idx) => (
                 <ReviewRow
