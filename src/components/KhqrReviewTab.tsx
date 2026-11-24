@@ -623,7 +623,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <div className="p-10 text-center text-sm font-semibold text-slate-500">No KHQR entries match the current filters.</div>
           )}
 
-          <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+          <div data-page-content className={`divide-y divide-slate-200/90 silk-rows transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
             {(rows || []).slice(0, pg.drawEnd - pg.start).map((e, i) => (
               <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                 checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} onEdit={isAdmin ? () => setEditing(e) : undefined} />
@@ -750,7 +750,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         {rows && rows.length === 0 && !err && (
           <div className="p-10 text-center text-sm font-semibold text-emerald-700">{kind === 'WRONG_SCAN' ? 'No wrong scan matches the current filters.' : 'No failed attempt matches the current filters.'}</div>
         )}
-        <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+        <div data-page-content className={`divide-y divide-slate-200/90 silk-rows transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).slice(0, pg.drawEnd - pg.start).map((a, i) => (
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 ${pick.sel.has(a.id) ? 'bg-sky-50/80' : 'hover:bg-rose-50/50'}`}>
               <NoCell className="text-slate-500" onBoxClick={isSuper ? () => pick.toggle(a.id, pageItems[i].rec) : undefined} box={isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}>{pg.start + i + 1}</NoCell>

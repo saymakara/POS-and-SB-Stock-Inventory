@@ -377,7 +377,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
               {filtered ? 'No visit matches these filters.' : `No merchant visit in ${PERIOD_LABEL[period].toLowerCase()} yet.`}
             </div>
           )}
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 silk-rows">
             {(rows || []).slice(0, pg.drawEnd - pg.start).map((v, i) => (
               <VisitRow key={v.id} v={v} no={(page - 1) * pageSize + i + 1} open={open === v.id} onToggle={() => setOpen((o) => (o === v.id ? null : v.id))}
                 checked={pick.sel.has(v.id)} onCheck={isSuper ? () => pick.toggle(v.id, v.recordId) : undefined} onEdit={isAdmin ? () => setEditing(v) : undefined} />

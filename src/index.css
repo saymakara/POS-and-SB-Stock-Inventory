@@ -1132,6 +1132,35 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .silk-lift {
   animation: silkLift 480ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--silk-i, 0) * 50ms) backwards;
 }
+/* (24 Nov 2026) T01 Silk Row Cascade (matches M01): proportional row reveal gliding 8px -> 0 in a 35ms waterfall.
+   Only the first 10 visible rows animate individually (at most 10 short-lived GPU layers, zero jank on 50-row pages);
+   animation-fill-mode: backwards clears transform to none on settle so sticky columns and ClearType text stay crisp. */
+@keyframes silkRowIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.data-table tbody tr:nth-child(-n+10),
+.kpi-matrix-table tbody tr:nth-child(-n+10),
+.top10-table tbody tr:nth-child(-n+10),
+.silk-rows > :nth-child(-n+10) {
+  animation: silkRowIn 440ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.data-table tbody tr:nth-child(2), .kpi-matrix-table tbody tr:nth-child(2), .top10-table tbody tr:nth-child(2), .silk-rows > :nth-child(2) { animation-delay: 35ms; }
+.data-table tbody tr:nth-child(3), .kpi-matrix-table tbody tr:nth-child(3), .top10-table tbody tr:nth-child(3), .silk-rows > :nth-child(3) { animation-delay: 70ms; }
+.data-table tbody tr:nth-child(4), .kpi-matrix-table tbody tr:nth-child(4), .top10-table tbody tr:nth-child(4), .silk-rows > :nth-child(4) { animation-delay: 105ms; }
+.data-table tbody tr:nth-child(5), .kpi-matrix-table tbody tr:nth-child(5), .top10-table tbody tr:nth-child(5), .silk-rows > :nth-child(5) { animation-delay: 140ms; }
+.data-table tbody tr:nth-child(6), .kpi-matrix-table tbody tr:nth-child(6), .top10-table tbody tr:nth-child(6), .silk-rows > :nth-child(6) { animation-delay: 175ms; }
+.data-table tbody tr:nth-child(7), .kpi-matrix-table tbody tr:nth-child(7), .top10-table tbody tr:nth-child(7), .silk-rows > :nth-child(7) { animation-delay: 210ms; }
+.data-table tbody tr:nth-child(8), .kpi-matrix-table tbody tr:nth-child(8), .top10-table tbody tr:nth-child(8), .silk-rows > :nth-child(8) { animation-delay: 245ms; }
+.data-table tbody tr:nth-child(9), .kpi-matrix-table tbody tr:nth-child(9), .top10-table tbody tr:nth-child(9), .silk-rows > :nth-child(9) { animation-delay: 280ms; }
+.data-table tbody tr:nth-child(10), .kpi-matrix-table tbody tr:nth-child(10), .top10-table tbody tr:nth-child(10), .silk-rows > :nth-child(10) { animation-delay: 315ms; }
+
 /* (24 Nov 2026) M01 figure reveal: loading placeholder settles smoothly upward into live data */
 @keyframes figureIn {
   from {
@@ -1150,7 +1179,13 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 /* placeholders on the dark sidebar while the app starts */
 .skeleton-dark { background: rgba(255, 255, 255, 0.08); border-radius: 8px; animation: syncPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .silk-lift, .figure-in, .loading-in { animation: none; }
+  .silk-lift,
+  .data-table tbody tr:nth-child(-n+10),
+  .kpi-matrix-table tbody tr:nth-child(-n+10),
+  .top10-table tbody tr:nth-child(-n+10),
+  .silk-rows > :nth-child(-n+10),
+  .figure-in,
+  .loading-in { animation: none; }
   .skeleton-dark { animation: none; }
 }
 

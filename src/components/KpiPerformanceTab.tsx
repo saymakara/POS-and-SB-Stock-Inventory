@@ -5421,7 +5421,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Points'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Change" sortKey="growthPct" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
             </div>
-            <div className="divide-y divide-slate-200/80">
+            <div className="divide-y divide-slate-200/80 silk-rows">
               {timeSeries.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400">No historical records found.</div>
               ) : (
@@ -6525,7 +6525,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span />
                 </div>
 
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 silk-rows">
                   {statusFilteredBranches.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No branches match the current filters.</div>
                   ) : (
@@ -6943,7 +6943,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span />
                 </div>
 
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 silk-rows">
                   {statusFilteredStaff.length === 0 ? (
                     <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
                   ) : (
@@ -7200,23 +7200,23 @@ const KpiChartsSkeleton: React.FC = () => (
   </section>
 );
 
+const KPI_SKEL_WIDTHS = ['76%', '84%', '78%', '66%', '80%', '72%', '82%', '68%'] as const;
+
 const KpiTableSkeleton: React.FC<{ rows?: number }> = ({ rows = 8 }) => (
-  <div className="divide-y divide-slate-100">
+  <div className="divide-y divide-slate-100 loading-in" role="status" aria-label="Loading performance rows">
     {Array.from({ length: rows }).map((_, i) => (
-      <div key={i} className="px-4 py-3 flex items-center gap-4">
-        <div className="skeleton h-3.5 w-6 rounded shrink-0" />
-        <div className="skeleton w-7 h-7 rounded-lg shrink-0" />
-        <div className="space-y-1 min-w-[140px] flex-1">
-          <div className="skeleton h-3.5 w-32 rounded" />
-          <div className="skeleton h-2.5 w-20 rounded" />
+      <div key={i} className="px-4 py-3 flex items-center gap-4 min-h-[50px]">
+        <div className="skeleton h-3 w-5 rounded shrink-0" />
+        <div className="space-y-1.5 min-w-[160px] flex-1 max-w-[260px]">
+          <div className="skeleton h-3.5 rounded" style={{ width: KPI_SKEL_WIDTHS[i % KPI_SKEL_WIDTHS.length] }} />
+          <div className="skeleton h-2.5 w-24 rounded" />
         </div>
-        <div className="skeleton h-3.5 w-16 rounded shrink-0 hidden md:block" />
-        <div className="skeleton h-3.5 w-20 rounded shrink-0 hidden md:block" />
-        <div className="skeleton h-3.5 w-20 rounded shrink-0 hidden md:block" />
-        <div className="skeleton h-3.5 w-20 rounded shrink-0 hidden md:block" />
-        <div className="skeleton h-3.5 w-16 rounded shrink-0" />
-        <div className="skeleton h-3.5 w-14 rounded shrink-0" />
-        <div className="skeleton h-4 w-20 rounded-md shrink-0" />
+        <div className="skeleton h-3 w-10 rounded shrink-0 hidden md:block" />
+        <div className="skeleton h-3 w-12 rounded shrink-0 hidden md:block" />
+        <div className="skeleton h-3 w-12 rounded shrink-0 hidden md:block" />
+        <div className="skeleton h-3 w-14 rounded shrink-0 hidden lg:block" />
+        <div className="skeleton h-3.5 w-16 rounded shrink-0 ml-auto" />
+        <div className="skeleton h-5 w-20 rounded-full shrink-0" />
       </div>
     ))}
   </div>

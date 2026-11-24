@@ -1672,7 +1672,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           <div
             data-page-content
             key={`${filter}-${typeFilter}-${activeScope}-${effRange.from}-${effRange.to}`}
-            className="divide-y divide-slate-200/90 page-glide-in"
+            className="divide-y divide-slate-200/90 silk-rows"
           >
             {visibleRows.map((e, idx) => (
                 <ReviewRow

@@ -455,7 +455,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 {review === 'PENDING' ? 'Nothing is waiting for review.' : 'No Credit Card entries match the current filters.'}
               </div>
             )}
-            <div data-page-content className="divide-y divide-slate-200/90">
+            <div data-page-content className="divide-y divide-slate-200/90 silk-rows">
               {(rows || []).slice(0, pg.drawEnd - pg.start).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                   canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast}
