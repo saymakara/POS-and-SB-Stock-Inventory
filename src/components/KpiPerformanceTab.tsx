@@ -3932,14 +3932,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             const fill = isHol ? '#d97706' : isWknd ? '#475569' : '#64748b';
                             return (
                               <g transform={`translate(${tx},${ty})`}>
-                                {(isHol || isWknd) && (
-                                  <circle
-                                    cx={0}
-                                    cy={-8}
-                                    r={isHol ? 2.2 : 1.8}
-                                    fill={isHol ? '#d97706' : 'rgba(100, 116, 139, 0.6)'}
-                                  />
-                                )}
                                 <text
                                   x={0}
                                   y={4}

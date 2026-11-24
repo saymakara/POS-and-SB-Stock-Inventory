@@ -1164,26 +1164,16 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.restore();
     }
 
-    // X-axis date labels + baseline markers for Holidays / Weekends / Upcoming days
+    // X-axis date labels + subtle baseline marker for upcoming regular workdays (no dots on weekends/holidays)
     items.forEach((item, idx) => {
       const cx = padLeft + idx * groupW + groupW / 2;
       const isHol = Boolean(item.holidayName);
       const isWknd = Boolean(item.isWeekend) && !isHol;
-      if (isHol || isWknd || item.isFuture) {
+      if (item.isFuture && !isHol && !isWknd) {
         ctx.save();
-        ctx.fillStyle = isHol
-          ? isLight
-            ? 'rgba(217, 119, 6, 0.78)'
-            : 'rgba(251, 191, 36, 0.82)'
-          : isWknd
-          ? isLight
-            ? 'rgba(100, 116, 139, 0.58)'
-            : 'rgba(148, 163, 184, 0.52)'
-          : isLight
-          ? 'rgba(148, 163, 184, 0.35)'
-          : 'rgba(148, 163, 184, 0.25)';
+        ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.25)';
         ctx.beginPath();
-        ctx.arc(cx, baseY, isHol ? 2.2 : isWknd ? 1.8 : 1.5, 0, Math.PI * 2);
+        ctx.arc(cx, baseY, 1.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
