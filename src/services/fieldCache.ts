@@ -1,6 +1,6 @@
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAllPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
-import { clearFresh, markFresh } from '../utils/freshness';
+import { clearFresh, isFresh, markFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { clearOnUserChange } from '../utils/userScopedCache';
 
@@ -27,6 +27,7 @@ clearOnUserChange(clearFieldCache);
 let inflight: Promise<void> | null = null;
 export function prefetchFieldEvents(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
+  if (events && pendingComplete && isFresh('field', 300_000)) return Promise.resolve();
   if (inflight) return inflight;
   inflight = (async () => {
     const pendingReq = fetchAllPendingFieldEvents((firstPage) => {

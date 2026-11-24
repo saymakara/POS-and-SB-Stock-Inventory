@@ -336,9 +336,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => {
                         prefetchTabChunk(item.id);
-                        if (item.id === 'kpi_performance') prefetchKpi();
-                        else if (item.id === 'audit_log') prefetchAudit();
-                        else if (item.id === 'users') prefetchStaff();
                       }}
                       onPointerDown={() => {
                         prefetchTabChunk(item.id);
@@ -348,9 +345,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onFocus={() => {
                         prefetchTabChunk(item.id);
-                        if (item.id === 'kpi_performance') prefetchKpi();
-                        else if (item.id === 'audit_log') prefetchAudit();
-                        else if (item.id === 'users') prefetchStaff();
                       }}
                       title={!isMobileView && collapsed ? item.label : undefined}
                       className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
@@ -379,10 +373,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               aria-current={on ? 'page' : undefined}
                               onMouseEnter={() => {
                                 prefetchTabChunk(c.id);
-                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
-                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
-                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                else if (c.id === 'sim_cards') prefetchSims();
                               }}
                               onPointerDown={() => {
                                 prefetchTabChunk(c.id);
@@ -393,10 +383,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               }}
                               onFocus={() => {
                                 prefetchTabChunk(c.id);
-                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
-                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
-                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                else if (c.id === 'sim_cards') prefetchSims();
                               }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on

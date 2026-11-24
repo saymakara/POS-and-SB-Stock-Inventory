@@ -458,7 +458,8 @@ export function clearKpiCache(): void {
   } catch { /* ignore */ }
 }
 
-registerPortalCacheInvalidator(['kpi', 'devices', 'field', 'qr', 'cc', 'mv', 'staff', 'branches'], clearKpiCache);
+// Routine device stock moves do not alter KPI points; only KPI-producing domains invalidate cached summaries.
+registerPortalCacheInvalidator(['kpi', 'field', 'qr', 'cc', 'mv', 'staff'], clearKpiCache);
 
 clearOnUserChange(clearKpiCache);
 
@@ -526,8 +527,8 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
         dailyStaff: series?.dailyStaff || [],
       };
       summaryCache.set(key, merged);
-      // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 2 min old) is reused at 0ms
-      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 120_000) {
+      // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 5 min old) is reused at 0ms
+      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 300_000) {
         kpiBorn.set(key, slice.fetchedAt);
       }
       return merged;
@@ -754,7 +755,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
   }
   const key = `${from || ''}|${to || ''}`;
   const hit = !force ? getCachedKpiSummary(from, to) : undefined;
-  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 120_000) return hit;
+  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 300_000) return hit;
   const running = !force ? kpiInflight.get(key) : undefined;
   if (running) return running;
 
@@ -763,7 +764,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
     const canSlice =
       Boolean(seriesBundle) &&
       staffSliceRpcSupported !== false &&
-      Date.now() - (seriesBundle?.fetchedAt || 0) < 180000 &&
+      Date.now() - (seriesBundle?.fetchedAt || 0) < 900_000 &&
       ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1034,7 +1035,7 @@ let lastPrefetch = 0;
 export function prefetchKpi(force = false): Promise<KpiDashboardData | null> {
   if (!isSupabaseConfigured) return Promise.resolve(null);
   if (inflight) return inflight;
-  if (!force && Date.now() - lastPrefetch < 25000 && getCachedKpiSummary(null, null)) {
+  if (!force && Date.now() - lastPrefetch < 300_000 && getCachedKpiSummary(null, null)) {
     return Promise.resolve(getCachedKpiSummary(null, null) || null);
   }
   inflight = fetchKpiSummary(null, null)

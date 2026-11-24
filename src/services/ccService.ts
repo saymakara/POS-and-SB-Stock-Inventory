@@ -97,7 +97,7 @@ function shared<T>(key: string, maxAgeMs: number, cached: () => T | undefined, r
   return p;
 }
 
-export function fetchCcList(q: CcQuery, maxAgeMs = 45000): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
+export function fetchCcList(q: CcQuery, maxAgeMs = 120_000): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
   const k = ccListKey(q);
   return shared('L' + k, maxAgeMs, () => listCache.get(k), () => fetchCcListNow(q));
 }
@@ -116,7 +116,7 @@ async function fetchCcListNow(q: CcQuery): Promise<{ rows: CcEntry[]; total: num
   return res;
 }
 
-export function fetchCcCounts(from: string | null, to: string | null, maxAgeMs = 45000): Promise<CcCounts | null> {
+export function fetchCcCounts(from: string | null, to: string | null, maxAgeMs = 120_000): Promise<CcCounts | null> {
   const k = `${from || ''}|${to || ''}`;
   return shared('C' + k, maxAgeMs, () => countsCache.get(k), () => fetchCcCountsNow(from, to));
 }
@@ -188,13 +188,13 @@ let inflightPrefetch: Promise<CcCounts | null> | null = null;
 let lastPrefetch = 0;
 export function prefetchCc(force = false): Promise<CcCounts | null> {
   if (inflightPrefetch) return inflightPrefetch;
-  if (!force && Date.now() - lastPrefetch < 25000 && countsCache.has('|')) {
+  if (!force && Date.now() - lastPrefetch < 300_000 && countsCache.has('|')) {
     return Promise.resolve(countsCache.get('|') || null);
   }
   const q: CcQuery = { from: null, to: null, review: '', branchId: '', search: '', page: 1, pageSize: 50 };
   inflightPrefetch = Promise.all([
-    fetchCcCounts(null, null, force ? 0 : 4000).catch(() => null),
-    fetchCcList(q, force ? 0 : 4000).catch(() => null),
+    fetchCcCounts(null, null, force ? 0 : 120_000).catch(() => null),
+    fetchCcList(q, force ? 0 : 120_000).catch(() => null),
   ]).then(([c]) => {
     lastPrefetch = Date.now();
     return c;

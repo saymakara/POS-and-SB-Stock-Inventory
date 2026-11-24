@@ -78,9 +78,11 @@ export const RequestStockModal = lazyTab(() => import('../components/RequestStoc
 // (29 Oct 2026, speed review) "reload only what changed": after the first full load the browser keeps its copy of the stock
 // (IndexedDB) and asks the server only for units changed since. A full reload still happens when there is no usable copy, when the
 // unit count does not match the server, after a refused save, or every 12 hours. Set to false to always reload everything.
+// (24 Nov 2026, egress) Delta sync already verifies exact server row count and automatically falls back to full reload
+// if any row was missed, so a 7-day full-reload ceiling avoids redundant daily 28-page downloads of all ~28k devices.
 export const DELTA_SYNC_ENABLED = true;
 export const KEY_DEVICES_FULL_AT = 'crm_pos_devices_full_at_v1';
-export const DELTA_FULL_RELOAD_AFTER_MS = 12 * 60 * 60 * 1000;
+export const DELTA_FULL_RELOAD_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 export const DELTA_OVERLAP_MS = 10 * 60 * 1000;     // a change committed late still carries its (older) start time: look back 10 minutes
 export const DELTA_MAX_ROWS = 3000;
 // resolved when the saved copy has been read, so the first reload can start from it

@@ -31,7 +31,7 @@ clearOnUserChange(clearStaffCache);
 let inflight: Promise<StaffAccount[] | null> | null = null;
 export function loadStaff(opts: { maxAgeMs?: number } = {}): Promise<StaffAccount[] | null> {
   if (!isSupabaseConfigured) return Promise.resolve(null);
-  const maxAge = opts.maxAgeMs ?? 30000;
+  const maxAge = opts.maxAgeMs ?? 300_000;
   if (list && maxAge > 0 && Date.now() - at < maxAge) return Promise.resolve(list);
   if (inflight) return maxAge > 0 ? inflight : inflight.then(() => loadStaff({ maxAgeMs: 0 }));   // a forced copy must start after the change
   inflight = fetchStaffAccounts(1000, 0)

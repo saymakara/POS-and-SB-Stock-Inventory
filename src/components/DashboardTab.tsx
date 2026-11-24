@@ -1765,6 +1765,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const cachedRows = getCachedMonthlyInstallFieldEvents();
     const cachedDays = getCachedMonthlyInstallFieldEventsCoveredDays();
     const hasSession = getCachedMonthlyInstallBuckets(installScopeKey, minDays) !== null;
+    // (24 Nov 2026, egress) On F5 reload, reuse fresh sessionStorage monthly buckets (< 10 min) instead of
+    // re-downloading 220 days of raw field_events rows; Realtime INSTALL events, 12M switch, or Sync still fetch fresh.
+    if (!force && hasSession && !cachedRows) {
+      setFieldInstallsLoading(false);
+      return;
+    }
     if (!silent && !hasSession && (!cachedRows || cachedDays < minDays)) {
       setFieldInstallsLoading(true);
     }
@@ -1796,16 +1802,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   useEffect(() => {
     void loadFieldInstalls(false, neededInstallDays);
   }, [loadFieldInstalls, neededInstallDays]);
-
-  // Quietly upgrade 220-day fast initial window to full 430-day history once Dashboard settles
-  useEffect(() => {
-    if (!isSupabaseConfigured || fieldInstalls === null) return;
-    if (getCachedMonthlyInstallFieldEventsCoveredDays() >= 430) return;
-    const t = window.setTimeout(() => {
-      void loadFieldInstalls(false, 430, true);
-    }, 1200);
-    return () => window.clearTimeout(t);
-  }, [fieldInstalls, loadFieldInstalls]);
 
   // Live refresh when a staff member submits or updates an INSTALL record in the Merchant Visit app
   useEffect(() => {

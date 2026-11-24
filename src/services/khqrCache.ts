@@ -41,9 +41,9 @@ const summaries = new Map<string, QrSummary>();
 const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
 
-export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; clearFresh('qr:'); }
+export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
 
-registerPortalCacheInvalidator(['qr', 'kpi'], clearKhqrCache);
+registerPortalCacheInvalidator(['qr'], clearKhqrCache);
 
 clearOnUserChange(clearKhqrCache);
 
@@ -72,7 +72,7 @@ let lastRun = 0;
 export function prefetchKhqr(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
   if (inflight) return inflight;
-  if (Date.now() - lastRun < 30000) return Promise.resolve();
+  if (Date.now() - lastRun < 300_000 && entries.size > 0) return Promise.resolve();
   const { from, to } = periodRange('ALL');
   const f: QrQuery = { from, to, activity: 'ALL', branchId: undefined, staffId: undefined, search: '' };
   inflight = Promise.all([

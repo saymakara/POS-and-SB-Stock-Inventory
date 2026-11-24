@@ -2252,6 +2252,7 @@ export function clearMonthlyInstallFieldEventsCache(): void {
   fieldInstallsCoveredDays = 0;
   clearMonthlyInstallSessionStorage();
 }
+registerPortalCacheInvalidator(['field'], () => { fieldInstallsCacheAt = 0; });
 
 async function fetchFieldInstallStatusStream(
   status: 'APPROVED' | 'PENDING',
@@ -2393,7 +2394,7 @@ export async function fetchMonthlyInstallFieldEvents(
     !force &&
     fieldInstallsCache &&
     fieldInstallsCoveredDays >= targetDays &&
-    Date.now() - fieldInstallsCacheAt < 45_000
+    Date.now() - fieldInstallsCacheAt < 300_000
   ) {
     return fieldInstallsCache;
   }

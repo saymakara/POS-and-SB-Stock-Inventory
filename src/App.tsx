@@ -828,10 +828,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return { list };
   }, [tryDeltaDevices]);
+  const lastBranchesFetchAtRef = React.useRef<number>(0);
   const reloadFromServerOnce = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
+    const shouldFetchBranches = Boolean(opts?.full) || Date.now() - lastBranchesFetchAtRef.current > 900_000;
 
     // Fire fast independent reads immediately so UI shell, KPI counts, branches & requests render right away
     // instead of blocking inside Promise.all behind 56 full-fleet device pages.
@@ -851,21 +853,24 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
       return hist;
     });
-    const branchPromise = fetchBranchesFromSupabase().then((srvBranches) => {
-      if (srvBranches && srvBranches.length) {
-        setBranches((prev) => {
-          const local = new Map(prev.map((b) => [b.id, b]));
-          return srvBranches.map((b) => ({
-            ...(local.get(b.id) || { staff: [], staffDetails: [] }),
-            id: b.id,
-            code: b.code,
-            name: b.id === '100' ? 'Head Office' : b.name,
-            region: b.region,
-          }));
-        });
-      }
-      return srvBranches;
-    });
+    const branchPromise = shouldFetchBranches
+      ? fetchBranchesFromSupabase().then((srvBranches) => {
+          if (srvBranches && srvBranches.length) {
+            lastBranchesFetchAtRef.current = Date.now();
+            setBranches((prev) => {
+              const local = new Map(prev.map((b) => [b.id, b]));
+              return srvBranches.map((b) => ({
+                ...(local.get(b.id) || { staff: [], staffDetails: [] }),
+                id: b.id,
+                code: b.code,
+                name: b.id === '100' ? 'Head Office' : b.name,
+                region: b.region,
+              }));
+            });
+          }
+          return srvBranches;
+        })
+      : Promise.resolve(null);
     const stagePromise = fetchDeviceStageCountsFromSupabase(effectiveBranch).then((stageSummary) => {
       if (stageSummary) {
         setServerStageSummary(stageSummary);
@@ -876,9 +881,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     });
 
     if (isAdminProfile) {
-      Promise.all([loadStaff({ maxAgeMs: opts?.full ? 0 : 30000 }), branchPromise]).then(([staffList, srvBranches]) => {
+      Promise.all([loadStaff({ maxAgeMs: opts?.full ? 0 : 300_000 }), branchPromise]).then(([staffList, srvBranches]) => {
         if (staffList) {
-          const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
+          const bn = new Map((srvBranches || branchesRef.current).map((b) => [b.id, b.name]));
           const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
           setUsers(nextUsers);
           setBranches((prev) => {
@@ -1149,7 +1154,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           scheduleDomain('staff', 350, () => {
             void Promise.all([loadStaff({ maxAgeMs: 0 }), fetchBranchesFromSupabase()]).then(([staffList, srvBranches]) => {
               if (!alive || !staffList) return;
-              const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
+              const bn = new Map((srvBranches || branchesRef.current).map((b) => [b.id, b.name]));
               const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
               setUsers(nextUsers);
               setBranches((prev) => {
@@ -1226,20 +1231,26 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [serverReady, profile?.role, profile?.user_id, reloadFromServer, refreshLostCounts, applyPendingByType]);
 
-  // Keep sidebar POS / Sound Box badges synced immediately on mount and when scope/branches update (no wait on full 27k devices download)
+  // Keep sidebar POS / Sound Box badges synced on mount and only when scope or branch IDs/regions actually change
+  // (avoids re-firing pending_field_event_groups every time setBranches produces a new array reference).
+  const branchScopeSig = React.useMemo(
+    () => branches.map((b) => `${b.id}:${b.region || ''}`).join('|'),
+    [branches]
+  );
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
     const scope = appSettings.phoneReviewScope || 'PHNOM_PENH';
-    countPendingFieldEventsByType(scope, branches).then((c) => {
+    countPendingFieldEventsByType(scope, branchesRef.current).then((c) => {
       if (!alive) return;
       if (c !== null) applyPendingByType(c);
       else setPendingFieldSettled(true);
     });
     return () => { alive = false; };
-  }, [appSettings.phoneReviewScope, branches, applyPendingByType]);
+  }, [appSettings.phoneReviewScope, branchScopeSig, applyPendingByType]);
 
-  // Mobile & Background Resume: Re-sync state when browser tab becomes active or device resumes from sleep
+  // Mobile & Background Resume: Re-sync state when browser tab returns after a meaningful idle gap
+  // (Supabase Realtime already pushes live changes while briefly switching tabs/windows).
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     let lastActive = Date.now();
@@ -1247,9 +1258,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const elapsed = Date.now() - lastActive;
-        // Delta sync + configuring queue refresh is lightweight (<20 ms): refresh after 3 s away so switching between
-        // PC, laptop, and mobile immediately reflects any changes made on another device.
-        if (elapsed > 3000) {
+        if (elapsed > 120_000) {
           reloadFromServer().catch(() => {});
         }
         lastActive = Date.now();
