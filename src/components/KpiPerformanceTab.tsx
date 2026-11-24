@@ -5405,8 +5405,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-            <div className="min-w-[1180px] w-full">
-              <div className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(56px,0.62fr)_minmax(84px,0.9fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
+            <div className="min-w-[1200px] w-full">
+              <div className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(84px,0.9fr)_minmax(84px,0.88fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -5415,8 +5415,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label={isTaskMode ? 'Credit Card Tasks' : 'Credit Card Pts'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label={isTaskMode ? 'Merchant Visit Tasks' : 'Merchant Visit Pts'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'Total Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label={isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'} sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+              <SortableHeader label={isTaskMode ? 'Total Pts' : 'Total Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Change" sortKey="growthPct" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
             </div>
@@ -5430,7 +5430,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ).map((t) => (
                   <div
                     key={t.period}
-                    className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(56px,0.62fr)_minmax(84px,0.9fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
+                    className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(84px,0.9fr)_minmax(84px,0.88fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
                   >
                     <span className="font-normal text-slate-900 tabular-nums">{t.label}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtInt(t.activeBranches)}</span>
@@ -5440,11 +5440,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.khqrTasks} pts={t.khqrPoints} mode={metricMode} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.ccTasks} pts={t.ccPoints} mode={metricMode} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.mvTasks} pts={t.mvPoints} mode={metricMode} /></span>
-                    <span className="text-center tabular-nums font-normal text-slate-800">
-                      {isTaskMode ? `${fmtPts(t.totalPoints)} pts` : fmtInt(t.totalTasks)}
-                    </span>
                     <span className="text-right tabular-nums font-normal text-slate-800">
                       {fmtPts(isTaskMode ? t.tasksPerStaff : t.ptsPerStaff)}
+                    </span>
+                    <span className="text-right tabular-nums font-normal text-slate-800">
+                      {isTaskMode ? `${fmtPts(t.totalPoints)} pts` : fmtInt(t.totalTasks)}
                     </span>
                     <span className="text-right tabular-nums font-figure font-normal text-[#003857]">
                       {isTaskMode ? `${fmtInt(t.totalTasks)} tasks` : `${fmtPts(t.totalPoints)} pts`}
