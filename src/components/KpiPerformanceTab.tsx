@@ -59,22 +59,22 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
 }
 
 const KPI_BRANCH_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.1fr)_minmax(40px,0.32fr)_minmax(86px,0.66fr)_minmax(78px,0.58fr)_minmax(96px,0.74fr)_minmax(78px,0.58fr)_minmax(80px,0.6fr)_minmax(40px,0.32fr)_minmax(46px,0.36fr)_minmax(98px,0.76fr)_minmax(84px,0.78fr)_minmax(118px,0.8fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(40px,0.32fr)_minmax(110px,0.82fr)_minmax(96px,0.72fr)_minmax(76px,0.58fr)_minmax(104px,0.78fr)_minmax(118px,0.88fr)_minmax(40px,0.32fr)_minmax(46px,0.36fr)_minmax(92px,0.72fr)_minmax(84px,0.74fr)_minmax(114px,0.78fr)_14px]';
 
 const KPI_STAFF_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(124px,1.08fr)_minmax(122px,1.0fr)_minmax(86px,0.66fr)_minmax(78px,0.58fr)_minmax(96px,0.74fr)_minmax(78px,0.58fr)_minmax(80px,0.6fr)_minmax(46px,0.36fr)_minmax(98px,0.76fr)_minmax(84px,0.78fr)_minmax(118px,0.8fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(124px,1.04fr)_minmax(118px,0.96fr)_minmax(110px,0.82fr)_minmax(96px,0.72fr)_minmax(76px,0.58fr)_minmax(104px,0.78fr)_minmax(118px,0.88fr)_minmax(46px,0.36fr)_minmax(92px,0.72fr)_minmax(84px,0.74fr)_minmax(114px,0.78fr)_14px]';
 
 // Balanced proportional column widths for Top 10 Leaderboard tables (100% total prevents oversized text-column voids)
 const TOP10_STAFF_COL_WIDTHS = [
-  '2.8%', '11.4%', '5.0%', '16.0%', '6.6%',
-  '7.4%', '6.9%', '8.0%', '6.9%', '7.1%',
-  '7.2%', '7.0%', '7.7%',
+  '2.5%', '10.5%', '4.8%', '12.8%', '6.4%',
+  '9.0%', '8.0%', '6.5%', '8.4%', '9.6%',
+  '7.2%', '7.0%', '7.3%',
 ] as const;
 
 const TOP10_BRANCH_COL_WIDTHS = [
-  '2.8%', '14.2%', '7.0%', '6.8%',
-  '7.9%', '6.9%', '8.6%', '6.9%', '7.1%',
-  '7.5%', '8.3%', '6.7%', '7.3%',
+  '2.5%', '12.8%', '6.6%', '6.4%',
+  '9.0%', '8.0%', '6.5%', '8.4%', '9.6%',
+  '7.6%', '8.2%', '7.0%', '7.4%',
 ] as const;
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
@@ -5130,11 +5130,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               {(() => {
                 const top10ChannelCols = [
-                  { key: 'pos', taskLabel: 'POS Tasks', ptsLabel: 'POS Points' },
-                  { key: 'sb', taskLabel: 'SB Tasks', ptsLabel: 'SB Points' },
-                  { key: 'khqr', taskLabel: 'KHQR Tasks', ptsLabel: 'KHQR Points' },
-                  { key: 'cc', taskLabel: 'CC Tasks', ptsLabel: 'CC Points' },
-                  { key: 'mv', taskLabel: 'MV Tasks', ptsLabel: 'MV Points' },
+                  { key: 'pos', taskLabel: 'POS Terminal Tasks', ptsLabel: 'POS Terminal Pts' },
+                  { key: 'sb', taskLabel: 'Sound Box Tasks', ptsLabel: 'Sound Box Pts' },
+                  { key: 'khqr', taskLabel: 'KHQR Tasks', ptsLabel: 'KHQR Pts' },
+                  { key: 'cc', taskLabel: 'Credit Card Tasks', ptsLabel: 'Credit Card Pts' },
+                  { key: 'mv', taskLabel: 'Merchant Visit Tasks', ptsLabel: 'Merchant Visit Pts' },
                 ] as const;
 
                 const renderMetricCell = (key: string, tasks: number, pts: number) => (
@@ -5148,7 +5148,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 const colWidths = leaderboardMode === 'staff' ? TOP10_STAFF_COL_WIDTHS : TOP10_BRANCH_COL_WIDTHS;
 
                 return (
-                  <table className="top10-table w-full min-w-[1060px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
+                  <table className="top10-table w-full min-w-[1200px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
                     <colgroup>
                       {colWidths.map((w, idx) => (
                         <col key={idx} style={{ width: w }} />
@@ -5178,10 +5178,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         ))}
                         <th className="text-center border-b border-white/20 whitespace-nowrap">Category Mix</th>
                         {leaderboardMode === 'branch' && (
-                          <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Tasks / Staff' : 'Points / Staff'}</th>
+                          <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'}</th>
                         )}
-                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Points' : 'Total Tasks'}</th>
-                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Tasks' : 'Total Points'}</th>
+                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Pts' : 'Total Tasks'}</th>
+                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Tasks' : 'Total Pts'}</th>
                       </tr>
                     </thead>
 
@@ -5405,19 +5405,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-            <div className="min-w-[1060px] w-full">
-              <div className="grid items-center gap-x-2 grid-cols-[minmax(96px,1.15fr)_minmax(62px,0.7fr)_minmax(52px,0.6fr)_minmax(88px,1fr)_minmax(80px,0.92fr)_minmax(96px,1.1fr)_minmax(80px,0.92fr)_minmax(82px,0.94fr)_minmax(56px,0.65fr)_minmax(90px,1fr)_minmax(92px,1.05fr)_minmax(60px,0.7fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
+            <div className="min-w-[1180px] w-full">
+              <div className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(56px,0.62fr)_minmax(84px,0.9fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-              <SortableHeader label={isTaskMode ? 'POS Tasks' : 'POS Points'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'SB Tasks' : 'SB Points'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Points'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'CC Tasks' : 'CC Points'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'MV Tasks' : 'MV Points'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'Total Points' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader label={isTaskMode ? 'Tasks / Staff' : 'Points / Staff'} sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-              <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Points'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+              <SortableHeader label={isTaskMode ? 'POS Terminal Tasks' : 'POS Terminal Pts'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'Sound Box Tasks' : 'Sound Box Pts'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'Credit Card Tasks' : 'Credit Card Pts'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'Merchant Visit Tasks' : 'Merchant Visit Pts'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'Total Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label={isTaskMode ? 'Tasks / Staff' : 'Pts / Staff'} sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+              <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Change" sortKey="growthPct" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
             </div>
             <div className={`divide-y divide-slate-200/80 silk-rows table-quiet-body ${isMatrixPending || (loading && data) || query !== deferredQuery ? 'is-loading' : ''}`}>
@@ -5430,7 +5430,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ).map((t) => (
                   <div
                     key={t.period}
-                    className="grid items-center gap-x-2 grid-cols-[minmax(96px,1.15fr)_minmax(62px,0.7fr)_minmax(52px,0.6fr)_minmax(88px,1fr)_minmax(80px,0.92fr)_minmax(96px,1.1fr)_minmax(80px,0.92fr)_minmax(82px,0.94fr)_minmax(56px,0.65fr)_minmax(90px,1fr)_minmax(92px,1.05fr)_minmax(60px,0.7fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
+                    className="grid items-center gap-x-2 grid-cols-[minmax(92px,1.05fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(112px,1.15fr)_minmax(98px,1.02fr)_minmax(76px,0.82fr)_minmax(106px,1.1fr)_minmax(120px,1.25fr)_minmax(56px,0.62fr)_minmax(84px,0.9fr)_minmax(88px,0.95fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
                   >
                     <span className="font-normal text-slate-900 tabular-nums">{t.label}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtInt(t.activeBranches)}</span>
@@ -6500,19 +6500,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   ) : (
             <>
               <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-                <div className="min-w-[1090px] w-full">
+                <div className="min-w-[1220px] w-full">
                 <div className={`${KPI_BRANCH_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff" sortKey="staffCount" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'POS Tasks' : 'POS Points'} title={isTaskMode ? 'Sort by POS Tasks' : 'Sort by POS Points'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'SB Tasks' : 'SB Points'} title={isTaskMode ? 'Sort by Sound Box Tasks' : 'Sort by Sound Box Points'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Points'} title={isTaskMode ? 'Sort by KHQR Tasks' : 'Sort by KHQR Points'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'CC Tasks' : 'CC Points'} title={isTaskMode ? 'Sort by Credit Card Tasks' : 'Sort by Credit Card Points'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'MV Tasks' : 'MV Points'} title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Points'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'POS Terminal Tasks' : 'POS Terminal Pts'} title={isTaskMode ? 'Sort by POS Terminal Tasks' : 'Sort by POS Terminal Pts'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Sound Box Tasks' : 'Sound Box Pts'} title={isTaskMode ? 'Sort by Sound Box Tasks' : 'Sort by Sound Box Pts'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'} title={isTaskMode ? 'Sort by KHQR Tasks' : 'Sort by KHQR Pts'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Credit Card Tasks' : 'Credit Card Pts'} title={isTaskMode ? 'Sort by Credit Card Tasks' : 'Sort by Credit Card Pts'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Merchant Visit Tasks' : 'Merchant Visit Pts'} title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Pts'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Avg" sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title={isTaskMode ? 'Average KPI tasks per active staff member in the branch' : 'Average KPI points per active staff member in the branch'} />
-                  <SortableHeader label={isTaskMode ? 'Points' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Points'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
+                  <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
                   <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
                   <span className="text-slate-200 pl-2">Status</span>
                   <span />
@@ -6919,18 +6919,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         ) : (
           <>
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
-              <div className="min-w-[1090px] w-full">
+              <div className="min-w-[1220px] w-full">
                 <div className={`${KPI_STAFF_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Staff" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                  <SortableHeader label={isTaskMode ? 'POS Tasks' : 'POS Points'} title={isTaskMode ? 'Sort by POS Tasks' : 'Sort by POS Points'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'SB Tasks' : 'SB Points'} title={isTaskMode ? 'Sort by Sound Box Tasks' : 'Sort by Sound Box Points'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Points'} title={isTaskMode ? 'Sort by KHQR Tasks' : 'Sort by KHQR Points'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'CC Tasks' : 'CC Points'} title={isTaskMode ? 'Sort by Credit Card Tasks' : 'Sort by Credit Card Points'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'MV Tasks' : 'MV Points'} title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Points'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'Points' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Points'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
+                  <SortableHeader label={isTaskMode ? 'POS Terminal Tasks' : 'POS Terminal Pts'} title={isTaskMode ? 'Sort by POS Terminal Tasks' : 'Sort by POS Terminal Pts'} sortKey={isTaskMode ? 'posTasks' : 'posPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Sound Box Tasks' : 'Sound Box Pts'} title={isTaskMode ? 'Sort by Sound Box Tasks' : 'Sort by Sound Box Pts'} sortKey={isTaskMode ? 'sbTasks' : 'sbPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'KHQR Tasks' : 'KHQR Pts'} title={isTaskMode ? 'Sort by KHQR Tasks' : 'Sort by KHQR Pts'} sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Credit Card Tasks' : 'Credit Card Pts'} title={isTaskMode ? 'Sort by Credit Card Tasks' : 'Sort by Credit Card Pts'} sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Merchant Visit Tasks' : 'Merchant Visit Pts'} title={isTaskMode ? 'Sort by Merchant Visit Tasks' : 'Sort by Merchant Visit Pts'} sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
                   <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
                   <span className="text-slate-200 pl-2">Status</span>
                   <span />
