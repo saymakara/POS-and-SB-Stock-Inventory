@@ -3231,6 +3231,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const cmp = a.avgPerMonth - b.avgPerMonth;
         return monthlySortDir === 'asc' ? cmp : -cmp;
       }
+      if (monthlySortKey === 'oppositeTotal') {
+        const getOpp = (r: typeof a) =>
+          categoryFilter === 'ALL'
+            ? (isTaskMode ? r.totalPoints : r.totalTasks)
+            : r.cells.reduce((acc, c) => acc + pickCategoryKpiVal(c.pts, categoryFilter, !isTaskMode), 0);
+        const cmp = getOpp(a) - getOpp(b);
+        return monthlySortDir === 'asc' ? cmp : -cmp;
+      }
       if (monthlySortKey === 'targetPct') {
         const cmp = a.targetPct - b.targetPct;
         return monthlySortDir === 'asc' ? cmp : -cmp;
@@ -3238,7 +3246,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const cmp = a.total - b.total || a.totalTasks - b.totalTasks;
       return monthlySortDir === 'asc' ? cmp : -cmp;
     });
-  }, [statusFilteredMonthlyRows, monthlySortKey, monthlySortDir, tableMode]);
+  }, [statusFilteredMonthlyRows, monthlySortKey, monthlySortDir, tableMode, isTaskMode, categoryFilter]);
 
   const monthlyTotals = useMemo(() => {
     const byMonth: Record<string, number> = {};
@@ -5160,7 +5168,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ] as const;
 
                 const renderMetricCell = (key: string, tasks: number, pts: number) => (
-                  <td key={key} className="py-2 px-1.5 text-right tabular-nums whitespace-nowrap">
+                  <td key={key} className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                     <TaskPtsCell tasks={tasks} pts={pts} mode={metricMode} align="right" />
                   </td>
                 );
@@ -5321,7 +5329,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 />
                               </div>
                             </td>
-                            <td className="py-2 px-1.5 text-right tabular-nums whitespace-nowrap">
+                            <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
                               <TaskPtsCell tasks={b.tasksPerStaff} pts={b.ptsPerStaff} mode={metricMode} align="right" decimalTasks />
                             </td>
                             <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
@@ -5450,7 +5458,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ).map((t) => (
                   <div
                     key={t.period}
-                    className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] px-3.5 py-2 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
+                    className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
                   >
                     <span className="font-normal text-slate-900 tabular-nums">{t.label}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtInt(t.activeBranches)}</span>
@@ -6000,7 +6008,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     setMonthlySortDir((d) => (monthlySortKey === sKey ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
                                   }}
                                   title={`${m.fullLabel} (${m.workDays} official work days)${m.isCurrent ? ' · Current month-to-date' : m.isFuture ? ' · Upcoming month' : ''} — Click to sort`}
-                                  className={`px-1 py-2 text-center min-w-[60px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                                  className={`px-1 py-2 text-center min-w-[50px] cursor-pointer select-none transition-colors border-b border-white/20 ${
                                     m.isCurrent
                                       ? 'bg-sky-400/20 text-sky-100 hover:bg-sky-400/30'
                                       : m.isFuture
@@ -6019,19 +6027,31 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             })}
 
                             <th
-                              className="px-1.5 py-2.5 text-center w-[88px] min-w-[88px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              className="px-1.5 py-2.5 text-center w-[74px] min-w-[74px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              onClick={() => {
+                                setMonthlySortKey('oppositeTotal');
+                                setMonthlySortDir((d) => (monthlySortKey === 'oppositeTotal' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                              }}
+                            >
+                              <div className="flex items-center justify-center gap-1 font-medium text-[11px] text-white whitespace-nowrap">
+                                <span>{isTaskMode ? 'Total Pts' : 'Total Tasks'}</span>
+                                <SortIcon active={monthlySortKey === 'oppositeTotal'} dir={monthlySortDir} />
+                              </div>
+                            </th>
+                            <th
+                              className="px-1.5 py-2.5 text-center w-[82px] min-w-[82px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
                               onClick={() => {
                                 setMonthlySortKey('total');
                                 setMonthlySortDir((d) => (monthlySortKey === 'total' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
                               }}
                             >
                               <div className="flex items-center justify-center gap-1 font-medium text-[11px] text-white whitespace-nowrap">
-                                <span>Total</span>
+                                <span>{isTaskMode ? 'Total Tasks' : 'Total Pts'}</span>
                                 <SortIcon active={monthlySortKey === 'total'} dir={monthlySortDir} />
                               </div>
                             </th>
                             <th
-                              className="px-1.5 py-2.5 text-center w-[76px] min-w-[76px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                              className="px-1.5 py-2.5 text-center w-[62px] min-w-[62px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
                               onClick={() => {
                                 setMonthlySortKey('avg');
                                 setMonthlySortDir((d) => (monthlySortKey === 'avg' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -6067,7 +6087,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           {sortedMonthlyRows.length === 0 ? (
                             <tr>
                               <td
-                                colSpan={monthlyMatrixMeta.length + (tableMode === 'staff' ? 8 : 7)}
+                                colSpan={monthlyMatrixMeta.length + (tableMode === 'staff' ? 9 : 8)}
                                 className="p-10 text-center text-sm text-slate-500"
                               >
                                 No {tableMode === 'branch' ? 'branch' : 'staff'} records match the current filters.
@@ -6125,16 +6145,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                   {row.cells.map((c, mIdx) => {
                                     const meta = monthlyMatrixMeta[mIdx];
-                                    const cPts = categoryFilter === 'ALL' ? c.points : pickCategoryKpiVal(c.pts, categoryFilter, false);
-                                    const cTasks = categoryFilter === 'ALL' ? c.tasks : pickCategoryKpiVal(c.pts, categoryFilter, true);
-                                    const hasVal = cPts > 0 || cTasks > 0;
+                                    const hasVal = c.val > 0;
                                     const paceRatio = c.pacingPct;
                                     const tip = `${tableMode === 'branch' ? cleanBranchName(row.name) : `${row.name} (${row.id})`} · ${meta.fullLabel}: ${
                                       meta.isFuture
                                         ? 'Upcoming month'
                                         : isTaskMode
-                                        ? `${fmtInt(cTasks)} tasks (${fmtPts(cPts)} pts)`
-                                        : `${fmtPts(cPts)} pts (${fmtInt(cTasks)} tasks)`
+                                        ? `${fmtInt(c.val)} tasks (${fmtPts(c.points)} pts)`
+                                        : `${fmtPts(c.val)} pts (${fmtInt(c.tasks)} tasks)`
                                     }${!meta.isFuture && c.target > 0 ? `\nTarget: ${fmtPts(c.target)} (${c.pct}%${meta.isCurrent ? ` · MTD pace ${c.pacingPct}%` : ''})` : ''}${
                                       !meta.isFuture
                                         ? `\nPOS: ${c.pts.posTasks} (${fmtPts(c.pts.posPoints)} pts) · SB: ${c.pts.sbTasks} (${fmtPts(c.pts.sbPoints)} pts) · KHQR: ${c.pts.khqrTasks} (${fmtPts(c.pts.khqrPoints)} pts) · CC: ${c.pts.ccTasks} (${fmtPts(c.pts.ccPoints)} pts)${c.pts.mvTasks > 0 ? ` · MV: ${c.pts.mvTasks} (${fmtPts(c.pts.mvPoints)} pts)` : ''}`
@@ -6150,7 +6168,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       >
                                         {hasVal ? (
                                           <span
-                                            className={`inline-flex flex-col items-center justify-center min-w-[52px] py-0.5 px-1.5 rounded font-figure tabular-nums leading-tight ${
+                                            className={`inline-flex items-center justify-center min-w-[38px] h-[23px] px-1.5 rounded text-[11.5px] font-figure tabular-nums font-medium ${
                                               row.isManagement
                                                 ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80'
                                                 : paceRatio >= 100
@@ -6160,12 +6178,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                                 : 'bg-slate-100 text-slate-800 border border-slate-200'
                                             }`}
                                           >
-                                            <span className="text-[11px] font-medium whitespace-nowrap">
-                                              {isTaskMode ? `${fmtInt(cTasks)}t` : `${fmtPts(cPts)} pts`}
-                                            </span>
-                                            <span className="text-[9.5px] font-normal opacity-75 whitespace-nowrap">
-                                              {isTaskMode ? `${fmtPts(cPts)} pts` : `${fmtInt(cTasks)} ${cTasks === 1 ? 'task' : 'tasks'}`}
-                                            </span>
+                                            {isTaskMode ? fmtInt(c.val) : fmtPts(c.val)}
                                           </span>
                                         ) : (
                                           <span className="text-slate-300 text-xs font-light select-none">
@@ -6183,15 +6196,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     const rowTasks = categoryFilter === 'ALL'
                                       ? row.totalTasks
                                       : row.cells.reduce((acc, c) => acc + pickCategoryKpiVal(c.pts, categoryFilter, true), 0);
-                                    const avgPts = Math.round((rowPts / trackedMatrixMonthCount) * 10) / 10;
-                                    const avgTasks = Math.round((rowTasks / trackedMatrixMonthCount) * 10) / 10;
                                     return (
                                       <>
-                                        <td className="px-2 py-1.5 text-center tabular-nums border-l border-slate-200/60 whitespace-nowrap">
-                                          <TaskPtsCell tasks={rowTasks} pts={rowPts} mode={metricMode} emphasis />
+                                        <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-600 border-l border-slate-200/60 whitespace-nowrap">
+                                          {isTaskMode ? `${fmtPts(rowPts)} pts` : fmtInt(rowTasks)}
                                         </td>
-                                        <td className="px-1.5 py-1.5 text-center tabular-nums whitespace-nowrap">
-                                          <TaskPtsCell tasks={avgTasks} pts={avgPts} mode={metricMode} decimalTasks />
+                                        <td className="px-2 py-2 text-center tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap">
+                                          {isTaskMode ? `${fmtInt(row.total)} tasks` : `${fmtPts(row.total)} pts`}
+                                        </td>
+                                        <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-700">
+                                          {fmtPts(row.avgPerMonth)}
                                         </td>
                                       </>
                                     );
@@ -6235,37 +6249,29 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 Total Across All {tableMode === 'branch' ? `Branches (${sortedMonthlyRows.length})` : `Staff (${sortedMonthlyRows.length})`}
                               </td>
                               {monthlyMatrixMeta.map((m) => {
+                                const mSum = Math.round((monthlyTotals.byMonth[m.ym] || 0) * 100) / 100;
                                 const mPts = Math.round((monthlyTotals.byMonthPoints[m.ym] || 0) * 100) / 100;
                                 const mTasks = monthlyTotals.byMonthTasks[m.ym] || 0;
-                                const hasSum = mPts > 0 || mTasks > 0;
                                 return (
                                   <td
                                     key={m.ym}
-                                    className={`px-1 py-2 text-center tabular-nums text-[11px] font-figure border-r border-slate-200 ${
-                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-medium' : hasSum ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
+                                    className={`px-1 py-2 text-center tabular-nums text-[11.5px] font-figure border-r border-slate-200 ${
+                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-medium' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
                                     }`}
                                     title={`All ${tableMode === 'branch' ? 'branches' : 'staff'} in ${m.fullLabel}: ${m.isFuture ? 'Upcoming month' : `${fmtPts(mPts)} pts · ${fmtInt(mTasks)} tasks`}`}
                                   >
-                                    {m.isFuture ? (
-                                      '—'
-                                    ) : hasSum ? (
-                                      <div className="flex flex-col items-center leading-tight">
-                                        <span className="whitespace-nowrap">{isTaskMode ? `${fmtInt(mTasks)}t` : `${fmtPts(mPts)} pts`}</span>
-                                        <span className="text-[9.5px] font-normal text-slate-500 whitespace-nowrap">
-                                          {isTaskMode ? `${fmtPts(mPts)} pts` : `${fmtInt(mTasks)} tasks`}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      '·'
-                                    )}
+                                    {m.isFuture ? '—' : mSum > 0 ? (isTaskMode ? fmtInt(mSum) : fmtPts(mSum)) : '·'}
                                   </td>
                                 );
                               })}
-                              <td className="px-2 py-2 text-center tabular-nums border-l border-slate-300">
-                                <TaskPtsCell tasks={monthlyTotals.grandTasks} pts={monthlyTotals.grandPoints} mode={metricMode} emphasis />
+                              <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 border-l border-slate-300 text-xs whitespace-nowrap">
+                                {isTaskMode ? `${fmtPts(monthlyTotals.grandPoints)} pts` : fmtInt(monthlyTotals.grandTasks)}
                               </td>
-                              <td className="px-1.5 py-2 text-center tabular-nums">
-                                <TaskPtsCell tasks={monthlyTotals.avgTasksPerMonth} pts={monthlyTotals.avgPtsPerMonth} mode={metricMode} decimalTasks />
+                              <td className="px-2 py-2.5 text-center tabular-nums font-medium text-[#003857] text-xs whitespace-nowrap">
+                                {isTaskMode ? `${fmtInt(monthlyTotals.grandTotal)} tasks` : `${fmtPts(monthlyTotals.grandTotal)} pts`}
+                              </td>
+                              <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs">
+                                {fmtPts(monthlyTotals.avgPerMonth)}
                               </td>
                               <td className="px-1.5 py-2.5 text-center tabular-nums text-slate-500 text-xs">
                                 {fmtPts(monthlyTotals.totalTargetPerMonth)}
@@ -6636,14 +6642,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           <span className="font-medium text-slate-900">{s.staffName}</span>{' '}
                                           <span className="text-slate-500">({s.staffId})</span>
                                         </div>
-                                        <div className="flex items-center gap-3.5 tabular-nums text-xs">
-                                          <span className="text-slate-500">POS: {fmtInt(s.posTasks)} ({fmtPts(s.posPoints)} pts)</span>
-                                          <span className="text-slate-500">SB: {fmtInt(s.sbTasks)} ({fmtPts(s.sbPoints)} pts)</span>
-                                          <span className="text-slate-500">KHQR: {fmtInt(s.khqrTasks)} ({fmtPts(s.khqrPoints)} pts)</span>
-                                          <span className="text-slate-500">CC: {fmtInt(s.ccTasks)} ({fmtPts(s.ccPoints)} pts)</span>
-                                          <span className="text-slate-500">MV: {fmtInt(s.mvTasks)} ({fmtPts(s.mvPoints)} pts)</span>
+                                        <div className="flex items-center gap-4 tabular-nums text-xs">
+                                          <span className="text-slate-500">POS: {isTaskMode ? fmtInt(s.posTasks) : fmtPts(s.posPoints)}</span>
+                                          <span className="text-slate-500">SB: {isTaskMode ? fmtInt(s.sbTasks) : fmtPts(s.sbPoints)}</span>
+                                          <span className="text-slate-500">KHQR: {isTaskMode ? fmtInt(s.khqrTasks) : fmtPts(s.khqrPoints)}</span>
+                                          <span className="text-slate-500">CC: {isTaskMode ? fmtInt(s.ccTasks) : fmtPts(s.ccPoints)}</span>
+                                          <span className="text-slate-500">MV: {isTaskMode ? fmtInt(s.mvTasks) : fmtPts(s.mvPoints)}</span>
                                           <span className="font-medium text-slate-900">
-                                            {fmtInt(s.totalTasks)} tasks · {fmtPts(s.totalPoints)} pts
+                                            {isTaskMode ? `${fmtInt(s.totalTasks)} tasks` : `${fmtPts(s.totalPoints)} pts`}
                                           </span>
                                         </div>
                                       </div>
@@ -7104,9 +7110,11 @@ const TaskPtsCell: React.FC<{
   emphasis?: boolean;
 }> = React.memo(({ tasks = 0, pts, mode = 'points', align = 'center', decimalTasks = false, emphasis = false }) => {
   const isTasks = mode === 'tasks';
-  if (tasks <= 0 && pts <= 0) {
+  const val = isTasks ? tasks : pts;
+  const alignCls = align === 'right' ? 'text-right' : 'text-center';
+  if (val <= 0) {
     return (
-      <span className={`text-slate-300 font-light block w-full select-none ${align === 'right' ? 'text-right' : 'text-center'}`}>
+      <span className={`text-slate-300 font-light block w-full select-none ${alignCls}`}>
         —
       </span>
     );
@@ -7117,23 +7125,18 @@ const TaskPtsCell: React.FC<{
   const primaryColor = emphasis ? 'text-[#003857] font-semibold' : 'text-slate-800 font-medium';
   return (
     <span
-      className={`inline-flex flex-col justify-center leading-tight w-full ${align === 'right' ? 'items-end' : 'items-center'}`}
+      className={`font-figure tabular-nums block w-full whitespace-nowrap ${alignCls} ${primaryColor}`}
       title={`${ptsStr} pts · ${taskStr} ${taskUnit}`}
     >
-      <span className={`font-figure tabular-nums text-[12.5px] whitespace-nowrap ${primaryColor}`}>
-        {isTasks ? (
-          <>
-            {taskStr} <span className="text-[10.5px] font-normal text-slate-400">{taskUnit}</span>
-          </>
-        ) : (
-          <>
-            {ptsStr} <span className="text-[10.5px] font-normal text-slate-400">pts</span>
-          </>
-        )}
-      </span>
-      <span className="tabular-nums text-[10.5px] font-normal text-slate-400 whitespace-nowrap mt-0.5">
-        {isTasks ? `${ptsStr} pts` : `${taskStr} ${taskUnit}`}
-      </span>
+      {isTasks ? (
+        <>
+          {taskStr} <span className="text-[11px] font-normal text-slate-400">{taskUnit}</span>
+        </>
+      ) : (
+        <>
+          {ptsStr} <span className="text-[11px] font-normal text-slate-400">pts</span>
+        </>
+      )}
     </span>
   );
 });
@@ -7559,17 +7562,11 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
       {cells.map((c) => (
         <div key={c.label} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5">
           <div className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</div>
-          <div className="text-xs font-semibold text-slate-900 tabular-nums mt-0.5 flex items-baseline gap-1.5 flex-wrap">
+          <div className="text-xs font-semibold text-slate-900 tabular-nums mt-0.5">
             {isTasks ? (
-              <>
-                <span>{fmtInt(c.n)} <span className="text-[10.5px] font-normal text-slate-500">{c.n === 1 ? 'task' : 'tasks'}</span></span>
-                <span className="text-[10.5px] font-normal text-slate-400">· {fmtPts(c.pts)} pts</span>
-              </>
+              <>{fmtInt(c.n)} <span className="text-[10.5px] font-normal text-slate-500">tasks</span></>
             ) : (
-              <>
-                <span>{fmtPts(c.pts)} <span className="text-[10.5px] font-normal text-slate-500">pts</span></span>
-                <span className="text-[10.5px] font-normal text-slate-400">· {fmtInt(c.n)} {c.n === 1 ? 'task' : 'tasks'}</span>
-              </>
+              <>{fmtPts(c.pts)} <span className="text-[10.5px] font-normal text-slate-500">pts</span></>
             )}
           </div>
         </div>
