@@ -744,7 +744,7 @@ button:hover:not(:disabled),
 }
 
 .page-glide-in {
-  animation: pageGlideIn 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;   /* released when done: no page-sized layer kept */
+  animation: pageGlideIn 200ms cubic-bezier(0.22, 1, 0.36, 1) backwards;   /* released when done: no page-sized layer kept */
 }
 
 /* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */
@@ -1104,12 +1104,12 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
 }
-/* (24 Nov 2026) M01 Apple Staggered Silk Lift: crisp 10px upward glide + micro-scale (0.985 -> 1) in a 50ms cascade.
+/* (24 Nov 2026) M01 Apple Staggered Silk Lift: crisp 7px upward glide + micro-scale (0.99 -> 1) in a snappy 30ms cascade.
    Uses animation-fill-mode: backwards so transform clears back to none on settle (never traps fixed/sticky layers). */
 @keyframes silkLift {
   from {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.985);
+    transform: translate3d(0, 7px, 0) scale(0.99);
   }
   to {
     opacity: 1;
@@ -1117,11 +1117,11 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
   }
 }
 .silk-lift {
-  animation: silkLift 480ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--silk-i, 0) * 50ms) backwards;
+  animation: silkLift 280ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--silk-i, 0) * 30ms) backwards;
 }
 /* (24 Nov 2026) Q01 Pure Quiet Crossfade for all portal tables:
-   Reloads wait 80ms before softly dimming to 44% (prevents flicker on fast <80ms fetches), then crossfade cleanly back
-   to 100% in 340ms with zero delay. Single compositor layer, zero blur, zero header line — locked 60fps on work laptops. */
+   Reloads wait 90ms before softly dimming to 44% (prevents flicker on fast <90ms fetches), then crossfade cleanly back
+   to 100% in 200ms with zero delay. Single compositor layer, zero blur, zero header line — locked 60fps on work laptops. */
 @keyframes quietTableFade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1130,14 +1130,14 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .kpi-matrix-table tbody,
 .top10-table tbody,
 .silk-rows {
-  animation: quietTableFade 340ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: quietTableFade 200ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .table-quiet-body {
-  transition: opacity 340ms cubic-bezier(0.22, 1, 0.36, 1) 0ms;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1) 0ms;
 }
 .table-quiet-body.is-loading {
   opacity: 0.44;
-  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1) 90ms;
   pointer-events: none;
 }
 
@@ -1145,14 +1145,14 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 @keyframes figureIn {
   from {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.985);
+    transform: translate3d(0, 6px, 0) scale(0.99);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-.figure-in { animation: figureIn 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.figure-in { animation: figureIn 240ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 /* (23 Nov 2026) loading placeholders wait 120 ms before showing, so a quick answer never flashes a placeholder */
 @keyframes loadingIn { from { opacity: 0; } to { opacity: 1; } }
 .loading-in { animation: loadingIn 240ms ease-out 120ms both; }
@@ -1277,14 +1277,13 @@ img { height: auto; }
    ========================================================================== */
 :root { --ease-premium: cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* a screen's sections rise in one after another (first six; the rest arrive together) */
-@keyframes riseIn { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
-.apple-tab-panel > *:not(.silk-lift) { animation: riseIn 420ms var(--ease-premium) backwards; }
-.apple-tab-panel > *:not(.silk-lift):nth-child(2) { animation-delay: 45ms; }
-.apple-tab-panel > *:not(.silk-lift):nth-child(3) { animation-delay: 90ms; }
-.apple-tab-panel > *:not(.silk-lift):nth-child(4) { animation-delay: 135ms; }
-.apple-tab-panel > *:not(.silk-lift):nth-child(5) { animation-delay: 180ms; }
-.apple-tab-panel > *:not(.silk-lift):nth-child(n+6) { animation-delay: 225ms; }
+/* a screen's sections rise in smoothly without dragging out perceived load time */
+@keyframes riseIn { from { opacity: 0; transform: translate3d(0, 6px, 0); } to { opacity: 1; transform: none; } }
+.apple-tab-panel > *:not(.silk-lift) { animation: riseIn 220ms var(--ease-premium) backwards; }
+.apple-tab-panel > *:not(.silk-lift):nth-child(2) { animation-delay: 20ms; }
+.apple-tab-panel > *:not(.silk-lift):nth-child(3) { animation-delay: 40ms; }
+.apple-tab-panel > *:not(.silk-lift):nth-child(4) { animation-delay: 60ms; }
+.apple-tab-panel > *:not(.silk-lift):nth-child(n+5) { animation-delay: 80ms; }
 /* Prevent double-animating wrapper rows whose inner cards use M01 .silk-lift */
 .apple-tab-panel > *:has(.silk-lift) { animation: none; }
 

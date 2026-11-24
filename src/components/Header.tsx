@@ -58,6 +58,7 @@ import { prefetchKpi } from '../services/kpiService';
 import { prefetchAudit } from '../services/auditCache';
 import { prefetchStaff } from '../services/staffCache';
 import { prefetchSims } from '../services/materialsService';
+import { prefetchTabChunk } from '../app/appSetup';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 /** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
@@ -334,11 +335,19 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         if (isMobileView) onCloseMobile?.();
                       }}
                       onMouseEnter={() => {
+                        prefetchTabChunk(item.id);
+                        if (item.id === 'kpi_performance') prefetchKpi();
+                        else if (item.id === 'audit_log') prefetchAudit();
+                        else if (item.id === 'users') prefetchStaff();
+                      }}
+                      onPointerDown={() => {
+                        prefetchTabChunk(item.id);
                         if (item.id === 'kpi_performance') prefetchKpi();
                         else if (item.id === 'audit_log') prefetchAudit();
                         else if (item.id === 'users') prefetchStaff();
                       }}
                       onFocus={() => {
+                        prefetchTabChunk(item.id);
                         if (item.id === 'kpi_performance') prefetchKpi();
                         else if (item.id === 'audit_log') prefetchAudit();
                         else if (item.id === 'users') prefetchStaff();
@@ -369,22 +378,25 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               }}
                               aria-current={on ? 'page' : undefined}
                               onMouseEnter={() => {
+                                prefetchTabChunk(c.id);
                                 if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
                                 else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
                                 else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                else if (c.id === 'sim_cards') {
-                                  import('./SimCardTab');
-                                  prefetchSims();
-                                }
+                                else if (c.id === 'sim_cards') prefetchSims();
+                              }}
+                              onPointerDown={() => {
+                                prefetchTabChunk(c.id);
+                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
+                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
+                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
+                                else if (c.id === 'sim_cards') prefetchSims();
                               }}
                               onFocus={() => {
+                                prefetchTabChunk(c.id);
                                 if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
                                 else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
                                 else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                else if (c.id === 'sim_cards') {
-                                  import('./SimCardTab');
-                                  prefetchSims();
-                                }
+                                else if (c.id === 'sim_cards') prefetchSims();
                               }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on

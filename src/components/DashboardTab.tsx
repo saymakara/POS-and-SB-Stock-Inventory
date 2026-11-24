@@ -1878,7 +1878,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const timer = window.setTimeout(() => {
       if (cancelled || getCachedKpiSummary(null, null)) return;
       void fetchKpiSummary(null, null, false).catch(() => {});
-    }, 6000);
+    }, 1200);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

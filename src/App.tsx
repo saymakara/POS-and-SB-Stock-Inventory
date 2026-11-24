@@ -107,7 +107,7 @@ import {
   MobileSyncTab, LogoPageTab, AuditLogTab, SettingsTab, FieldReviewTab, KhqrReviewTab, CreditCardReviewTab,
   SimCardTab, MerchantVisitTab, KpiPerformanceTab, StaffAccountsTab, PushConfiguringTab, TraceModal,
   ChangeBatteryModal, ExportDataModal, BatchUploadModal, RequestStockModal, DELTA_SYNC_ENABLED, KEY_DEVICES_FULL_AT,
-  DELTA_FULL_RELOAD_AFTER_MS, DELTA_OVERLAP_MS, DELTA_MAX_ROWS, markCacheHydrated, cacheHydrated, DeviceLoad, markStockLoaded, stockLoaded,
+  DELTA_FULL_RELOAD_AFTER_MS, DELTA_OVERLAP_MS, DELTA_MAX_ROWS, markCacheHydrated, cacheHydrated, DeviceLoad, markStockLoaded,
   STORAGE_KEY_DEVICES, STORAGE_KEY_REQS, STORAGE_KEY_BRANCHES, STORAGE_KEY_USERS, STORAGE_KEY_LOGS,
   STORAGE_KEY_WEBHOOKS, STORAGE_KEY_NOTIFS, STORAGE_KEY_HISTORICAL_MERCHANTS, STORAGE_KEY_STAGE_SUMMARY,
   STORAGE_KEY_SETTINGS, STORAGE_KEY_AUTH_SESSION, STORAGE_KEY_PUSHED_CONFIGURING, STORAGE_KEY_PUSH_TRACKING,
@@ -168,15 +168,25 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const theme: ThemeMode = 'light';
 
   useEffect(() => {                                                  // the other screens' JS chunks arrive quietly while the first one is in use
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-    const warm = () => { prefetchTabs(); };
-    // (24 Nov 2026, speed) after the first stock load (at most 6 s), warm only static JS chunks (no heavy background DB storm)
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
     let cancelled = false;
-    Promise.race([stockLoaded, new Promise<void>((r) => window.setTimeout(r, 6000))]).then(() => {
+    const warm = () => { if (!cancelled) prefetchTabs(); };
+    // (24 Nov 2026, speed) Warm static JS chunks as soon as the initial paint goes idle (static CDN files never contend
+    // with Supabase DB queries), so clicking KPI Performance or any sidebar tab never stalls on a lazy-chunk download.
+    let idleId: number | null = null;
+    const timer = window.setTimeout(() => {
       if (cancelled) return;
-      if (w.requestIdleCallback) w.requestIdleCallback(() => { if (!cancelled) warm(); }, { timeout: 2500 }); else window.setTimeout(() => { if (!cancelled) warm(); }, 300);
-    });
-    return () => { cancelled = true; };
+      if (w.requestIdleCallback) idleId = w.requestIdleCallback(warm, { timeout: 900 });
+      else warm();
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (idleId !== null && w.cancelIdleCallback) w.cancelIdleCallback(idleId);
+    };
   }, []);
 
   useEffect(() => {

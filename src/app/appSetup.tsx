@@ -17,51 +17,58 @@ export const isNetworkFailure = (err?: string): boolean =>
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
 // quietly in the background right after start-up, so the app opens faster and switching tabs is still instant.
 export const tabLoaders: Array<() => Promise<unknown>> = [];
+const tabLoaderById = new Map<string, () => Promise<unknown>>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ default: C }>) {
+export function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ default: C }>, ids?: string[]) {
   // (7 Nov 2026) one download shared by the background fetch and the screen; once it is here the screen is drawn at once
   // (React.lazy alone showed its loading placeholder for a frame the first time, even when already downloaded - a flicker)
   let loaded: C | null = null;
   let pending: Promise<{ default: C }> | null = null;
   const once = () => (pending ??= load().then((m) => { loaded = m.default; return m; }, (e) => { pending = null; throw e; }));
   tabLoaders.push(once);
+  if (ids) ids.forEach((id) => tabLoaderById.set(id, once));
   const Lazy = React.lazy(once);
   const Tab = (props: React.ComponentProps<C>) => React.createElement((loaded || Lazy) as React.ComponentType<any>, props);
   return Tab as unknown as C;
 }
+/** Pre-downloads a specific tab's static JS chunk on sidebar hover/pointerdown/focus so click is 0ms instant. */
+export function prefetchTabChunk(tabId: string): void {
+  const fn = tabLoaderById.get(tabId);
+  if (fn) void fn().catch(() => {});
+}
 export function prefetchTabs(): void {
-  // (24 Nov 2026, speed) Preload only static JS chunks in gentle batches so switching tabs is instant without
-  // firing unrequested background database RPCs (KHQR/CC/Field/Audit/SIM data is warmed on sidebar hover/focus instead).
+  // (24 Nov 2026, speed) Preload only static JS chunks in fast idle batches (most-used tabs first) so switching
+  // tabs is instant without firing unrequested background database RPCs.
   let i = 0;
-  const BATCH = 4;
+  const BATCH = 5;
   const next = () => {
     const slice = tabLoaders.slice(i, i + BATCH);
     i += BATCH;
     slice.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
     if (i < tabLoaders.length) {
-      window.setTimeout(next, 250);
+      window.setTimeout(next, 120);
     }
   };
   next();
 }
-export const BranchesTab = lazyTab(() => import('../components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
-export const IamUsersTab = lazyTab(() => import('../components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));
-export const MerchantsCrmTab = lazyTab(() => import('../components/MerchantsCrmTab').then((m) => ({ default: m.MerchantsCrmTab })));
-export const MerchantHistoryTab = lazyTab(() => import('../components/MerchantHistoryTab').then((m) => ({ default: m.MerchantHistoryTab })));
-export const RequisitionsTab = lazyTab(() => import('../components/RequisitionsTab').then((m) => ({ default: m.RequisitionsTab })));
+// Most-visited operational tabs first so background chunk warm-up hits them within ~150ms of Dashboard paint
+export const KpiPerformanceTab = lazyTab(() => import('../components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })), ['kpi_performance']);
+export const FieldReviewTab = lazyTab(() => import('../components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })), ['mobile_sync', 'mobile_sync_sb']);
+export const KhqrReviewTab = lazyTab(() => import('../components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })), ['mobile_sync_khqr']);
+export const CreditCardReviewTab = lazyTab(() => import('../components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })), ['mobile_sync_cc']);
+export const MerchantVisitTab = lazyTab(() => import('../components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })), ['mobile_sync_visit']);
+export const SettingsTab = lazyTab(() => import('../components/SettingsTab').then((m) => ({ default: m.SettingsTab })), ['settings', 'brand_logo']);
+export const SimCardTab = lazyTab(() => import('../components/SimCardTab').then((m) => ({ default: m.SimCardTab })), ['sim_cards']);
+export const RequisitionsTab = lazyTab(() => import('../components/RequisitionsTab').then((m) => ({ default: m.RequisitionsTab })), ['requisitions']);
+export const MerchantsCrmTab = lazyTab(() => import('../components/MerchantsCrmTab').then((m) => ({ default: m.MerchantsCrmTab })), ['merchants']);
+export const MerchantHistoryTab = lazyTab(() => import('../components/MerchantHistoryTab').then((m) => ({ default: m.MerchantHistoryTab })), ['merchant_history']);
+export const BranchesTab = lazyTab(() => import('../components/BranchesTab').then((m) => ({ default: m.BranchesTab })), ['branches']);
+export const StaffAccountsTab = lazyTab(() => import('../components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })), ['users']);
+export const AuditLogTab = lazyTab(() => import('../components/AuditLogTab').then((m) => ({ default: m.AuditLogTab })), ['audit_log']);
+export const PushConfiguringTab = lazyTab(() => import('../components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })), ['push_configuring']);
+export const IamUsersTab = lazyTab(() => import('../components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })), ['iam']);
 export const MobileSyncTab = lazyTab(() => import('../components/MobileSyncTab').then((m) => ({ default: m.MobileSyncTab })));
 export const LogoPageTab = lazyTab(() => import('../components/LogoPageTab').then((m) => ({ default: m.LogoPageTab })));
-export const AuditLogTab = lazyTab(() => import('../components/AuditLogTab').then((m) => ({ default: m.AuditLogTab })));
-export const SettingsTab = lazyTab(() => import('../components/SettingsTab').then((m) => ({ default: m.SettingsTab })));
-export const FieldReviewTab = lazyTab(() => import('../components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
-export const KhqrReviewTab = lazyTab(() => import('../components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
-export const CreditCardReviewTab = lazyTab(() => import('../components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
-// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card
-export const SimCardTab = lazyTab(() => import('../components/SimCardTab').then((m) => ({ default: m.SimCardTab })));
-export const MerchantVisitTab = lazyTab(() => import('../components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
-export const KpiPerformanceTab = lazyTab(() => import('../components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
-export const StaffAccountsTab = lazyTab(() => import('../components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
-export const PushConfiguringTab = lazyTab(() => import('../components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 export const TraceModal = lazyTab(() => import('../components/TraceModal').then((m) => ({ default: m.TraceModal })));
 export const ChangeBatteryModal = lazyTab(() => import('../components/ChangeBatteryModal').then((m) => ({ default: m.ChangeBatteryModal })));
 export const ExportDataModal = lazyTab(() => import('../components/ExportDataModal').then((m) => ({ default: m.ExportDataModal })));

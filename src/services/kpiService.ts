@@ -494,7 +494,12 @@ function flushKpiStorageWrites(): void {
 
 function scheduleKpiStorageFlush(): void {
   if (pendingStorageTimer !== null) return;
-  pendingStorageTimer = window.setTimeout(flushKpiStorageWrites, 0);
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+  if (w.requestIdleCallback) {
+    pendingStorageTimer = w.requestIdleCallback(flushKpiStorageWrites, { timeout: 1500 });
+  } else {
+    pendingStorageTimer = window.setTimeout(flushKpiStorageWrites, 600);
+  }
 }
 
 export const kpiCacheKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
@@ -521,8 +526,8 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
         dailyStaff: series?.dailyStaff || [],
       };
       summaryCache.set(key, merged);
-      // Restore freshness timestamp across F5 refresh so a just-fetched KPI payload (< 60s old) is reused at 0ms
-      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 60_000) {
+      // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 2 min old) is reused at 0ms
+      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 120_000) {
         kpiBorn.set(key, slice.fetchedAt);
       }
       return merged;
@@ -749,7 +754,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
   }
   const key = `${from || ''}|${to || ''}`;
   const hit = !force ? getCachedKpiSummary(from, to) : undefined;
-  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 90000) return hit;
+  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 120_000) return hit;
   const running = !force ? kpiInflight.get(key) : undefined;
   if (running) return running;
 

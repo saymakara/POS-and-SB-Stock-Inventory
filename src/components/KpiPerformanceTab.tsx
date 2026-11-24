@@ -951,16 +951,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const exemptSet = useMemo(() => getManagementExemptSet(), [exemptVersion]);
 
   const handleViewChange = useCallback((newView: KpiView) => {
-    setView(newView);
     setSelectedCard(null);
-    if (newView === 'branches') {
-      setTableMode('branch');
-      setBranchSubView('summary');
-    }
-    if (newView === 'staff') {
-      setTableMode('staff');
-      setStaffSubView('summary');
-    }
+    startMatrixTransition(() => {
+      setView(newView);
+      if (newView === 'branches') {
+        setTableMode('branch');
+        setBranchSubView('summary');
+      }
+      if (newView === 'staff') {
+        setTableMode('staff');
+        setStaffSubView('summary');
+      }
+    });
   }, []);
 
   const handleTableModeChange = useCallback(
@@ -1015,10 +1017,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [timelineSortDir, setTimelineSortDir] = useState<'asc' | 'desc'>('desc');
 
   const handleMetricModeChange = useCallback((next: KpiMetricMode) => {
-    setMetricMode(next);
-    setBranchSortKey((k) => remapMetricSortKey(k, next, true));
-    setStaffSortKey((k) => remapMetricSortKey(k, next, false));
-    setTimelineSortKey((k) => remapMetricSortKey(k, next, true));
+    startMatrixTransition(() => {
+      setMetricMode(next);
+      setBranchSortKey((k) => remapMetricSortKey(k, next, true));
+      setStaffSortKey((k) => remapMetricSortKey(k, next, false));
+      setTimelineSortKey((k) => remapMetricSortKey(k, next, true));
+    });
   }, []);
 
   const range = useMemo(() => kpiPeriodRange(period), [period]);
@@ -2229,6 +2233,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   }, [subCategoryBreakdown, categoryFilter]);
 
   const displayedSubCategories = useMemo(() => {
+    if (!showSubCategories) return [];
     let list = subCategoryBreakdown;
     if (categoryFilter !== 'ALL') {
       list = list.filter((sc) => sc.category === categoryFilter);
@@ -2252,7 +2257,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       );
     }
     return list;
-  }, [subCategoryBreakdown, categoryFilter, subCatActiveOnly, subCatSearch, subCatRankBy]);
+  }, [showSubCategories, subCategoryBreakdown, categoryFilter, subCatActiveOnly, subCatSearch, subCatRankBy]);
 
   const displayedSubCategoryPoints = useMemo(() => {
     return displayedSubCategories.reduce((acc, sc) => acc + sc.points, 0);
@@ -2279,13 +2284,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const dailyBranchMap = useMemo(() => {
     const map = new Map<string, KpiDailyBranchRaw>();
+    if (tableMode !== 'branch' || branchSubView !== 'daily') return map;
     if (Array.isArray(data?.dailyBranch)) {
       for (const item of data.dailyBranch) {
         map.set(`${item.branchId}__${item.day}`, item);
       }
     }
     return map;
-  }, [data?.dailyBranch]);
+  }, [tableMode, branchSubView, data?.dailyBranch]);
 
   const matrixDaysMap = useMemo(() => {
     const map = new Map<number, (typeof matrixDays)[number]>();
@@ -2469,13 +2475,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const dailyStaffMap = useMemo(() => {
     const map = new Map<string, KpiDailyStaffRaw>();
+    if (tableMode !== 'staff' || staffSubView !== 'daily') return map;
     if (Array.isArray(data?.dailyStaff)) {
       for (const item of data.dailyStaff) {
         map.set(`${item.staffId}__${item.day}`, item);
       }
     }
     return map;
-  }, [data?.dailyStaff]);
+  }, [tableMode, staffSubView, data?.dailyStaff]);
 
   const dailyStaffRows = useMemo(() => {
     if (tableMode !== 'staff' || staffSubView !== 'daily') return [];
@@ -2851,6 +2858,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     rawTotal: KpiRawCounts;
   }
 
+  const isMonthlySubView =
+    (tableMode === 'branch' && branchSubView === 'monthly') ||
+    (tableMode === 'staff' && staffSubView === 'monthly');
+
   const monthlyMatrixData = useMemo(() => {
     const emptyRes = {
       allStaffRows: [] as MonthlyMatrixRow[],
@@ -2858,7 +2869,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       branchRows: [] as MonthlyMatrixRow[],
       levelCounts: { all: 0, field: 0, management: 0 },
     };
-    if (!data) return emptyRes;
+    if (!data || !isMonthlySubView) return emptyRes;
 
     const monthSet = new Set(monthlyMatrixMeta.map((m) => m.ym));
     const latestMeta = monthlyMatrixMeta[monthlyMatrixMeta.length - 1];
@@ -3161,6 +3172,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     };
   }, [
     data,
+    isMonthlySubView,
     monthlyMatrixMeta,
     trackedMatrixMonthCount,
     ppDirectoryScope,
@@ -3578,7 +3590,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <select
               aria-label="Period"
               value={period}
-              onChange={(e) => setPeriod(e.target.value as KpiPeriod)}
+              onChange={(e) => {
+                const v = e.target.value as KpiPeriod;
+                startMatrixTransition(() => setPeriod(v));
+              }}
               className="btn-press px-3.5 py-2 rounded-xl text-xs sm:text-sm font-normal border bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
             >
               {(Object.keys(KPI_PERIOD_LABEL) as KpiPeriod[]).map((p) => (
@@ -3762,7 +3777,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <select
                 aria-label="Branch filter"
                 value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  startMatrixTransition(() => setBranchFilter(v));
+                }}
                 className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer max-w-full sm:max-w-[175px] text-slate-800 font-normal outline-none focus:border-slate-400 transition min-w-[120px] flex-1 sm:flex-initial"
               >
                 <option value="">All branches</option>
@@ -3775,7 +3793,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <select
                 aria-label="Category filter"
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value as 'ALL' | KpiCategory)}
+                onChange={(e) => {
+                  const v = e.target.value as 'ALL' | KpiCategory;
+                  startMatrixTransition(() => setCategoryFilter(v));
+                }}
                 className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
               >
                 <option value="ALL">All KPI types</option>
@@ -3860,7 +3881,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           type="button"
                           role="tab"
                           aria-selected={active}
-                          onClick={() => setGranularity(g)}
+                          onClick={() => startMatrixTransition(() => setGranularity(g))}
                           aria-pressed={active}
                           className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
                             active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
@@ -5044,7 +5065,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={leaderboardMode === 'staff'}
-                  onClick={() => setLeaderboardMode('staff')}
+                  onClick={() => startMatrixTransition(() => setLeaderboardMode('staff'))}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
                     leaderboardMode === 'staff' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
@@ -5068,7 +5089,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={leaderboardMode === 'branch'}
-                  onClick={() => setLeaderboardMode('branch')}
+                  onClick={() => startMatrixTransition(() => setLeaderboardMode('branch'))}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${
                     leaderboardMode === 'branch' ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
@@ -5095,7 +5116,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={selectedTopMonth === 'ALL'}
-                  onClick={() => setSelectedTopMonth('ALL')}
+                  onClick={() => startMatrixTransition(() => setSelectedTopMonth('ALL'))}
                   className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
                     selectedTopMonth === 'ALL' ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
@@ -5116,7 +5137,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     type="button"
                     role="tab"
                     aria-selected={selectedTopMonth === m}
-                    onClick={() => setSelectedTopMonth(m)}
+                    onClick={() => startMatrixTransition(() => setSelectedTopMonth(m))}
                     className={`relative px-3 py-1 rounded-full text-[11px] cursor-pointer transition-colors ${
                       selectedTopMonth === m ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
