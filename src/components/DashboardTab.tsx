@@ -32,13 +32,16 @@ import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
 import { onPortalSync, type SyncDomain } from '../utils/portalSync';
 import {
   fetchMonthlyInstallFieldEvents,
+  fetchPosBatterySummary,
   getCachedMonthlyInstallBuckets,
   getCachedMonthlyInstallFieldEvents,
   getCachedMonthlyInstallFieldEventsCoveredDays,
+  getCachedPosBatterySummary,
   setCachedMonthlyInstallBuckets,
   subscribeToFieldEvents,
   type FieldInstallSummaryRow,
   type MonthlyInstallSessionBucket,
+  type PosBatterySummary,
   type StaffAccount,
 } from '../services/supabaseService';
 import {
@@ -1842,53 +1845,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls, neededInstallDays]);
 
-  // Idle sequential background warm-up of Today, All time, and previous month after initial load settles
+  // Idle background warm-up of only the default KPI Performance slice (All time) after initial load settles
+  // (avoids firing 6 speculative RPCs right after sign-in while stock & dashboard are loading)
   useEffect(() => {
     if (!isSupabaseConfigured || !kpiData || syncing) return;
+    if (getCachedKpiSummary(null, null)) return;
     let cancelled = false;
-    const warm = async () => {
-      if (cancelled) return;
-      const prevMonth = shiftMonthYm(currentMonth, -1);
-      const prevEnd = `${prevMonth}-${String(monthDaysCount(prevMonth)).padStart(2, '0')}`;
-      const candidates = [
-        {
-          kpiFrom: startOfPP(today),
-          kpiTo: endOfDayPP(today),
-          ccFrom: startOfPP(today),
-          ccTo: startOfPP(addDaysYmd(today, 1)),
-        },
-        {
-          kpiFrom: null as string | null,
-          kpiTo: null as string | null,
-          ccFrom: null as string | null,
-          ccTo: null as string | null,
-        },
-        {
-          kpiFrom: startOfPP(`${prevMonth}-01`),
-          kpiTo: endOfDayPP(prevEnd),
-          ccFrom: startOfPP(`${prevMonth}-01`),
-          ccTo: startOfPP(addDaysYmd(prevEnd, 1)),
-        },
-      ];
-      for (const c of candidates) {
-        if (cancelled) return;
-        if (!getCachedKpiSummary(c.kpiFrom, c.kpiTo)) {
-          await fetchKpiSummary(c.kpiFrom, c.kpiTo, false).catch(() => {});
-        }
-        if (cancelled) return;
-        if (!getCachedCcCounts(`${c.ccFrom || ''}|${c.ccTo || ''}`)) {
-          await fetchCcCounts(c.ccFrom, c.ccTo, 45000).catch(() => {});
-        }
-      }
-    };
     const timer = window.setTimeout(() => {
-      void warm();
-    }, 3500);
+      if (cancelled || getCachedKpiSummary(null, null)) return;
+      void fetchKpiSummary(null, null, false).catch(() => {});
+    }, 6000);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [kpiData, syncing, today, currentMonth]);
+  }, [kpiData, syncing]);
 
   // Scoped cross-channel KPI totals strictly matching Active Phnom Penh Staff Directory
   const scopedKpiTotals = useMemo(() => {
@@ -2056,6 +2027,42 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
   const activeDevices = useMemo(() => hardwareSource.filter((d) => !d.archived), [hardwareSource]);
 
+  // Fast server-side POS Battery Summary so Dashboard never shows 0% / 0 POS while full 27k devices load on sign-in
+  const batteryBranchIds = useMemo<string[] | null>(() => {
+    if (branchScopedId) return [branchScopedId];
+    const scoped = branches.filter((b) => ppDirectoryScope.isBranchInScope(b.id)).map((b) => b.id);
+    return scoped.length > 0 ? scoped : null;
+  }, [branchScopedId, branches, ppDirectoryScope]);
+  const [serverBatterySummary, setServerBatterySummary] = useState<PosBatterySummary | null>(() =>
+    getCachedPosBatterySummary(batteryBranchIds, batteryLifespanMonths, batteryWarningMonths)
+  );
+  const [batterySettled, setBatterySettled] = useState<boolean>(
+    () => !isSupabaseConfigured || activeDevices.length > 0 || serverBatterySummary !== null
+  );
+  useEffect(() => {
+    if (activeDevices.length > 0) {
+      setBatterySettled(true);
+      return;
+    }
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    const hit = getCachedPosBatterySummary(batteryBranchIds, batteryLifespanMonths, batteryWarningMonths);
+    if (hit) {
+      setServerBatterySummary(hit);
+      setBatterySettled(true);
+    }
+    fetchPosBatterySummary(batteryBranchIds, batteryLifespanMonths, batteryWarningMonths)
+      .then((res) => {
+        if (!alive) return;
+        if (res) setServerBatterySummary(res);
+        setBatterySettled(true);
+      })
+      .catch(() => {
+        if (alive) setBatterySettled(true);
+      });
+    return () => { alive = false; };
+  }, [activeDevices.length, batteryBranchIds, batteryLifespanMonths, batteryWarningMonths]);
+
   const hardwareSummary = useMemo(() => {
     let pos = 0;
     let sb = 0;
@@ -2149,6 +2156,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // POS Terminal Battery lifecycle status (compliance & age cohorts)
   const batterySummary = useMemo(() => {
+    if (activeDevices.length === 0 && serverBatterySummary) {
+      return serverBatterySummary;
+    }
     let healthy = 0;
     let replaceSoon = 0;
     let critical = 0;
@@ -2200,7 +2210,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       avgMonthsUsed,
       avgLifePct,
     };
-  }, [activeDevices, today, batteryLifespanMonths, batteryWarningMonths]);
+  }, [activeDevices, serverBatterySummary, today, batteryLifespanMonths, batteryWarningMonths]);
 
   // Scoped SIM counts following Phnom Penh + Active Staff Directory (same rules as SimCardTab)
   const simCounts = useMemo<Record<SerialStatus, number> | null>(() => {
@@ -3836,7 +3846,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   isLight ? 'text-slate-500' : 'text-slate-400'
                 }`}
               >
-                {fmtNum(batterySummary.fleetTotal)} POS · {batteryLifespanMonths}M SLA
+                {!batterySettled && batterySummary.fleetTotal === 0 ? 'Loading POS…' : `${fmtNum(batterySummary.fleetTotal)} POS`} · {batteryLifespanMonths}M SLA
               </p>
             </div>
 
@@ -3904,7 +3914,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
-                            {healthyPct}%
+                            {!batterySettled && batterySummary.fleetTotal === 0 ? '—' : `${healthyPct}%`}
                           </span>
                           <span
                             className={`text-[10.5px] @[300px]:text-[11px] font-semibold px-2 @[300px]:px-2.5 py-0.5 rounded-full whitespace-nowrap ${

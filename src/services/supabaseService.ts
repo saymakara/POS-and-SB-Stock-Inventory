@@ -475,6 +475,116 @@ export async function fetchDeviceStageCountsFromSupabase(
   }
 }
 
+export interface PosBatterySummary {
+  fleetTotal: number;
+  total: number;
+  healthy: number;
+  replaceSoon: number;
+  critical: number;
+  fresh0to11: number;
+  mid12toWarn: number;
+  avgMonthsUsed: number;
+  avgLifePct: number;
+}
+
+const POS_BATTERY_CACHE_PREFIX = 'pos_battery_summary_v1_';
+const posBatteryMemCache = new Map<string, { data: PosBatterySummary; at: number }>();
+const posBatteryInflight = new Map<string, Promise<PosBatterySummary | null>>();
+let posBatteryRpcSupported: boolean | null = null;
+
+export function clearPosBatterySummaryCache(): void {
+  posBatteryMemCache.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(POS_BATTERY_CACHE_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch { /* ignore */ }
+}
+
+registerPortalCacheInvalidator(['devices'], clearPosBatterySummaryCache);
+clearOnUserChange(clearPosBatterySummaryCache);
+
+function posBatteryCacheKey(branchIds: string[] | null | undefined, lifespan: number, warn: number): string {
+  const scope = branchIds && branchIds.length > 0 ? branchIds.slice().sort().join(',') : 'ALL';
+  return `${scope}|${lifespan}|${warn}`;
+}
+
+export function getCachedPosBatterySummary(
+  branchIds?: string[] | null,
+  lifespanMonths = 24,
+  warningMonths = 21
+): PosBatterySummary | null {
+  const key = posBatteryCacheKey(branchIds, lifespanMonths, warningMonths);
+  const mem = posBatteryMemCache.get(key);
+  if (mem) return mem.data;
+  try {
+    const raw = sessionStorage.getItem(POS_BATTERY_CACHE_PREFIX + key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { data?: PosBatterySummary; at?: number };
+      if (parsed?.data && typeof parsed.data.fleetTotal === 'number') {
+        posBatteryMemCache.set(key, { data: parsed.data, at: parsed.at || 0 });
+        return parsed.data;
+      }
+    }
+  } catch { /* ignore storage errors */ }
+  return null;
+}
+
+export async function fetchPosBatterySummary(
+  branchIds?: string[] | null,
+  lifespanMonths = 24,
+  warningMonths = 21,
+  force = false
+): Promise<PosBatterySummary | null> {
+  if (!isSupabaseConfigured || posBatteryRpcSupported === false) return null;
+  const key = posBatteryCacheKey(branchIds, lifespanMonths, warningMonths);
+  const mem = posBatteryMemCache.get(key);
+  if (!force && mem && Date.now() - mem.at < 45_000) return mem.data;
+  const existing = posBatteryInflight.get(key);
+  if (!force && existing) return existing;
+
+  let p!: Promise<PosBatterySummary | null>;
+  p = (async (): Promise<PosBatterySummary | null> => {
+    try {
+      const { data, error } = await supabase.rpc('get_pos_battery_summary', {
+        p_branch_ids: branchIds && branchIds.length > 0 ? branchIds : null,
+        p_lifespan_months: lifespanMonths,
+        p_warning_months: warningMonths,
+      });
+      if (error || !data || typeof data !== 'object') {
+        if (/PGRST202|42883|does not exist|not in the stand-in/i.test(error?.message || '')) {
+          posBatteryRpcSupported = false;
+        }
+        return null;
+      }
+      posBatteryRpcSupported = true;
+      const d = data as Record<string, unknown>;
+      const out: PosBatterySummary = {
+        fleetTotal: Number(d.fleetTotal) || 0,
+        total: Number(d.total) || 0,
+        healthy: Number(d.healthy) || 0,
+        replaceSoon: Number(d.replaceSoon) || 0,
+        critical: Number(d.critical) || 0,
+        fresh0to11: Number(d.fresh0to11) || 0,
+        mid12toWarn: Number(d.mid12toWarn) || 0,
+        avgMonthsUsed: Number(d.avgMonthsUsed) || 0,
+        avgLifePct: Number(d.avgLifePct) || 0,
+      };
+      const entry = { data: out, at: Date.now() };
+      posBatteryMemCache.set(key, entry);
+      try { sessionStorage.setItem(POS_BATTERY_CACHE_PREFIX + key, JSON.stringify(entry)); } catch { /* ignore */ }
+      return out;
+    } catch {
+      return null;
+    } finally {
+      if (posBatteryInflight.get(key) === p) posBatteryInflight.delete(key);
+    }
+  })();
+  posBatteryInflight.set(key, p);
+  return p;
+}
+
 /**
  * Checks an array of candidate CSV serial numbers against the full 500K-row `public.devices` table
  * using B-Tree primary key index `.in('serial', chunk)` lookups in chunks of 200.
@@ -597,17 +707,26 @@ export async function fetchConfiguringDevicesFromSupabase(force = false): Promis
     return configuringCache;
   }
   try {
-    const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('stage', 'CONFIGURING')
-      .eq('archived', false)
-      .order('updated_at', { ascending: false });
+    const PAGE = 1000;
+    const allRows: any[] = [];
+    for (let off = 0; off < 10000; off += PAGE) {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('stage', 'CONFIGURING')
+        .eq('archived', false)
+        .order('updated_at', { ascending: false })
+        .order('serial', { ascending: true })
+        .range(off, off + PAGE - 1);
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+      const rows = data || [];
+      allRows.push(...rows);
+      if (rows.length < PAGE) break;
     }
-    configuringCache = (data || []).map(mapRowToDevice);
+    configuringCache = allRows.map(mapRowToDevice);
     markFresh('devices:configuring');
     return configuringCache;
   } catch (err) {
@@ -750,13 +869,21 @@ async function readDeviceRangeCompact(from: string, to: string | null, limit: nu
 /** The whole stock list by serial ranges (see fetchDevicesFromSupabase). null: not available (older database) or a read failed. */
 async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[], total: number) => void): Promise<Device[] | null> {
   try {
-    const { data, error } = await supabase.rpc('device_page_bounds', { p_size: size });
+    // (24 Nov 2026, speed) Request 2,000-row ranges (halves RPC calls from ~28 -> ~14); devices_page_compact already allows up to 5,000.
+    const rangeSize = Math.max(size, 2000);
+    const { data, error } = await supabase.rpc('device_page_bounds', { p_size: rangeSize });
     if (error || !data || !Array.isArray((data as any).bounds)) return null;
     const total = Number((data as any).total) || 0;
-    const bounds: string[] = (data as any).bounds;
+    let bounds: string[] = (data as any).bounds;
     if (!bounds.length) { onFirstPage?.([], 0); return []; }
-    const CAP = size * 2;                                                // units added meanwhile: a page may hold a few more
-    const readRange = async (from: string, to: string | null): Promise<any[]> => {
+    // Backward compatibility: if an older DB capped device_page_bounds at 1,000, pair every 2nd bound into 2,000-row ranges
+    if (bounds.length > 6 && total > 0 && total / bounds.length < 1500) {
+      const mergedBounds: string[] = [];
+      for (let i = 0; i < bounds.length; i += 2) mergedBounds.push(bounds[i]);
+      bounds = mergedBounds;
+    }
+    const CAP = 4000;                                                    // well within devices_page_compact's 5,000-row cap
+    const readRange = async (from: string, to: string | null): Promise<Device[]> => {
       const compact = await readDeviceRangeCompact(from, to, CAP);
       if (compact) {
         let out = compact;
@@ -768,7 +895,7 @@ async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[],
           if (!next.length) break;
           out = out.concat(next);
         }
-        return out;
+        return out.map(mapRowToDevice);
       }
       let q: any = supabase.from('devices').select('*').gte('serial', from);
       if (to !== null) q = q.lt('serial', to);
@@ -784,23 +911,23 @@ async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[],
         if (!more || !more.length) break;
         out = out.concat(more);
       }
-      return out;
+      return out.map(mapRowToDevice);
     };
-    const pages: any[][] = new Array(bounds.length);
-    pages[0] = await readRange('', bounds[1] ?? null);                    // from the start (also units sorted before the first bound)
-    onFirstPage?.(pages[0].map(mapRowToDevice), total);
-    const CONCURRENCY = 4;
-    for (let i = 1; i < bounds.length; i += CONCURRENCY) {
+    const pages: Device[][] = new Array(bounds.length);
+    const CONCURRENCY = 6;
+    for (let i = 0; i < bounds.length; i += CONCURRENCY) {
       const idx = Array.from({ length: Math.min(CONCURRENCY, bounds.length - i) }, (_, k) => i + k);
-      const got = await Promise.all(idx.map((j) => readRange(bounds[j], bounds[j + 1] ?? null)));
+      const got = await Promise.all(
+        idx.map((j) => readRange(j === 0 ? '' : bounds[j], bounds[j + 1] ?? null))
+      );
       idx.forEach((j, k) => { pages[j] = got[k]; });
+      if (i === 0) {
+        onFirstPage?.(pages[0] || [], total);
+      }
     }
     const all: Device[] = [];
     for (const pg of pages) {
-      for (const r of pg) {
-        all.push(mapRowToDevice(r));
-        if (all.length % 2500 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      }
+      for (let k = 0; k < pg.length; k++) all.push(pg[k]);
     }
     return all;
   } catch (err) {

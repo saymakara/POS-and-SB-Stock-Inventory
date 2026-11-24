@@ -36,7 +36,7 @@ export const loginEmail = (empId: string) => empId.trim().toLowerCase().replace(
 const SESSION_KEY = 'crm_pos_auth_session_v20';
 const LAST_USER_KEY = 'crm_pos_last_user_v1';
 // cached data of the person signed in before (a shared PC must never show it to the next person)
-const CACHE_KEYS = ['crm_pos_devices_v20', 'crm_pos_reqs_v20', 'crm_pos_historical_merchants_v20', 'crm_pos_logs_v20', 'crm_pos_mobile_webhooks_v20',
+const CACHE_KEYS = ['crm_pos_devices_v20', 'crm_pos_devices_full_at_v1', 'crm_pos_stage_summary_v20', 'crm_pos_reqs_v20', 'crm_pos_historical_merchants_v20', 'crm_pos_logs_v20', 'crm_pos_mobile_webhooks_v20',
   'crm_pos_notifs_v20', 'crm_pos_users_v20', 'crm_pos_branches_v20'];
 
 export function clearLocalCaches(): void {

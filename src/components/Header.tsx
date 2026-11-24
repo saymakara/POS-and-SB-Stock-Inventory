@@ -55,6 +55,9 @@ import {
 } from 'lucide-react';
 import { formatBranchName, fmtNum } from '../utils/format';
 import { prefetchKpi } from '../services/kpiService';
+import { prefetchAudit } from '../services/auditCache';
+import { prefetchStaff } from '../services/staffCache';
+import { prefetchSims } from '../services/materialsService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 /** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
@@ -330,7 +333,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         onSelectTab(item.id);
                         if (isMobileView) onCloseMobile?.();
                       }}
-                      onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
+                      onMouseEnter={() => {
+                        if (item.id === 'kpi_performance') prefetchKpi();
+                        else if (item.id === 'audit_log') prefetchAudit();
+                        else if (item.id === 'users') prefetchStaff();
+                      }}
+                      onFocus={() => {
+                        if (item.id === 'kpi_performance') prefetchKpi();
+                        else if (item.id === 'audit_log') prefetchAudit();
+                        else if (item.id === 'users') prefetchStaff();
+                      }}
                       title={!isMobileView && collapsed ? item.label : undefined}
                       className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
@@ -357,8 +369,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               }}
                               aria-current={on ? 'page' : undefined}
                               onMouseEnter={() => {
-                                if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                if (c.id === 'sim_cards') import('./SimCardTab');
+                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
+                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
+                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
+                                else if (c.id === 'sim_cards') {
+                                  import('./SimCardTab');
+                                  prefetchSims();
+                                }
+                              }}
+                              onFocus={() => {
+                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
+                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
+                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
+                                else if (c.id === 'sim_cards') {
+                                  import('./SimCardTab');
+                                  prefetchSims();
+                                }
                               }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on

@@ -5,10 +5,6 @@ import { Device, UserRole, User, MobileWebhookEvent, SystemNotification, Histori
 import { todayPP } from '../utils/time';
 import { newRecordId } from '../utils/ids';
 import type { SettingsSubTab } from '../components/SettingsTab';
-import { prefetchKhqr } from '../services/khqrCache';
-import { prefetchCc } from '../services/ccService';
-import { prefetchKpi } from '../services/kpiService';
-import { prefetchSims } from '../services/materialsService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAuditLogs, StaffAccount } from '../services/supabaseService';
 
@@ -34,11 +30,19 @@ export function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<
   return Tab as unknown as C;
 }
 export function prefetchTabs(): void {
-  tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
-  prefetchKhqr();                                                   // (29 Oct 2026) the KHQR screen opens with its data already here
-  prefetchCc();                                                     // (1 Nov 2026) the Credit Card screen opens with its data already here
-  prefetchKpi();
-  prefetchSims();                                                    // (1 Nov 2026) the KPI Performance screen opens with its data already here
+  // (24 Nov 2026, speed) Preload only static JS chunks in gentle batches so switching tabs is instant without
+  // firing unrequested background database RPCs (KHQR/CC/Field/Audit/SIM data is warmed on sidebar hover/focus instead).
+  let i = 0;
+  const BATCH = 4;
+  const next = () => {
+    const slice = tabLoaders.slice(i, i + BATCH);
+    i += BATCH;
+    slice.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
+    if (i < tabLoaders.length) {
+      window.setTimeout(next, 250);
+    }
+  };
+  next();
 }
 export const BranchesTab = lazyTab(() => import('../components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
 export const IamUsersTab = lazyTab(() => import('../components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));

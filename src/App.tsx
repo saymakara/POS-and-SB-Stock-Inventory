@@ -49,9 +49,7 @@ import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConnectionNotice } from './components/ConnectionNotice';
-import { prefetchAudit } from './services/auditCache';
-import { prefetchFieldEvents } from './services/fieldCache';
-import { getCachedStaff, loadStaff, onStaffList, prefetchStaff } from './services/staffCache';
+import { getCachedStaff, loadStaff, onStaffList } from './services/staffCache';
 import { motion, AnimatePresence } from 'motion/react';
 import { SessionLockModal } from './components/SessionLockModal';
 import {
@@ -169,12 +167,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // Always use Light Mode (Single theme with Charcoal Sidebar)
   const theme: ThemeMode = 'light';
 
-  useEffect(() => {                                                  // the other screens arrive while the first one is in use
+  useEffect(() => {                                                  // the other screens' JS chunks arrive quietly while the first one is in use
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-    const warm = () => { prefetchTabs(); prefetchFieldEvents(); if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') { prefetchAudit(); prefetchStaff(); } };   // (29 Oct 2026) Audit Trail opens with its first page already here
-    // (13 Nov 2026, speed) after the first stock load (at most 12 s), then at an idle moment
+    const warm = () => { prefetchTabs(); };
+    // (24 Nov 2026, speed) after the first stock load (at most 6 s), warm only static JS chunks (no heavy background DB storm)
     let cancelled = false;
-    Promise.race([stockLoaded, new Promise<void>((r) => window.setTimeout(r, 12000))]).then(() => {
+    Promise.race([stockLoaded, new Promise<void>((r) => window.setTimeout(r, 6000))]).then(() => {
       if (cancelled) return;
       if (w.requestIdleCallback) w.requestIdleCallback(() => { if (!cancelled) warm(); }, { timeout: 2500 }); else window.setTimeout(() => { if (!cancelled) warm(); }, 300);
     });
@@ -597,38 +595,68 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const serverCopies = React.useRef<WeakSet<object>>(new WeakSet());
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
-  const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
+  const SIDEBAR_COUNTS_KEY = 'crm_pos_sidebar_counts_v1';
+  const readCachedSidebarCounts = (): { pos: number; sb: number; cc: number; lostPos: number; lostSb: number; lostSim: number } | null => {
+    try {
+      const raw = sessionStorage.getItem(SIDEBAR_COUNTS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      return p && typeof p === 'object' ? p : null;
+    } catch { return null; }
+  };
+  const writeCachedSidebarCounts = useCallback((patch: Partial<{ pos: number; sb: number; cc: number; lostPos: number; lostSb: number; lostSim: number }>) => {
+    try {
+      const cur = readCachedSidebarCounts() || { pos: 0, sb: 0, cc: 0, lostPos: 0, lostSb: 0, lostSim: 0 };
+      sessionStorage.setItem(SIDEBAR_COUNTS_KEY, JSON.stringify({ ...cur, ...patch }));
+    } catch { /* storage blocked */ }
+  }, []);
+  const cachedSidebar = React.useMemo(() => (isSupabaseConfigured ? readCachedSidebarCounts() : null), []);
+  const [pendingFieldCount, setPendingFieldCount] = useState<number>(() => (cachedSidebar ? (cachedSidebar.pos || 0) + (cachedSidebar.sb || 0) : 0));
   // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records (KHQR has no approval step: no count)
-  const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>({ pos: 0, sb: 0 });
+  const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>(() => (
+    cachedSidebar ? { pos: cachedSidebar.pos || 0, sb: cachedSidebar.sb || 0 } : { pos: 0, sb: 0 }
+  ));
   // (31 Oct 2026) Credit Card entries waiting for Head Office review (sidebar number)
-  const [ccPending, setCcPending] = useState(0);
+  const [ccPending, setCcPending] = useState(() => (cachedSidebar ? cachedSidebar.cc || 0 : 0));
   // (5 Nov 2026) open lost materials per page (menu numbers under Stock Inventory)
-  const [lostCounts, setLostCounts] = useState<{ pos: number; sb: number; sim: number }>({ pos: 0, sb: 0, sim: 0 });
+  const [lostCounts, setLostCounts] = useState<{ pos: number; sb: number; sim: number }>(() => (
+    cachedSidebar ? { pos: cachedSidebar.lostPos || 0, sb: cachedSidebar.lostSb || 0, sim: cachedSidebar.lostSim || 0 } : { pos: 0, sb: 0, sim: 0 }
+  ));
   const refreshLostCounts = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    fetchOpenLostCounts().then((c) => setLostCounts((p) => (p.pos === c.pos && p.sb === c.sb && p.sim === c.sim ? p : c))).catch(() => {});
-  }, []);
+    fetchOpenLostCounts().then((c) => {
+      writeCachedSidebarCounts({ lostPos: c.pos, lostSb: c.sb, lostSim: c.sim });
+      setLostCounts((p) => (p.pos === c.pos && p.sb === c.sb && p.sim === c.sim ? p : c));
+    }).catch(() => {});
+  }, [writeCachedSidebarCounts]);
+  // (24 Nov 2026, speed) Read-only sidebar badges load immediately on mount instead of waiting behind the full 27k-row devices download
   useEffect(() => {
-    if (!isSupabaseConfigured || !serverReady) return;
+    if (!isSupabaseConfigured) return;
     refreshLostCounts();
     const onVis = () => { if (document.visibilityState === 'visible') refreshLostCounts(); };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [serverReady, refreshLostCounts]);
+  }, [refreshLostCounts]);
   useEffect(() => {
-    if (!isSupabaseConfigured || !serverReady) return;
+    if (!isSupabaseConfigured) return;
     let alive = true;
-    const ask = () => import('./services/ccService').then((m) => m.fetchCcCounts(null, null, 45000)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
+    const ask = () => import('./services/ccService').then((m) => m.fetchCcCounts(null, null, 45000)).then((c) => {
+      if (alive && c) {
+        writeCachedSidebarCounts({ cc: c.pendingAll });
+        setCcPending(c.pendingAll);
+      }
+    }).catch(() => {});
     ask();
     const onVis = () => { if (document.visibilityState === 'visible') ask(); };   // back to the tab: the number is fresh again
     document.addEventListener('visibilitychange', onVis);
     return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
-  }, [serverReady]);
+  }, [writeCachedSidebarCounts]);
   const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
+    writeCachedSidebarCounts({ pos: c.pos, sb: c.sb });
     setPendingByType((prev) => (prev.pos === c.pos && prev.sb === c.sb ? prev : c));
     const nextTotal = c.pos + c.sb;
     setPendingFieldCount((prev) => (prev === nextTotal ? prev : nextTotal));
-  }, []);
+  }, [writeCachedSidebarCounts]);
   const phoneReviewScopeRef = React.useRef<'PHNOM_PENH' | 'ALL'>(appSettings.phoneReviewScope || 'PHNOM_PENH');
   phoneReviewScopeRef.current = appSettings.phoneReviewScope || 'PHNOM_PENH';
   const branchesRef = React.useRef<Branch[]>(branches);
@@ -760,13 +788,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, []);
   const loadDevicesSmart = useCallback(async (full: boolean): Promise<DeviceLoad> => {
     if (DELTA_SYNC_ENABLED && !full) {
-      await Promise.race([cacheHydrated, new Promise<void>((r) => setTimeout(r, 1200))]);   // start from the saved copy when there is one
-      const d = await tryDeltaDevices();
-      if (d) return d;
+      let fullAt = 0;
+      try { fullAt = Number(localStorage.getItem(KEY_DEVICES_FULL_AT) || 0); } catch { /* storage blocked */ }
+      const now = Date.now();
+      const hasUsableMarker = fullAt > 0 && now - fullAt <= DELTA_FULL_RELOAD_AFTER_MS && fullAt <= now + 60000;
+      if (hasUsableMarker) {
+        await Promise.race([cacheHydrated, new Promise<void>((r) => setTimeout(r, 1200))]);   // start from the saved copy when there is one
+        const d = await tryDeltaDevices();
+        if (d) return d;
+      }
     }
     // the units being configured are read again on a full reload so that the push queue is always complete
     const [devs, configuringDevs] = await Promise.all([
-      fetchDevicesFromSupabase(1000, 0, (_firstBatch, total) => {
+      fetchDevicesFromSupabase(2000, 0, (_firstBatch, total) => {
         setServerDeviceTotal(total);
       }),
       fetchConfiguringDevicesFromSupabase(true),
@@ -778,7 +812,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       for (const cd of configuringDevs) devMap.set(cd.serial, cd);
       list = Array.from(devMap.values());
     }
-    try { localStorage.setItem(KEY_DEVICES_FULL_AT, String(Date.now())); } catch { /* storage blocked */ }
     return { list };
   }, [tryDeltaDevices]);
   const reloadFromServerOnce = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
@@ -1179,16 +1212,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [serverReady, profile?.role, profile?.user_id, reloadFromServer, refreshLostCounts, applyPendingByType]);
 
-  // Keep sidebar POS / Sound Box badges synced with the active scope after branches & settings are committed
+  // Keep sidebar POS / Sound Box badges synced immediately on mount and when scope/branches update (no wait on full 27k devices download)
   useEffect(() => {
-    if (!isSupabaseConfigured || !serverReady) return;
+    if (!isSupabaseConfigured) return;
     let alive = true;
     const scope = appSettings.phoneReviewScope || 'PHNOM_PENH';
     countPendingFieldEventsByType(scope, branches).then((c) => {
       if (alive && c !== null) applyPendingByType(c);
     });
     return () => { alive = false; };
-  }, [serverReady, appSettings.phoneReviewScope, branches, applyPendingByType]);
+  }, [appSettings.phoneReviewScope, branches, applyPendingByType]);
 
   // Mobile & Background Resume: Re-sync state when browser tab becomes active or device resumes from sleep
   useEffect(() => {
@@ -1261,14 +1294,21 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, []);
 
-  // (29 Oct 2026, speed review) the saved copy of the stock is brought up to date 1.5 s after the last change, and only the
-  // units that changed are written (before: ALL ~27,600 units were cleared and written again after every single change)
+  // (29 Oct 2026, speed review) the saved copy of the stock is brought up to date after the last change, and only the
+  // units that changed are written; KEY_DEVICES_FULL_AT is stamped once IndexedDB finishes committing so delta sync
+  // on the next refresh never hits a half-written cache.
   useEffect(() => {
     if (devices.length > 0) {
       const t = window.setTimeout(() => {
-        persistDevicesIncremental(devices).catch((err) =>
-          console.warn('[IndexedDB Save Devices Warning]', err)
-        );
+        persistDevicesIncremental(devices)
+          .then((ok) => {
+            if (ok && isSupabaseConfigured && syncedDevices.current.size > 0) {
+              try { localStorage.setItem(KEY_DEVICES_FULL_AT, String(Date.now())); } catch { /* storage blocked */ }
+            }
+          })
+          .catch((err) =>
+            console.warn('[IndexedDB Save Devices Warning]', err)
+          );
         try {
           if (devices.length <= 5000) {
             localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
@@ -1278,7 +1318,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         } catch (e) {
           // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
         }
-      }, 1500);
+      }, 500);
       return () => window.clearTimeout(t);
     } else if (!isSupabaseConfigured) {
       clearDevicesFromIdb().catch(() => {});

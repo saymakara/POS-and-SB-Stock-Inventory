@@ -348,7 +348,7 @@ const SESSION_SERIES_PREFIX = 'kpi_series_cache_v5_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
 let pendingStorageTimer: number | null = null;
-const pendingSlicesToPersist = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[] }>();
+const pendingSlicesToPersist = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
 let pendingSeriesToPersist = false;
 
 export interface KpiSettingsData {
@@ -511,7 +511,7 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
   try {
     const rawSlice = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
     if (rawSlice) {
-      const slice = JSON.parse(rawSlice) as { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[] };
+      const slice = JSON.parse(rawSlice) as { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number };
       const series = getSeriesBundle();
       const merged: KpiDashboardData = {
         rules: slice.rules || [],
@@ -526,6 +526,10 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
         dailyStaff: series?.dailyStaff || [],
       };
       summaryCache.set(key, merged);
+      // Restore freshness timestamp across F5 refresh so a just-fetched KPI payload (< 60s old) is reused at 0ms
+      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 60_000) {
+        kpiBorn.set(key, slice.fetchedAt);
+      }
       return merged;
     }
   } catch { /* ignore storage errors */ }
@@ -550,7 +554,7 @@ export const setCachedKpiSummary = (from: string | null, to: string | null, d: K
     };
     pendingSeriesToPersist = true;
   }
-  pendingSlicesToPersist.set(key, { rules: d.rules, targets: d.targets, staff: d.staff });
+  pendingSlicesToPersist.set(key, { rules: d.rules, targets: d.targets, staff: d.staff, fetchedAt: Date.now() });
   scheduleKpiStorageFlush();
 };
 
