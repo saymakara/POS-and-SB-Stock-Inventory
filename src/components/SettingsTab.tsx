@@ -177,25 +177,28 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   });
   const [loadingKpi, setLoadingKpi] = useState(false);
 
+  // Hydrate live KPI rules & targets on Settings open (and whenever switching to the KPI sub-tab)
+  // so the "KPI Points & Rules" sidebar badge always matches the live database count.
   useEffect(() => {
-    if (activeSubTab === 'kpi') {
-      const cached = getCachedKpiSettings();
-      if (!kpiTargets || kpiRules.length === 0) {
-        setKpiRules(cached.rules);
-        setKpiTargets(cached.targets);
-      }
-      fetchFastKpiSettings()
-        .then((data) => {
-          setKpiRules(data.rules || []);
-          setKpiTargets(data.targets);
-        })
-        .catch((err) => {
-          console.error('Failed to load KPI settings', err);
-        })
-        .finally(() => {
-          setLoadingKpi(false);
-        });
+    let alive = true;
+    const cached = getCachedKpiSettings();
+    if (!kpiTargets || kpiRules.length === 0) {
+      setKpiRules(cached.rules);
+      setKpiTargets(cached.targets);
     }
+    fetchFastKpiSettings()
+      .then((data) => {
+        if (!alive) return;
+        setKpiRules(data.rules || []);
+        setKpiTargets(data.targets);
+      })
+      .catch((err) => {
+        if (activeSubTab === 'kpi') console.error('Failed to load KPI settings', err);
+      })
+      .finally(() => {
+        if (alive) setLoadingKpi(false);
+      });
+    return () => { alive = false; };
   }, [activeSubTab]);
 
   useEffect(() => {

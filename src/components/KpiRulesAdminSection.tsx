@@ -1,5 +1,6 @@
 import React, { memo, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useSort, SortTh } from '../utils/sort';
 import {
   Settings2,
   Target,
@@ -363,9 +364,21 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   };
 
   const filteredRules = useMemo(
-    () => rules.filter((r) => catFilter === 'ALL' || r.category === catFilter),
+    () =>
+      rules
+        .filter((r) => catFilter === 'ALL' || r.category === catFilter)
+        .sort((a, b) => (a.sortOrder - b.sortOrder) || a.code.localeCompare(b.code)),
     [rules, catFilter]
   );
+
+  const { sorted: sortedRules, sort: ruleSort, toggle: toggleRuleSort } = useSort<KpiPointRule>(filteredRules, {
+    category: (r) => r.category,
+    subCategory: (r) => r.subCategory,
+    description: (r) => r.description,
+    unit: (r) => r.unit,
+    points: (r) => r.points,
+    status: (r) => (r.active ? 'Active' : 'Inactive'),
+  });
 
   const saveRule = async (r: KpiPointRule, nextPoints?: number, nextActive?: boolean) => {
     setSavingCode(r.code);
@@ -1183,17 +1196,17 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             <thead>
               <tr className="glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
                 <th className="py-2.5 px-3.5 text-right w-12">No.</th>
-                <th className="py-2.5 px-3.5">Category</th>
-                <th className="py-2.5 px-3.5">Sub-Category / KPI Task</th>
-                <th className="py-2.5 px-3.5">Verification &amp; Source Rule</th>
-                <th className="py-2.5 px-3.5">Unit</th>
-                <th className="py-2.5 px-3.5 text-right">KPI Point</th>
-                <th className="py-2.5 px-3.5 text-center">Status</th>
+                <SortTh k="category" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Category</SortTh>
+                <SortTh k="subCategory" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Sub-Category / KPI Task</SortTh>
+                <SortTh k="description" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Verification &amp; Source Rule</SortTh>
+                <SortTh k="unit" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Unit</SortTh>
+                <SortTh k="points" sort={ruleSort} onSort={toggleRuleSort} align="right" className="py-2.5 px-3.5 text-right whitespace-nowrap">KPI Point</SortTh>
+                <SortTh k="status" sort={ruleSort} onSort={toggleRuleSort} align="center" className="py-2.5 px-3.5 text-center whitespace-nowrap">Status</SortTh>
                 {isAdmin && <th className="py-2.5 px-3.5 text-right">Action</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/90 text-[13px] text-slate-700">
-              {filteredRules.map((r, i) => (
+            <tbody className="divide-y divide-slate-200/90 text-[13px] text-slate-700 silk-rows">
+              {sortedRules.map((r, i) => (
                 <KpiRuleRow
                   key={r.code}
                   rule={r}

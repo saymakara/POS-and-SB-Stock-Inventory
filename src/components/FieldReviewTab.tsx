@@ -1861,12 +1861,12 @@ const ReviewRow = memo(function ReviewRow({
           {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
         <div className="min-w-0 leading-snug pl-2 pr-1 space-y-0.5">
-          <div className="grid grid-cols-[14px_minmax(0,128px)_18px_14px] items-center gap-x-1">
+          <div className="flex items-center gap-1 min-w-0">
             <button
               type="button"
               onClick={() => onToggle(e.id)}
               aria-expanded={isOpen}
-              className="col-span-2 text-left font-mono cursor-pointer hover:underline grid grid-cols-[14px_minmax(0,1fr)] items-center gap-x-1 group min-w-0 select-text"
+              className="text-left font-mono cursor-pointer hover:underline inline-flex items-center gap-1 group min-w-0 select-text"
               title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
             >
               <ChevronDown
@@ -1884,21 +1884,19 @@ const ReviewRow = memo(function ReviewRow({
                 <span className="font-sans text-slate-500 dark:text-slate-400 italic truncate">{e.tid ? `TID ${e.tid}` : 'No serial'}</span>
               )}
             </button>
-            <span className="inline-flex items-center justify-center">
-              {e.serial && <CopySerialButton value={e.serial} label="serial" />}
-            </span>
-            <span className="inline-flex items-center justify-center">
-              {e.serial && (
+            {e.serial && (
+              <span className="inline-flex items-center gap-1 shrink-0 ml-0.5">
+                <CopySerialButton value={e.serial} label="serial" />
                 <InputMethodBadge
                   method={entry.serial}
                   titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'}
                 />
-              )}
-            </span>
+              </span>
+            )}
           </div>
           {e.oldSerial && (
             <div
-              className="grid grid-cols-[14px_minmax(0,128px)_18px_14px] items-center gap-x-1"
+              className="flex items-center gap-1 min-w-0"
               title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
             >
               <span className="w-3.5 shrink-0 inline-flex items-center justify-center">
@@ -1907,10 +1905,8 @@ const ReviewRow = memo(function ReviewRow({
               <span className={`${serialCls} select-text truncate`}>
                 {e.oldSerial}
               </span>
-              <span className="inline-flex items-center justify-center">
+              <span className="inline-flex items-center gap-1 shrink-0 ml-0.5">
                 <CopySerialButton value={e.oldSerial} label="old serial" />
-              </span>
-              <span className="inline-flex items-center justify-center">
                 <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
               </span>
             </div>
