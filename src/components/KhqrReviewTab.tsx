@@ -623,7 +623,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <div className="p-10 text-center text-sm font-semibold text-slate-500">No KHQR entries match the current filters.</div>
           )}
 
-          <div data-page-content className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${loading && rows ? 'is-loading' : ''}`}>
+          <div data-page-content className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${(loading && rows) || query !== deferredQuery ? 'is-loading' : ''}`}>
             {(rows || []).slice(0, pg.drawEnd - pg.start).map((e, i) => (
               <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                 checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} onEdit={isAdmin ? () => setEditing(e) : undefined} />

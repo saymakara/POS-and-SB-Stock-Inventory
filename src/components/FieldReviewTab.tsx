@@ -1671,8 +1671,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <div
             data-page-content
-            key={`${filter}-${typeFilter}-${activeScope}-${effRange.from}-${effRange.to}`}
-            className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady)) ? 'is-loading' : ''}`}
+            className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${(Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady))) || query !== deferredQuery ? 'is-loading' : ''}`}
           >
             {visibleRows.map((e, idx) => (
                 <ReviewRow

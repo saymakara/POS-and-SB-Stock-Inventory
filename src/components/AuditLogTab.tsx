@@ -495,7 +495,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             <tbody
               className={`divide-y silk-rows table-quiet-body ${
                 isLight ? 'divide-slate-100 bg-white' : 'divide-[#182c49] bg-[#11141e]'
-              } ${serverMode && loading && rows.length > 0 ? 'is-loading' : ''}`}
+              } ${(serverMode && loading && rows.length > 0) || search !== deferredSearch ? 'is-loading' : ''}`}
             >
               {paginatedRows.map((row, rowIdx) => {
                 const isExpanded = expandedRowKey === row.key;

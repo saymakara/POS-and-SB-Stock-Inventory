@@ -733,10 +733,10 @@ button:hover:not(:disabled),
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
-/* Stable, hardware-accelerated CSS transition for page changes (zero jump, zero layout shift) */
+/* Stable, hardware-accelerated CSS crossfade for page changes (matches Q01 calm smoothness, zero layout shift) */
 @keyframes pageGlideIn {
   from {
-    opacity: 0.92;
+    opacity: 0.55;
   }
   to {
     opacity: 1;
@@ -744,7 +744,7 @@ button:hover:not(:disabled),
 }
 
 .page-glide-in {
-  animation: pageGlideIn 110ms ease-out backwards;   /* (13 Nov 2026) released when done: no page-sized layer kept */
+  animation: pageGlideIn 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;   /* released when done: no page-sized layer kept */
 }
 
 /* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */
@@ -1120,8 +1120,8 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
   animation: silkLift 480ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--silk-i, 0) * 50ms) backwards;
 }
 /* (24 Nov 2026) Q01 Pure Quiet Crossfade for all portal tables:
-   Reloads softly dim the table body to 44% opacity and crossfade cleanly back to 100% in 300ms (no line below navy header,
-   no spinner, 1 compositor layer, zero per-row transform layers — stays locked at 60fps on mid-range work laptops). */
+   Reloads wait 80ms before softly dimming to 44% (prevents flicker on fast <80ms fetches), then crossfade cleanly back
+   to 100% in 340ms with zero delay. Single compositor layer, zero blur, zero header line — locked 60fps on work laptops. */
 @keyframes quietTableFade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1130,13 +1130,15 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .kpi-matrix-table tbody,
 .top10-table tbody,
 .silk-rows {
-  animation: quietTableFade 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: quietTableFade 340ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .table-quiet-body {
-  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 340ms cubic-bezier(0.22, 1, 0.36, 1) 0ms;
 }
 .table-quiet-body.is-loading {
   opacity: 0.44;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+  pointer-events: none;
 }
 
 /* (24 Nov 2026) M01 figure reveal: loading placeholder settles smoothly upward into live data */

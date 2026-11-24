@@ -45,7 +45,7 @@ export function usePager(total: number, resetOn: ReadonlyArray<unknown> = []) {
       page: safe, pages, pageSize, total, start, end,
       drawEnd: Math.min(end, start + limit),
       setPage: (p: number) => startTransition(() => setPage(Math.max(1, Math.min(pages, p)))),   // drawn in the background: no freeze
-      setPageSize: (n: number) => setPageSize(n === 100 ? 100 : 50),
+      setPageSize: (n: number) => startTransition(() => setPageSize(n === 100 ? 100 : 50)),
     };
   }, [safe, pages, pageSize, total, limit]);
 }
