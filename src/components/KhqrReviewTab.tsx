@@ -192,7 +192,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     const hit = getCachedEntries(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // shown at once; the fresh answer replaces it quietly
     if (hit && force !== true && isFresh('qr:e:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
-    setLoading(!hit && !silent);
+    setLoading((force || !hit) && !silent);
     try {
       const res = await fetchQrEntriesPage({ ...filters, page, pageSize });
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
@@ -581,7 +581,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* Entries */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="KHQR entries">
         <div className="min-w-[1160px]">
-          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+          <div className={`${GRID} relative glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+            {loading && rows && <div className="table-progress-seam" aria-hidden="true" />}
             {(() => {
               const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
               const allHeader = headerItems.length > 0 && headerItems.every((i) => pick.sel.has(i.id));
@@ -717,7 +718,8 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         </span>
       </div>
       <div className="min-w-[1080px]">
-        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+        <div className={`${LGRID} relative glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+          {loading && rows && <div className="table-progress-seam" aria-hidden="true" />}
           <NoCell
             header
             box={isSuper && pageItems.length > 0 && (

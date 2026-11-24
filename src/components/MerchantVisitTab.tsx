@@ -94,7 +94,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     const hit = getMvPage(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // the last answer at once; the fresh one replaces it
     if (hit && force !== true && isFresh('mv:p:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
-    setLoading(!hit && !silent);
+    setLoading((force || !hit) && !silent);
     try {
       const res = await fetchMvVisitsPage({ ...filters, page, pageSize });
       if (my !== seq.current) return;
@@ -342,7 +342,8 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
       {/* Visits */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Merchant visits">
         <div className="min-w-[1000px]">
-          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+          <div className={`${GRID} relative glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+            {loading && rows && <div className="table-progress-seam" aria-hidden="true" />}
             <NoCell
               header
               box={isSuper && pageItems.length > 0 && (
@@ -377,7 +378,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
               {filtered ? 'No visit matches these filters.' : `No merchant visit in ${PERIOD_LABEL[period].toLowerCase()} yet.`}
             </div>
           )}
-          <div className="divide-y divide-slate-100 silk-rows">
+          <div className={`divide-y divide-slate-100 silk-rows transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
             {(rows || []).slice(0, pg.drawEnd - pg.start).map((v, i) => (
               <VisitRow key={v.id} v={v} no={(page - 1) * pageSize + i + 1} open={open === v.id} onToggle={() => setOpen((o) => (o === v.id ? null : v.id))}
                 checked={pick.sel.has(v.id)} onCheck={isSuper ? () => pick.toggle(v.id, v.recordId) : undefined} onEdit={isAdmin ? () => setEditing(v) : undefined} />
