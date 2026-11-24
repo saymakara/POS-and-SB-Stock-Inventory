@@ -611,6 +611,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     } catch { /* storage blocked */ }
   }, []);
   const cachedSidebar = React.useMemo(() => (isSupabaseConfigured ? readCachedSidebarCounts() : null), []);
+  const [pendingFieldSettled, setPendingFieldSettled] = useState<boolean>(
+    () => !isSupabaseConfigured || (cachedSidebar !== null && typeof cachedSidebar.pos === 'number' && typeof cachedSidebar.sb === 'number')
+  );
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(() => (cachedSidebar ? (cachedSidebar.pos || 0) + (cachedSidebar.sb || 0) : 0));
   // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records (KHQR has no approval step: no count)
   const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>(() => (
@@ -653,6 +656,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [writeCachedSidebarCounts]);
   const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
     writeCachedSidebarCounts({ pos: c.pos, sb: c.sb });
+    setPendingFieldSettled(true);
     setPendingByType((prev) => (prev.pos === c.pos && prev.sb === c.sb ? prev : c));
     const nextTotal = c.pos + c.sb;
     setPendingFieldCount((prev) => (prev === nextTotal ? prev : nextTotal));
@@ -1218,7 +1222,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     let alive = true;
     const scope = appSettings.phoneReviewScope || 'PHNOM_PENH';
     countPendingFieldEventsByType(scope, branches).then((c) => {
-      if (alive && c !== null) applyPendingByType(c);
+      if (!alive) return;
+      if (c !== null) applyPendingByType(c);
+      else setPendingFieldSettled(true);
     });
     return () => { alive = false; };
   }, [appSettings.phoneReviewScope, branches, applyPendingByType]);
@@ -4835,6 +4841,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         lostPos: lostCounts.pos,
                         lostSb: lostCounts.sb,
                         lostSim: lostCounts.sim,
+                        loading: isSupabaseConfigured && !pendingFieldSettled,
                       }}
                       serverTotalDevices={useRawServerSummary ? (serverStageSummary ? serverStageSummary.all : serverDeviceTotal) : ppScopedDevices.length}
                       serverStageCounts={

@@ -105,6 +105,7 @@ export interface DashboardActionQueues {
   lostPos?: number;
   lostSb?: number;
   lostSim?: number;
+  loading?: boolean;
 }
 
 interface DashboardTabProps {
@@ -490,6 +491,7 @@ interface ChannelMixCardProps {
   leadChannel: ChannelSliceItem | undefined;
   totalTasks: number;
   ccSubmittedShow: number;
+  loading?: boolean;
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -528,6 +530,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
   leadChannel,
   totalTasks,
   ccSubmittedShow,
+  loading = false,
   onNavigateTab,
 }) => {
   const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
@@ -666,13 +669,17 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className={`text-[10.5px] font-figure font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
-              isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
-            }`}
-          >
-            {fmtNum(totalTasks)} tasks
-          </span>
+          {loading ? (
+            <span className="skeleton h-4 w-16 rounded-full inline-block" aria-hidden="true" />
+          ) : (
+            <span
+              className={`text-[10.5px] font-figure font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+              }`}
+            >
+              {fmtNum(totalTasks)} tasks
+            </span>
+          )}
           {onNavigateTab && (
             <button
               type="button"
@@ -688,7 +695,19 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       </div>
 
       <div className="px-1.5 sm:px-2 pt-0 pb-2 flex-1 flex items-center justify-center">
-        {/* Style 1: Slim Enlarged Donut + Curved Leaders + Floating Pill Callouts */}
+        {loading ? (
+          <div className="relative w-full max-w-[500px] aspect-[468/356] flex items-center justify-center" role="status" aria-label="Loading channel mix">
+            <div className="relative w-[196px] h-[196px] flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full skeleton" />
+              <div className={`w-[144px] h-[144px] rounded-full flex flex-col items-center justify-center gap-2 z-10 ${isLight ? 'bg-white' : 'bg-[#0f172a]'}`}>
+                <span className="skeleton h-2.5 w-14 rounded" />
+                <span className="skeleton h-7 w-16 rounded-md" />
+                <span className="skeleton h-3.5 w-20 rounded-full" />
+              </div>
+            </div>
+          </div>
+        ) : (
+        /* Style 1: Slim Enlarged Donut + Curved Leaders + Floating Pill Callouts */
         <div className="relative w-full max-w-[500px] aspect-[468/356] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${CM_VB_W} ${CM_VB_H}`}
@@ -913,6 +932,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );
@@ -2766,6 +2786,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const kpiPending = isSupabaseConfigured && kpiData === null && !kpiSettled;
   const installsPending = isSupabaseConfigured && scopedFieldInstalls === null && fieldInstallsLoading;
+  const queuesPending = Boolean(actionQueues?.loading);
   const reachTotal =
     channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
   const reachSharePct =
@@ -2963,7 +2984,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <p className={`text-[13px] leading-relaxed mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                 <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
                 <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
-                <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
+                {kpiPending ? (
+                  <span className="inline-block skeleton h-3.5 w-40 align-middle rounded" aria-hidden="true" />
+                ) : (
+                  <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
+                )}
               </p>
             </div>
           </div>
@@ -3405,28 +3430,45 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
                     <FigureSlot pending={kpiPending}><Odometer value={channelActivity.totalTasks} format duration={220} /></FigureSlot>
                   </div>
-                  <span
-                    data-kpi-delta="tasks"
-                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
-                    style={{
-                      color: kpiSparklines.tasks.colorHex,
-                      backgroundColor: `${kpiSparklines.tasks.colorHex}18`,
-                    }}
-                  >
-                    {kpiSparklines.tasks.direction === 'up' ? '▲' : kpiSparklines.tasks.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.tasks.badgeText}
-                  </span>
+                  {kpiPending ? (
+                    <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
+                  ) : (
+                    <span
+                      data-kpi-delta="tasks"
+                      className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                      style={{
+                        color: kpiSparklines.tasks.colorHex,
+                        backgroundColor: `${kpiSparklines.tasks.colorHex}18`,
+                      }}
+                    >
+                      {kpiSparklines.tasks.direction === 'up' ? '▲' : kpiSparklines.tasks.direction === 'down' ? '▼' : '●'}{' '}
+                      {kpiSparklines.tasks.badgeText}
+                    </span>
+                  )}
                 </div>
-                <KpiMiniSparkline
-                  metricId="tasks"
-                  summary={kpiSparklines.tasks}
-                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
-                />
+                {kpiPending ? (
+                  <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
+                ) : (
+                  <KpiMiniSparkline
+                    metricId="tasks"
+                    summary={kpiSparklines.tasks}
+                    cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                  />
+                )}
               </div>
             </div>
             <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
-              <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+              {kpiPending ? (
+                <>
+                  <span className="skeleton h-3 w-28 rounded inline-block" aria-hidden="true" />
+                  <span className="skeleton h-3 w-12 rounded inline-block" aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
+                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+                </>
+              )}
             </div>
           </button>
 
@@ -3456,30 +3498,47 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
                     <FigureSlot pending={installsPending}><Odometer value={deploymentSummary.total} format duration={220} /></FigureSlot>
                   </div>
-                  <span
-                    data-kpi-delta="deployments"
-                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
-                    style={{
-                      color: kpiSparklines.deployments.colorHex,
-                      backgroundColor: `${kpiSparklines.deployments.colorHex}18`,
-                    }}
-                  >
-                    {kpiSparklines.deployments.direction === 'up' ? '▲' : kpiSparklines.deployments.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.deployments.badgeText}
-                  </span>
+                  {installsPending ? (
+                    <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
+                  ) : (
+                    <span
+                      data-kpi-delta="deployments"
+                      className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                      style={{
+                        color: kpiSparklines.deployments.colorHex,
+                        backgroundColor: `${kpiSparklines.deployments.colorHex}18`,
+                      }}
+                    >
+                      {kpiSparklines.deployments.direction === 'up' ? '▲' : kpiSparklines.deployments.direction === 'down' ? '▼' : '●'}{' '}
+                      {kpiSparklines.deployments.badgeText}
+                    </span>
+                  )}
                 </div>
-                <KpiMiniSparkline
-                  metricId="deployments"
-                  summary={kpiSparklines.deployments}
-                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
-                />
+                {installsPending ? (
+                  <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
+                ) : (
+                  <KpiMiniSparkline
+                    metricId="deployments"
+                    summary={kpiSparklines.deployments}
+                    cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                  />
+                )}
               </div>
             </div>
             <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(deploymentSummary.pos)} POS · {fmtNum(deploymentSummary.sb)} SB</span>
-              <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>
-                {fmtNum(deploymentSummary.uniqueMerchants)} merchants
-              </span>
+              {installsPending ? (
+                <>
+                  <span className="skeleton h-3 w-24 rounded inline-block" aria-hidden="true" />
+                  <span className="skeleton h-3 w-16 rounded inline-block" aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <span>{fmtNum(deploymentSummary.pos)} POS · {fmtNum(deploymentSummary.sb)} SB</span>
+                  <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>
+                    {fmtNum(deploymentSummary.uniqueMerchants)} merchants
+                  </span>
+                </>
+              )}
             </div>
           </button>
 
@@ -3531,55 +3590,72 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={queues.total} format duration={220} />
+                    <FigureSlot pending={queuesPending}><Odometer value={queues.total} format duration={220} /></FigureSlot>
                   </div>
-                  <span
-                    data-kpi-delta="queue"
-                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
-                    style={{
-                      color: kpiSparklines.queue.colorHex,
-                      backgroundColor: `${kpiSparklines.queue.colorHex}18`,
-                    }}
-                  >
-                    {kpiSparklines.queue.direction === 'up' ? '▲' : kpiSparklines.queue.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.queue.badgeText}
-                  </span>
+                  {queuesPending ? (
+                    <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
+                  ) : (
+                    <span
+                      data-kpi-delta="queue"
+                      className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                      style={{
+                        color: kpiSparklines.queue.colorHex,
+                        backgroundColor: `${kpiSparklines.queue.colorHex}18`,
+                      }}
+                    >
+                      {kpiSparklines.queue.direction === 'up' ? '▲' : kpiSparklines.queue.direction === 'down' ? '▼' : '●'}{' '}
+                      {kpiSparklines.queue.badgeText}
+                    </span>
+                  )}
                 </div>
-                <KpiMiniSparkline
-                  metricId="queue"
-                  summary={kpiSparklines.queue}
-                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
-                />
+                {queuesPending ? (
+                  <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
+                ) : (
+                  <KpiMiniSparkline
+                    metricId="queue"
+                    summary={kpiSparklines.queue}
+                    cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                  />
+                )}
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(queues.posField)} POS · {fmtNum(queues.sbField)} SB · {fmtNum(queues.ccPend)} CC</span>
-              {queues.reqPend > 0 ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigateTab?.('requisitions');
-                  }}
-                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
-                >
-                  {fmtNum(queues.reqPend)} req
-                </button>
-              ) : queues.pushPend > 0 ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigateTab?.('push_configuring');
-                  }}
-                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
-                >
-                  {fmtNum(queues.pushPend)} push
-                </button>
+              {queuesPending ? (
+                <>
+                  <span className="skeleton h-3 w-28 rounded inline-block" aria-hidden="true" />
+                  <span className="skeleton h-3 w-10 rounded inline-block" aria-hidden="true" />
+                </>
               ) : (
-                <span className={`font-semibold whitespace-nowrap group-hover:underline ${queues.total === 0 ? (isLight ? 'text-emerald-700' : 'text-emerald-300') : (isLight ? 'text-slate-700' : 'text-slate-200')}`}>
-                  {queues.total === 0 ? 'All clear' : '0 req'}
-                </span>
+                <>
+                  <span>{fmtNum(queues.posField)} POS · {fmtNum(queues.sbField)} SB · {fmtNum(queues.ccPend)} CC</span>
+                  {queues.reqPend > 0 ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigateTab?.('requisitions');
+                      }}
+                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+                    >
+                      {fmtNum(queues.reqPend)} req
+                    </button>
+                  ) : queues.pushPend > 0 ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigateTab?.('push_configuring');
+                      }}
+                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+                    >
+                      {fmtNum(queues.pushPend)} push
+                    </button>
+                  ) : (
+                    <span className={`font-semibold whitespace-nowrap group-hover:underline ${queues.total === 0 ? (isLight ? 'text-emerald-700' : 'text-emerald-300') : (isLight ? 'text-slate-700' : 'text-slate-200')}`}>
+                      {queues.total === 0 ? 'All clear' : '0 req'}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -3608,28 +3684,45 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
                     <FigureSlot pending={kpiPending}><Odometer value={reachTotal} format duration={220} /></FigureSlot>
                   </div>
-                  <span
-                    data-kpi-delta="outreach"
-                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
-                    style={{
-                      color: kpiSparklines.outreach.colorHex,
-                      backgroundColor: `${kpiSparklines.outreach.colorHex}18`,
-                    }}
-                  >
-                    {kpiSparklines.outreach.direction === 'up' ? '▲' : kpiSparklines.outreach.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.outreach.badgeText}
-                  </span>
+                  {kpiPending ? (
+                    <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
+                  ) : (
+                    <span
+                      data-kpi-delta="outreach"
+                      className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                      style={{
+                        color: kpiSparklines.outreach.colorHex,
+                        backgroundColor: `${kpiSparklines.outreach.colorHex}18`,
+                      }}
+                    >
+                      {kpiSparklines.outreach.direction === 'up' ? '▲' : kpiSparklines.outreach.direction === 'down' ? '▼' : '●'}{' '}
+                      {kpiSparklines.outreach.badgeText}
+                    </span>
+                  )}
                 </div>
-                <KpiMiniSparkline
-                  metricId="outreach"
-                  summary={kpiSparklines.outreach}
-                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
-                />
+                {kpiPending ? (
+                  <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
+                ) : (
+                  <KpiMiniSparkline
+                    metricId="outreach"
+                    summary={kpiSparklines.outreach}
+                    cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                  />
+                )}
               </div>
             </div>
             <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
-              <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
+              {kpiPending ? (
+                <>
+                  <span className="skeleton h-3 w-32 rounded inline-block" aria-hidden="true" />
+                  <span className="skeleton h-3 w-8 rounded inline-block" aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
+                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
+                </>
+              )}
             </div>
           </button>
         </section>
@@ -3730,13 +3823,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           />
                         </span>
                         <span>{primaryMeta.label}</span>
-                        <span
-                          className={`font-figure font-bold tabular-nums ml-0.5 ${
-                            isLight ? 'text-slate-900' : 'text-white'
-                          }`}
-                        >
-                          {fmtNum(primaryCount)}
-                        </span>
+                        {kpiPending ? (
+                          <span className="skeleton h-3 w-10 rounded inline-block ml-0.5" aria-hidden="true" />
+                        ) : (
+                          <span
+                            className={`font-figure font-bold tabular-nums ml-0.5 ${
+                              isLight ? 'text-slate-900' : 'text-white'
+                            }`}
+                          >
+                            {fmtNum(primaryCount)}
+                          </span>
+                        )}
                       </span>
 
                       <span
@@ -3777,21 +3874,57 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
                   </div>
 
-                  <CrossChannelVelocityChart
-                    items={velocitySeries}
-                    focusChannel={velocityChannel}
-                    height={248}
-                    theme={theme}
-                  />
+                  {kpiPending ? (
+                    <>
+                      <div
+                        className="w-full h-[248px] flex flex-col justify-end gap-3 px-2 py-4"
+                        role="status"
+                        aria-label="Loading daily volume chart"
+                      >
+                        <div className="flex-1 flex items-end gap-2.5 px-2">
+                          {[38, 62, 54, 74, 48, 82, 68, 90, 58, 76, 64, 42].map((h, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-1 skeleton rounded-t-md"
+                              style={{ height: `${h}%` }}
+                            />
+                          ))}
+                        </div>
+                        <div className="h-2.5 w-full skeleton rounded" />
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2" aria-hidden="true">
+                        {[0, 1, 2, 3, 4].map((idx) => (
+                          <div
+                            key={idx}
+                            className={`rounded-xl border px-3 py-2.5 space-y-2 ${
+                              isLight ? 'bg-slate-50/70 border-slate-200/70' : 'bg-slate-800/40 border-slate-700/60'
+                            }`}
+                          >
+                            <div className="skeleton h-2.5 w-14 rounded" />
+                            <div className="skeleton h-4 w-12 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <CrossChannelVelocityChart
+                        items={velocitySeries}
+                        focusChannel={velocityChannel}
+                        height={248}
+                        theme={theme}
+                      />
 
-                  <VelocityChannelDock
-                    isLight={isLight}
-                    series={velocitySeries}
-                    totals={channelTotals}
-                    totalTasks={channelActivity.totalTasks}
-                    selectedChannel={velocityChannel}
-                    onSelectChannel={setVelocityChannel}
-                  />
+                      <VelocityChannelDock
+                        isLight={isLight}
+                        series={velocitySeries}
+                        totals={channelTotals}
+                        totalTasks={channelActivity.totalTasks}
+                        selectedChannel={velocityChannel}
+                        onSelectChannel={setVelocityChannel}
+                      />
+                    </>
+                  )}
                 </>
               );
             })()}
@@ -3806,6 +3939,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           leadChannel={leadChannel}
           totalTasks={channelActivity.totalTasks}
           ccSubmittedShow={channelActivity.ccSubmittedShow}
+          loading={kpiPending}
           onNavigateTab={onNavigateTab}
         />
       </div>
@@ -3878,6 +4012,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           {(() => {
+                const batteryPending = !batterySettled && batterySummary.fleetTotal === 0;
                 const datedTot = Math.max(1, batterySummary.total);
                 const pctOf = (v: number, tot = datedTot) =>
                   tot > 0 ? Math.round((v / tot) * 100) : 0;
@@ -3926,7 +4061,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
-                            <FigureSlot pending={!batterySettled && batterySummary.fleetTotal === 0}>
+                            <FigureSlot pending={batteryPending}>
                               {`${healthyPct}%`}
                             </FigureSlot>
                           </span>
@@ -3943,12 +4078,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           </span>
                         </div>
                         <div className="text-right shrink-0 ml-auto">
-                          <div className={`text-[11px] @[300px]:text-[11.5px] font-figure font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                            {batterySummary.avgLifePct}% avg life
-                          </div>
-                          <div className={`text-[10px] @[300px]:text-[10.5px] font-figure whitespace-nowrap ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            Avg {batterySummary.avgMonthsUsed}M / {batteryLifespanMonths}M
-                          </div>
+                          {batteryPending ? (
+                            <div className="space-y-1 flex flex-col items-end" aria-hidden="true">
+                              <span className="skeleton h-3 w-16 rounded block" />
+                              <span className="skeleton h-2.5 w-20 rounded block" />
+                            </div>
+                          ) : (
+                            <>
+                              <div className={`text-[11px] @[300px]:text-[11.5px] font-figure font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                                {batterySummary.avgLifePct}% avg life
+                              </div>
+                              <div className={`text-[10px] @[300px]:text-[10.5px] font-figure whitespace-nowrap ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                Avg {batterySummary.avgMonthsUsed}M / {batteryLifespanMonths}M
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -3957,7 +4101,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           isLight ? 'bg-slate-100' : 'bg-slate-800'
                         } overflow-hidden flex gap-0.5`}
                       >
-                        {batterySummary.total > 0 ? (
+                        {batteryPending ? (
+                          <div className="h-full w-full rounded-full skeleton" />
+                        ) : batterySummary.total > 0 ? (
                           [
                             { key: 'healthy', val: batterySummary.healthy, color: '#2d6a4f', label: 'Healthy' },
                             { key: 'soon', val: batterySummary.replaceSoon, color: '#f59e0b', label: 'Due Soon' },
@@ -4024,12 +4170,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               <span className="whitespace-nowrap">{tile.label}</span>
                             </div>
                             <div className="@[290px]:mt-1.5 flex items-baseline justify-end @[290px]:justify-between gap-1.5 @[290px]:gap-1">
-                              <span className={`text-[14px] @[330px]:text-[15px] font-bold font-figure tabular-nums leading-none whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                                {fmtNum(tile.count)}
-                              </span>
-                              <span className="text-[10px] font-figure tabular-nums text-slate-400 whitespace-nowrap">
-                                {batterySummary.total > 0 ? `${tile.share}%` : '—'}
-                              </span>
+                              {batteryPending ? (
+                                <span className="skeleton h-4 w-12 rounded inline-block" aria-hidden="true" />
+                              ) : (
+                                <>
+                                  <span className={`text-[14px] @[330px]:text-[15px] font-bold font-figure tabular-nums leading-none whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                    {fmtNum(tile.count)}
+                                  </span>
+                                  <span className="text-[10px] font-figure tabular-nums text-slate-400 whitespace-nowrap">
+                                    {batterySummary.total > 0 ? `${tile.share}%` : '—'}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -4042,9 +4194,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                           Age Distribution
                         </span>
-                        <span className="font-figure text-slate-400">
-                          {fmtNum(batterySummary.total)} dated
-                        </span>
+                        {batteryPending ? (
+                          <span className="skeleton h-3 w-14 rounded inline-block" aria-hidden="true" />
+                        ) : (
+                          <span className="font-figure text-slate-400">
+                            {fmtNum(batterySummary.total)} dated
+                          </span>
+                        )}
                       </div>
                       <div className="flex-1 flex flex-col justify-between gap-3">
                         {cohorts.map((c) => {
@@ -4056,13 +4212,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                 <span className={`truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                                   {c.label}
                                 </span>
-                                <span className={`font-figure font-semibold tabular-nums whitespace-nowrap shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                                  {fmtNum(c.count)}{' '}
-                                  <span className="text-slate-400 font-normal">({share}%)</span>
-                                </span>
+                                {batteryPending ? (
+                                  <span className="skeleton h-3 w-12 rounded inline-block shrink-0" aria-hidden="true" />
+                                ) : (
+                                  <span className={`font-figure font-semibold tabular-nums whitespace-nowrap shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                                    {fmtNum(c.count)}{' '}
+                                    <span className="text-slate-400 font-normal">({share}%)</span>
+                                  </span>
+                                )}
                               </div>
                               <div className={`h-2 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
-                                {barW > 0 && (
+                                {batteryPending ? (
+                                  <div className="h-full w-2/3 rounded-full skeleton" />
+                                ) : barW > 0 && (
                                   <div
                                     className="h-full rounded-full transition-all duration-300"
                                     style={{ width: `${barW}%`, backgroundColor: c.color }}

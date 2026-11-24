@@ -3,7 +3,7 @@ import { Lock, Eye, EyeOff, ArrowRight, KeyRound, AlertTriangle, Loader2 } from 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AppBrandLogo } from './AppBrandLogo';
 import { clearKeptMemos } from '../utils/useKeptMemo';
-import { clearCcCache } from '../services/ccService';
+import { clearCcCache, fetchCcCounts } from '../services/ccService';
 import { clearMvCache } from '../services/mvCache';
 import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
@@ -121,7 +121,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const enter = useCallback(async (userId: string, fromSignIn = false) => {
+  const enter = useCallback(async (userId: string, fromSignIn = false, warmPromise?: Promise<unknown>) => {
     const p = await loadProfile(userId);
     if (p === 'offline') {
       setError('No connection to the server. Please check the internet and try again.');
@@ -137,6 +137,23 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     setProfile(p);
     if (p.must_change_password) { setPhase('change'); return; }
     storeSession(p);
+    // (24 Nov 2026, speed) Give already-in-flight Dashboard RPCs up to 550ms while Sign-In still shows "Signing in…"
+    // so fast connections enter a fully populated Dashboard with zero skeleton flash, while slow connections never stall.
+    if (fromSignIn) {
+      const battWarm = Promise.all([
+        import('../services/supabaseService'),
+        import('../data/initialData'),
+      ])
+        .then(([sup, init]) => {
+          const scopeIds = p.role === 'BRANCH' ? [p.branch_id] : init.RAW_BRANCHES.map((b) => b.id);
+          return sup.fetchPosBatterySummary(scopeIds, 24, 21);
+        })
+        .catch(() => null);
+      await Promise.race([
+        Promise.allSettled([warmPromise, battWarm]),
+        new Promise<void>((r) => window.setTimeout(r, 550)),
+      ]);
+    }
     markNavigationTransition(fromSignIn);
     setPhase('ready');
   }, []);
@@ -203,7 +220,42 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
       }
       setPassword('');
       clearWorkstationLock();
-      await enter(data.user.id, true);
+      // (24 Nov 2026, speed) Overlap Dashboard's lightweight RPCs + main app chunk with staff_profiles fetch so
+      // the Dashboard opens populated immediately on sign-in instead of waiting in a serial waterfall.
+      const warmDashboard = Promise.all([
+        import('../AppWithMotion.tsx').catch(() => null),
+        import('../services/kpiService')
+          .then((k) => {
+            const cur = k.kpiPeriodRange('MONTH');
+            return Promise.allSettled([
+              k.fetchKpiSummary(cur.from, null),
+              fetchCcCounts(cur.from, null, 45000),
+              fetchCcCounts(null, null, 45000).then((allCc) => {
+                if (!allCc) return;
+                try {
+                  const prev = JSON.parse(sessionStorage.getItem('crm_pos_sidebar_counts_v1') || '{}');
+                  sessionStorage.setItem('crm_pos_sidebar_counts_v1', JSON.stringify({ ...prev, cc: allCc.pendingAll }));
+                } catch { /* ignore */ }
+              }),
+            ]);
+          })
+          .catch(() => null),
+        import('../services/supabaseService')
+          .then((sup) =>
+            Promise.allSettled([
+              sup.fetchMonthlyInstallFieldEvents(false, 220),
+              sup.countPendingFieldEventsByType('PHNOM_PENH').then((c) => {
+                if (!c) return;
+                try {
+                  const prev = JSON.parse(sessionStorage.getItem('crm_pos_sidebar_counts_v1') || '{}');
+                  sessionStorage.setItem('crm_pos_sidebar_counts_v1', JSON.stringify({ ...prev, pos: c.pos, sb: c.sb }));
+                } catch { /* ignore */ }
+              }),
+            ])
+          )
+          .catch(() => null),
+      ]);
+      await enter(data.user.id, true, warmDashboard);
     } catch {
       setError('No connection to the server. Please check the internet and try again.');
     } finally {
