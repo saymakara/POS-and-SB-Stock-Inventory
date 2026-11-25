@@ -185,13 +185,13 @@ export function onPortalSync(
 /**
  * (25 Nov 2026, speed + free-plan quota) One rule for refreshing a heavy screen (the KPI summary is ~1.4 MB) when data
  * changes: a change made in this browser refreshes after `delayMs` as before; changes made by others (a KHQR entry can
- * arrive every few seconds) refresh at most once per `minGapMs` - the server keeps its KPI answer 3 minutes anyway, so
+ * arrive every few seconds) refresh at most once per `minGapMs` (2 minutes) - the server keeps its KPI answer 3 minutes anyway, so
  * asking more often brought back the same figures - and a tab in the background waits until it is shown again, then
  * refreshes once. Nothing is skipped: the last change always leads to a refresh.
  */
 export function createRefreshScheduler(run: () => void, opts: { delayMs?: number; minGapMs?: number } = {}) {
   const delayMs = opts.delayMs ?? 700;
-  const minGapMs = opts.minGapMs ?? 60_000;
+  const minGapMs = opts.minGapMs ?? 120_000;                 // (25 Nov 2026) 2 minutes: the server keeps its answer 3 minutes
   let timer = 0;
   let lastRun = -Infinity;                                  // never refreshed yet: the first change is shown after delayMs
   let waitingForTab = false;

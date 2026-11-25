@@ -1882,21 +1882,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [loadPeriodMetrics, loadInventoryAndSims, loadFieldInstalls, neededInstallDays]);
 
-  // Idle background warm-up of only the default KPI Performance slice (All time) after initial load settles
-  // (avoids firing 6 speculative RPCs right after sign-in while stock & dashboard are loading)
-  useEffect(() => {
-    if (!isSupabaseConfigured || !kpiData || syncing) return;
-    if (getCachedKpiSummary(null, null)) return;
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled || getCachedKpiSummary(null, null)) return;
-      void fetchKpiSummary(null, null, false).catch(() => {});
-    }, 1200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [kpiData, syncing]);
+  // (25 Nov 2026, free-plan quota) the "All time" KPI summary (~1.4 MB) is no longer downloaded in the background after
+  // sign-in for people who may never open KPI Performance: the server keeps it ready (warm-up job), so the page opens fast
+  // when asked, and pointing at "KPI Performance" in the menu still loads it ahead.
 
   // Scoped cross-channel KPI totals strictly matching Active Phnom Penh Staff Directory
   const scopedKpiTotals = useMemo(() => {
