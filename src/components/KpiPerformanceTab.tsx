@@ -6486,8 +6486,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                               className={`inline-flex items-center justify-center min-w-[26px] h-[22px] px-1 rounded-md text-[11.5px] tabular-nums ${
                                                 isHol || isWk
                                                   ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
-                                                  : d.count >= 40
-                                                  ? 'bg-[#1d5c55] text-white font-semibold shadow-2xs'
                                                   : d.count >= 25
                                                   ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
                                                   : d.count >= 10
@@ -6889,8 +6887,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     className={`inline-flex items-center justify-center min-w-[26px] h-[22px] px-1 rounded-md text-[11.5px] tabular-nums ${
                                       isHol || isWk
                                         ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
-                                        : d.count >= 40
-                                        ? 'bg-[#1d5c55] text-white font-semibold shadow-2xs'
                                         : d.count >= 25
                                         ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
                                         : d.count >= 10
