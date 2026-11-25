@@ -574,11 +574,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   <th className="text-right">No.</th>
                   <SortTh k="name" sort={brSort} onSort={brToggle}>Branch Name</SortTh>
                   <SortTh k="code" sort={brSort} onSort={brToggle} align="center" className="text-center whitespace-nowrap">Branch Code</SortTh>
-                  <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="text-right">POS</SortTh>
-                  <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="text-right">Sound Box</SortTh>
-                  <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="text-right">Total</SortTh>
+                  <SortTh k="pos" sort={brSort} onSort={brToggle} align="center" className="text-center">POS</SortTh>
+                  <SortTh k="sb" sort={brSort} onSort={brToggle} align="center" className="text-center">Sound Box</SortTh>
+                  <SortTh k="total" sort={brSort} onSort={brToggle} align="center" className="text-center">Total</SortTh>
                   <SortTh k="reserve" sort={brSort} onSort={brToggle} align="center" className="text-center">Reserve</SortTh>
-                  <SortTh k="live" sort={brSort} onSort={brToggle} align="right" className="text-right">Live</SortTh>
+                  <SortTh k="live" sort={brSort} onSort={brToggle} align="center" className="text-center">Live</SortTh>
                   <SortTh k="staff" sort={brSort} onSort={brToggle} align="center" className="text-center">Staff</SortTh>
                   <SortTh k="status" sort={brSort} onSort={brToggle} align="center" className="text-center">Status</SortTh>
                   <th className="text-right">Actions</th>
@@ -646,54 +646,41 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           </td>
 
                           {/* POS Terminal Count */}
-                          <td className="text-right">
-                            <span className="inline-flex items-center justify-end gap-1 font-mono text-xs text-slate-800 tabular-nums whitespace-nowrap">
+                          <td className="text-center">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800 tabular-nums whitespace-nowrap">
                               <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" />
-                              <span>{fmtNum(b.posCount)}</span>
+                              <span className="w-[38px] text-left">{fmtNum(b.posCount)}</span>
                             </span>
                           </td>
 
                           {/* Sound Box Count */}
-                          <td className="text-right">
-                            <span className="inline-flex items-center justify-end gap-1 font-mono text-xs text-slate-800 tabular-nums whitespace-nowrap">
+                          <td className="text-center">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800 tabular-nums whitespace-nowrap">
                               <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" />
-                              <span>{fmtNum(b.sbCount)}</span>
+                              <span className="w-[38px] text-left">{fmtNum(b.sbCount)}</span>
                             </span>
                           </td>
 
                           {/* Total Units */}
-                          <td className="text-right font-mono font-semibold text-xs text-zinc-900 tabular-nums whitespace-nowrap">
+                          <td className="text-center font-mono font-semibold text-xs text-zinc-900 tabular-nums whitespace-nowrap">
                             {fmtNum(b.totalDevices)}
                           </td>
 
                           {/* Branch Reserve */}
-                          <td className="text-center">
+                          <td className="text-center font-mono text-xs text-slate-700 tabular-nums whitespace-nowrap">
                             {b.code === '100' ? (
                               <span
-                                className={`inline-block px-2 py-0.5 rounded-md font-mono text-xs whitespace-nowrap tabular-nums ${
-                                  b.reserveCount > 0
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                    : 'bg-slate-100 text-slate-700 border border-slate-200'
-                                }`}
                                 title={`Branch Reserve: ${fmtNum(b.reserveCount)}${b.hqCount > 0 ? ` · Central HQ Warehouse Stock: ${fmtNum(b.hqCount)}` : ''}`}
                               >
                                 {fmtNum(b.reserveCount)}{b.hqCount > 0 ? ` · ${fmtNum(b.hqCount)} HQ` : ''}
                               </span>
                             ) : (
-                              <span
-                                className={`inline-block px-2 py-0.5 rounded-md font-mono text-xs tabular-nums whitespace-nowrap ${
-                                  b.reserveCount > 0
-                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                    : 'bg-red-50 text-red-700 border border-red-200'
-                                }`}
-                              >
-                                {fmtNum(b.reserveCount)}
-                              </span>
+                              <span>{fmtNum(b.reserveCount)}</span>
                             )}
                           </td>
 
                           {/* Live Installed */}
-                          <td className="text-right whitespace-nowrap">
+                          <td className="text-center whitespace-nowrap">
                             <span className="font-mono font-semibold text-emerald-700 text-xs tabular-nums">
                               {fmtNum(b.completeCount)}
                             </span>
@@ -704,9 +691,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Staff Count */}
                           <td className="text-center">
-                            <span className="inline-flex items-center gap-1 font-mono text-xs text-slate-700 tabular-nums whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-700 tabular-nums whitespace-nowrap">
                               <Users className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{fmtNum(b.staffCount)}</span>
+                              <span className="w-[24px] text-left">{fmtNum(b.staffCount)}</span>
                             </span>
                           </td>
 
