@@ -30,7 +30,7 @@ import {
 } from '../services/supabaseService';
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
-import { getCachedFieldEvents, isFieldCacheComplete, setCachedFieldEvents } from '../services/fieldCache';
+import { getCachedFieldEvents, isFieldCacheComplete, isFieldReviewedReady, setCachedFieldEvents } from '../services/fieldCache';
 import { onPortalSync } from '../utils/portalSync';
 import { FieldScope, normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -381,7 +381,10 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, []);
   const [events, setEvents] = useState<FieldEvent[] | null>(initialSnapshot.events);
   const [pendingReady, setPendingReady] = useState<boolean>(initialSnapshot.complete);
-  const [reviewedReady, setReviewedReady] = useState(false);
+  const [reviewedReady, setReviewedReady] = useState<boolean>(
+    () => isFieldReviewedReady() || Boolean(initialSnapshot.events?.some((e) => e.status !== 'PENDING'))
+  );
+  const [reviewedLoading, setReviewedLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
@@ -421,7 +424,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     fetchBranchRegions().then((g) => startTransition(() => { setRegions(g); setRegionsReady(true); }));
   }, []);
 
-  useEffect(() => { if (events) setCachedFieldEvents(events, pendingReady); }, [events, pendingReady]);   // the next opening starts from the latest list
+  useEffect(() => { if (events) setCachedFieldEvents(events, pendingReady, reviewedReady); }, [events, pendingReady, reviewedReady]);   // the next opening starts from the latest list
 
   // Cache recent snapshot so tab switches and refreshes paint quickly without freezing main thread on huge JSON writes
   useEffect(() => {
@@ -443,6 +446,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const load = useCallback(async () => {
     setLoadError('');
+    setReviewedLoading(true);
     try {
       // Both lists are requested at the same time; page 1 of Waiting paints at once if >1,000 rows exist,
       // and all remaining Waiting pages finish before pendingReady enables sidebar count sync.
@@ -489,12 +493,18 @@ export const FieldReviewTab: React.FC<Props> = ({
       if (pending) markFresh('field');
     } catch {
       setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+    } finally {
+      setReviewedLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Only reuse cached records if all PENDING pages finished within the last 2 minutes (realtime keeps them current)
-    if (!(getCachedFieldEvents() && isFieldCacheComplete() && isFresh('field', 120000))) load();
+    // Only reuse cached records if all PENDING + reviewed pages finished within the freshness window (realtime keeps them current)
+    if (getCachedFieldEvents() && isFieldCacheComplete() && isFieldReviewedReady() && isFresh('field', 300000)) {
+      setReviewedReady(true);
+    } else {
+      void load();
+    }
     // (29 Oct 2026, speed review) live changes are collected and applied together once per frame: a burst of phone records
     // (or a bulk approval) is one screen update, not one per record
     const queued = new Map<number, FieldEvent>();
@@ -1671,7 +1681,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <div
             data-page-content
-            className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${(Boolean(events) && (dateLoading || (filter !== 'PENDING' && !reviewedReady))) || query !== deferredQuery ? 'is-loading' : ''}`}
+            className={`divide-y divide-slate-200/90 silk-rows table-quiet-body ${(Boolean(events) && (dateLoading || (filter !== 'PENDING' && reviewedLoading && !reviewedReady))) || query !== deferredQuery ? 'is-loading' : ''}`}
           >
             {visibleRows.map((e, idx) => (
                 <ReviewRow

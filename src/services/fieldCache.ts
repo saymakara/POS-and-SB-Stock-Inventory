@@ -12,14 +12,17 @@ import { clearOnUserChange } from '../utils/userScopedCache';
  */
 let events: FieldEvent[] | null = null;
 let pendingComplete = false;
+let reviewedComplete = false;
 
-export const clearFieldCache = () => { events = null; pendingComplete = false; };
+export const clearFieldCache = () => { events = null; pendingComplete = false; reviewedComplete = false; };
 registerPortalCacheInvalidator(['field'], () => { clearFresh('field'); });
 export const getCachedFieldEvents = () => events;
 export const isFieldCacheComplete = () => pendingComplete;
-export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingComplete) => {
+export const isFieldReviewedReady = () => reviewedComplete;
+export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingComplete, reviewed = reviewedComplete) => {
   events = list;
   pendingComplete = complete;
+  reviewedComplete = reviewed;
 };
 
 clearOnUserChange(clearFieldCache);
@@ -27,7 +30,7 @@ clearOnUserChange(clearFieldCache);
 let inflight: Promise<void> | null = null;
 export function prefetchFieldEvents(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
-  if (events && pendingComplete && isFresh('field', 300_000)) return Promise.resolve();
+  if (events && pendingComplete && reviewedComplete && isFresh('field', 300_000)) return Promise.resolve();
   if (inflight) return inflight;
   inflight = (async () => {
     const pendingReq = fetchAllPendingFieldEvents((firstPage) => {
@@ -51,6 +54,9 @@ export function prefetchFieldEvents(): Promise<void> {
       if (pending) {
         pendingComplete = true;
         markFresh('field');
+      }
+      if (reviewed) {
+        reviewedComplete = true;
       }
     }
   })().catch(() => {}).finally(() => { inflight = null; });
