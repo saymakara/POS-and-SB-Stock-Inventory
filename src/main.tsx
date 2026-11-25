@@ -224,7 +224,7 @@ function AppLoading() {
                 <div className="skeleton h-6 w-32 rounded-full" />
                 <div className="skeleton h-6 w-24 rounded-full" />
               </div>
-              {/* Dual-Line/Area Wave Chart Placeholder */}
+              {/* Chart area while loading: plain grid only (25 Nov 2026: no fake wave / bar shapes) */}
               <div className="w-full h-[215px] flex flex-col justify-between pt-2">
                 <div className="relative flex-1 flex items-center">
                   <div className="flex flex-col justify-between h-full pr-2.5 py-1">
@@ -232,17 +232,6 @@ function AppLoading() {
                   </div>
                   <div className="relative flex-1 h-full flex flex-col justify-between py-1">
                     {[0, 1, 2, 3].map((k) => <div key={k} className="w-full border-t border-dashed border-slate-200/80" />)}
-                    <svg viewBox="0 0 600 170" preserveAspectRatio="none" className="absolute inset-0 w-full h-full animate-pulse">
-                      <defs>
-                        <linearGradient id="bootWaveFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#cbd5e1" stopOpacity="0.34" />
-                          <stop offset="100%" stopColor="#cbd5e1" stopOpacity="0.02" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0 155 C45 155, 55 58, 105 52 C145 46, 165 152, 200 154 C240 155, 255 34, 310 38 C365 42, 385 154, 425 154 C465 154, 495 72, 540 68 C575 64, 588 152, 600 154 L600 170 L0 170 Z" fill="url(#bootWaveFill)" />
-                      <path d="M0 155 C45 155, 55 58, 105 52 C145 46, 165 152, 200 154 C240 155, 255 34, 310 38 C365 42, 385 154, 425 154 C465 154, 495 72, 540 68 C575 64, 588 152, 600 154" fill="none" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" />
-                      <path d="M0 156 C48 156, 60 88, 108 82 C148 78, 165 155, 200 156 C240 156, 260 66, 312 70 C365 74, 385 155, 425 156 C465 156, 495 100, 542 96 C575 94, 588 155, 600 156" fill="none" stroke="#cbd5e1" strokeWidth="1.75" strokeDasharray="8 5" strokeLinecap="round" />
-                    </svg>
                   </div>
                   <div className="flex flex-col justify-between h-full pl-2.5 py-1">
                     {[0, 1, 2, 3].map((k) => <div key={k} className="skeleton h-2.5 w-6 rounded" />)}
@@ -310,14 +299,6 @@ function AppLoading() {
                 <div className="skeleton h-7 w-28 rounded-full" />
               </div>
               <div className="h-[190px] flex items-end gap-4 px-4 pt-4 pb-2 border-b border-slate-200/70">
-                {[
-                  [42, 68], [56, 78], [48, 72], [65, 88], [58, 80], [72, 94],
-                ].map(([a, b], idx) => (
-                  <div key={idx} className="flex-1 flex items-end justify-center gap-1.5 h-full">
-                    <div className="skeleton w-4 sm:w-5 rounded-t-md" style={{ height: `${a}%` }} />
-                    <div className="skeleton w-4 sm:w-5 rounded-t-md opacity-70" style={{ height: `${b}%` }} />
-                  </div>
-                ))}
               </div>
               <div className="flex justify-around px-4">
                 {[0, 1, 2, 3, 4, 5].map((k) => <div key={k} className="skeleton h-2.5 w-9 rounded" />)}
