@@ -1265,6 +1265,15 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* (svg is left out on purpose: max-width on icons inside shrink-to-fit buttons collapsed the row checkboxes to nothing) */
 img, video { max-width: 100%; }
 img { height: auto; }
+/* (25 Nov 2026, smooth scrolling) Table and list rows:
+   - the row under the pointer changes its background at once instead of fading over 0.2 s: while scrolling, every row
+     passing under the pointer started a fade and the whole page was repainted on every frame of it (Stock Inventory
+     dropped 80 frames in 2.5 s of scrolling at phone-like speed; now about 5). Colour changes of live figures still fade.
+   - each row is its own paint layer (position: relative), so the browser reuses the rows that did not change instead
+     of painting the whole table again. Checked: nothing inside a row moves (no row contains an absolutely placed item
+     that used an outer box). */
+tbody tr, tbody td, [data-page-content] > * { transition-property: color !important; }
+tbody tr, [data-page-content] > * { position: relative; }
 /* a list that is refreshed keeps its place: fade, never collapse */
 .data-table tbody { min-height: 1px; }
 /* (31 Oct 2026, speed) every scrolling table keeps its own drawing order. Without this, the sticky Actions column and
@@ -1275,7 +1284,10 @@ img { height: auto; }
 .overflow-y-auto, .overflow-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* phones: blur is the most expensive effect, so it is lighter on touch screens (looks the same on a solid background) */
 @media (hover: none) and (pointer: coarse) {
-  [class*="backdrop-blur"], .glass-table-thead { backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+  [class*="backdrop-blur"] { backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+  /* (25 Nov 2026, smooth scrolling) table headers are a solid colour: a blur behind them showed nothing but was redone on
+     every scrolled frame */
+  .glass-table-thead { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 }
 /* live updates: a changed number or status fades its colour instead of flashing */
 .data-table td, .font-figure, [data-live] { transition: color var(--duration-normal) var(--ease-standard), background-color var(--duration-normal) var(--ease-standard); }

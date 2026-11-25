@@ -42,7 +42,7 @@ import {
 } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
-import { onPortalSync } from '../utils/portalSync';
+import { onPortalSync, createRefreshScheduler } from '../utils/portalSync';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -1054,18 +1054,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    let timer = 0;
+    // (25 Nov 2026) one shared refresh rule with the Dashboard (see createRefreshScheduler)
+    const refresh = createRefreshScheduler(() => { void loadImpl(true); });
     const unsub = onPortalSync(
       ['kpi', 'field', 'qr', 'cc', 'mv', 'staff', 'branches', 'devices'],
-      () => {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          void loadImpl(true);
-        }, 700);
-      }
+      (_changed, info) => refresh.trigger(info)
     );
     return () => {
-      window.clearTimeout(timer);
+      refresh.dispose();
       unsub();
     };
   }, [loadImpl]);

@@ -12,7 +12,7 @@ import {
   registerPortalCacheInvalidator,
   type SyncDomain,
 } from '../utils/portalSync';
-import { clearOnUserChange, cacheOwner } from '../utils/userScopedCache';
+import { clearOnUserChange, cacheOwner, shareInflight } from '../utils/userScopedCache';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -2804,7 +2804,11 @@ export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?
 }
 
 /** KHQR statistics of a period (one request; the reader's branch rules apply). */
-export async function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
+/** (25 Nov 2026) the KHQR screen and its background warm-up asked at the same moment: one request now serves both */
+export function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
+  return shareInflight(`qr_summary|${from}|${to}`, () => fetchQrSummaryOnce(from, to));
+}
+async function fetchQrSummaryOnce(from: string | null, to: string | null): Promise<QrSummary | null> {
   try {
     const { data, error } = await supabase.rpc('qr_summary', { p_from: from, p_to: to });
     if (error) throw error;
@@ -2841,7 +2845,10 @@ export interface QrMonthTotal {
   detailed: boolean;
   wrongScans: number;
 }
-export async function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] | null> {
+export function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] | null> {
+  return shareInflight(`qr_month_history|${months}`, () => fetchQrMonthHistoryOnce(months));
+}
+async function fetchQrMonthHistoryOnce(months: number): Promise<QrMonthTotal[] | null> {
   try {
     const { data, error } = await supabase.rpc('qr_month_history', { p_months: months });
     if (error) throw error;
@@ -2892,7 +2899,10 @@ export interface QrSharedMid {
   day: string; mid: string; merchantName: string; staffCount: number; entries: number; branches: string;
   firstAt: string; lastAt: string; items: QrSharedMidItem[];
 }
-export async function fetchQrSharedMids(from: string | null, to: string | null, limit = 200): Promise<QrSharedMid[] | null> {
+export function fetchQrSharedMids(from: string | null, to: string | null, limit = 200): Promise<QrSharedMid[] | null> {
+  return shareInflight(`qr_shared_mids|${from}|${to}|${limit}`, () => fetchQrSharedMidsOnce(from, to, limit));
+}
+async function fetchQrSharedMidsOnce(from: string | null, to: string | null, limit: number): Promise<QrSharedMid[] | null> {
   try {
     const { data, error } = await supabase.rpc('qr_shared_mids', { p_from: from, p_to: to, p_limit: limit });
     if (error) throw error;
