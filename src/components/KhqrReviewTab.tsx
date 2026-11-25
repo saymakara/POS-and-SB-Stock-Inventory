@@ -109,6 +109,15 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const [editing, setEditing] = useState<QrEntry | null>(null);   // (7 Nov 2026) Edit details
   // (30 Oct 2026) four views side by side: saved entries, failed attempts, wrong scans, same MID by 2+ staff
   const [view, setView] = useState<'entries' | 'failed' | 'wrong' | 'shared'>('entries');
+  // (25 Nov 2026, smooth) a view, once opened (or pointed at), stays mounted and is only hidden: switching back shows it
+  // at once with its rows, page and ticks as they were - no skeleton, no reload, no flicker. A hidden list does not ask
+  // the database again; it catches up when it is shown (only when its filters changed meanwhile).
+  type QrView = 'entries' | 'failed' | 'wrong' | 'shared';
+  const [mounted, setMounted] = useState<Set<QrView>>(() => new Set<QrView>(['entries']));
+  const warmView = useCallback((v: QrView) => setMounted((p) => (p.has(v) ? p : new Set(p).add(v))), []);
+  useEffect(() => { warmView(view); }, [view, warmView]);
+  const hoverTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
   const showView = (v: 'failed' | 'wrong' | 'shared') => {
     setView(v);
     setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
@@ -405,6 +414,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   role="tab"
                   aria-selected={active}
                   onClick={() => setView(v)}
+                  onPointerDown={() => warmView(v)}
+                  onMouseEnter={() => { window.clearTimeout(hoverTimer.current); hoverTimer.current = window.setTimeout(() => warmView(v), 120); }}
+                  onMouseLeave={() => window.clearTimeout(hoverTimer.current)}
                   className={`relative h-[30px] px-2.5 rounded-full text-[11.5px] flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                     active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
@@ -532,18 +544,22 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         </div>
       </section>
 
-      {(view === 'failed' || view === 'wrong') && loadError !== 'SETUP' && (
-        <QrAttemptLog key={view} from={from} to={to} activity={activity} region={region} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
-          kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} isSuper={isSuper} toast={triggerToast}
-          onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(true); }} />
+      {loadError !== 'SETUP' && (['failed', 'wrong'] as const).map((v) => mounted.has(v) && (
+        <div key={v} hidden={view !== v} className="flex flex-col gap-3.5 page-glide-in">
+          <QrAttemptLog active={view === v} from={from} to={to} activity={activity} region={region} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
+            kind={v === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} isSuper={isSuper} toast={triggerToast}
+            onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(true); }} />
+        </div>
+      ))}
+
+      {loadError !== 'SETUP' && mounted.has('shared') && (
+        <div hidden={view !== 'shared'} className="flex flex-col gap-3.5 page-glide-in">
+          <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} region={region} search={search} isSuper={isSuper} toast={triggerToast}
+            onDeleted={() => { clearKhqrCache(); load(true); loadStats(true); }} />
+        </div>
       )}
 
-      {view === 'shared' && loadError !== 'SETUP' && (
-        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} region={region} search={search} isSuper={isSuper} toast={triggerToast}
-          onDeleted={() => { clearKhqrCache(); load(true); loadStats(true); }} />
-      )}
-
-      {view === 'entries' && (<>
+      <div hidden={view !== 'entries'} className="flex flex-col gap-3.5 page-glide-in">
       <AnimatePresence initial={false}>
         {newCount > 0 && (
           <motion.button
@@ -631,7 +647,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         </div>
         <Pager pg={pg} label="entries" />
       </section>
-      </>)}
+      </div>
       {editing && (
         <PhoneRecordEditDialog open={!!editing} source="KHQR" rowId={editing.id} title={`Edit ${editing.recordId || 'KHQR entry'}`}
           sub={`KHQR · ${editing.activity === 'QR_REPLACEMENT' ? 'QR Replacement' : 'New Installation'} · ${editing.staffName || editing.staffId}`}
@@ -645,8 +661,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
 const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; region: FieldScope; branchId: string; staffId: string; search: string; reloadKey: number;
-  kind: QrAttemptKind; isSuper: boolean; toast: (m: string) => void; onDeleted: () => void }> = ({
-  from, to, activity, region, branchId, staffId, search, reloadKey, kind, isSuper, toast, onDeleted,
+  kind: QrAttemptKind; isSuper: boolean; toast: (m: string) => void; onDeleted: () => void; active?: boolean }> = ({
+  from, to, activity, region, branchId, staffId, search, reloadKey, kind, isSuper, toast, onDeleted, active = true,
 }) => {
   const pick = useRecordSelection();                                 // (4 Nov 2026) Super Admin: delete failed attempts / wrong scans
   const [delOpen, setDelOpen] = useState(false);
@@ -688,7 +704,15 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       if (seq === seqRef.current) setLoading(false);
     }
   }, [from, to, activity, region, branchId, staffId, search, kind, page, pageSize]);
-  useEffect(() => { load(); }, [load, reloadKey]);
+  // (25 Nov 2026) loaded once when first mounted (also hidden, after a hover); while hidden, a change of filters only
+  // marks it out of date and it is read again when shown - a hidden list never asks the database by itself
+  const loadedOnce = useRef(false), stale = useRef(false);
+  useEffect(() => {
+    if (!active && loadedOnce.current) { stale.current = true; return; }
+    loadedOnce.current = true; stale.current = false;
+    load();
+  }, [load, reloadKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (active && stale.current) { stale.current = false; load(); } }, [active, load]);
   const pageItems = (rows || []).map((a) => ({ id: a.id, rec: (a.gotMid || a.expectedMid || '#' + a.id) + ' · ' + (a.staffName || a.staffId) }));
   const pageAll = pageItems.length > 0 && pageItems.every((x) => pick.sel.has(x.id));
   return (<>
@@ -816,6 +840,8 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
       return `${r.mid} ${r.merchantName} ${r.branches} ${r.items.map((x) => `${x.staffId} ${x.staffName} ${x.recordId}`).join(' ')}`.toLowerCase().includes(q);
     });
   }, [all, region, search]);
+  const allIds = useMemo(() => (rows || []).flatMap((r) => r.items.map((x) => x.recordId)), [rows]);
+  const allOn = allIds.length > 0 && allIds.every((x) => sel.has(x));
   return (<>
     {isSuper && sel.size > 0 && <SelectionBar count={sel.size} onClear={() => setSel(new Set())} onDelete={() => setDelOpen(true)} label="KHQR entries" />}
     <DeleteRecordsDialog open={delOpen} count={sel.size} what="KHQR entries" sample={Array.from(sel)}
@@ -839,7 +865,16 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
       </div>
       <div className="min-w-[1160px]">
         <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <NoCell header>No.</NoCell>
+          {/* (25 Nov 2026) select all: every entry of every group shown (as the other review tables) */}
+          <NoCell
+            header
+            box={isSuper && allIds.length > 0 && (
+              <SelectBox light checked={allOn} onChange={() => flip(allIds, !allOn)} label={allOn ? 'Unselect all shown' : 'Select all shown'} />
+            )}
+            onBoxClick={isSuper && allIds.length > 0 ? () => flip(allIds, !allOn) : undefined}
+          >
+            No.
+          </NoCell>
           <span>Date</span>
           <span>MID</span>
           <span>Merchant</span>
