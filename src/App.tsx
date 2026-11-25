@@ -28,6 +28,7 @@ import {
   INITIAL_HISTORICAL_MERCHANTS,
   DEFAULT_APP_SETTINGS,
 } from './data/historicalMerchantsData';
+import { onTabReturn } from './utils/tabReturn';
 import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
@@ -646,9 +647,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     refreshLostCounts();
-    const onVis = () => { if (document.visibilityState === 'visible') refreshLostCounts(); };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    return onTabReturn(refreshLostCounts, { minGapMs: 180_000 });   // (25 Nov 2026) at most every 3 minutes on tab returns
   }, [refreshLostCounts]);
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -660,9 +659,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     }).catch(() => {});
     ask();
-    const onVis = () => { if (document.visibilityState === 'visible') ask(); };   // back to the tab: the number is fresh again
-    document.addEventListener('visibilitychange', onVis);
-    return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
+    const off = onTabReturn(ask, { minGapMs: 180_000 });         // back to the tab: fresh again, at most every 3 minutes
+    return () => { alive = false; off(); };
   }, [writeCachedSidebarCounts]);
   const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
     writeCachedSidebarCounts({ pos: c.pos, sb: c.sb });
@@ -1249,33 +1247,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => { alive = false; };
   }, [appSettings.phoneReviewScope, branchScopeSig, applyPendingByType]);
 
-  // Mobile & Background Resume: Re-sync state when browser tab returns after a meaningful idle gap
-  // (Supabase Realtime already pushes live changes while briefly switching tabs/windows).
+  // Mobile & Background Resume: re-sync when the tab returns after a long absence. (25 Nov 2026, free-plan quota) 10
+  // minutes, was 2: Supabase Realtime keeps an open portal current, so a quick switch to Telegram and back re-downloaded
+  // the requisitions, merchant history and stock changes for nothing (hundreds of requests a day across 30 staff).
+  // A lost connection still reloads at once ('online').
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
-    let lastActive = Date.now();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const elapsed = Date.now() - lastActive;
-        if (elapsed > 120_000) {
-          reloadFromServer().catch(() => {});
-        }
-        lastActive = Date.now();
-      } else {
-        lastActive = Date.now();
-      }
-    };
-
+    const off = onTabReturn(() => { reloadFromServer().catch(() => {}); }, { minHiddenMs: 600_000 });
     const handleOnline = () => {
       reloadFromServer().catch(() => {});
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('online', handleOnline);
-
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      off();
       window.removeEventListener('online', handleOnline);
     };
   }, [serverReady, reloadFromServer]);
