@@ -179,8 +179,8 @@ const KpiRuleRow = memo(function KpiRuleRow({
               type="button"
               disabled={busy || !changed}
               onClick={() => onSaveRule(rule, Math.max(0, Number(draft) || 0))}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
-                changed ? 'bg-[#002F4A] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition border ${
+                changed ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]' : 'bg-slate-100 text-slate-400 border-transparent cursor-default'
               }`}
             >
               {savingCode === rule.code ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
@@ -601,7 +601,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                 type="button"
                 disabled={savingTargets}
                 onClick={handleSaveTargets}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#002F4A] hover:bg-[#002238] text-white text-xs font-medium cursor-pointer disabled:opacity-50 transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-xs font-medium cursor-pointer disabled:opacity-50 transition"
                 >
                   {savingTargets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save targets
                 </button>
@@ -943,7 +943,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="submit"
-                      className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                      className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center"
                     >
                       <Plus className="w-3.5 h-3.5" /> Save Exempt Staff
                     </button>
@@ -1302,7 +1302,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </button>
               <button type="button" onClick={handleSyncApply} data-kpi-sync-apply
                 disabled={Boolean(syncBusy) || (!syncPreview.candidates.length && !syncIncludeDeleted)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#002F4A] hover:bg-[#002b44] disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer">
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer transition">
                 {syncBusy === 'apply' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 Add {syncPreview.candidates.length + (syncIncludeDeleted ? syncPreview.deletedSkipped.length : 0)} KPI task(s)
               </button>

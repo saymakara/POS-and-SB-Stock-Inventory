@@ -677,7 +677,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         >
           <div className="px-4 py-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-600 mr-1">Export CSV for</span>
-            <button type="button" onClick={() => { onExportCsv(); setShowExportMenu(false); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#002F4A] bg-[#002F4A] text-white hover:bg-[#002238] cursor-pointer">
+            <button type="button" onClick={() => { onExportCsv(); setShowExportMenu(false); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#c3e0da] hover:border-[#9fd0c7] bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] cursor-pointer transition">
               All shown ({devices.length})
             </button>
             {STAGE_ORDER.map((s) => (

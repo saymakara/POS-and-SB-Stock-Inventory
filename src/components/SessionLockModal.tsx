@@ -230,11 +230,11 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
               <button
                 type="submit"
                 disabled={isUnlocking}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#002F4A] hover:bg-[#002238] text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-60 active:scale-[0.98]"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-60 active:scale-[0.98]"
               >
                 {isUnlocking ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#1d5c55]" />
                     <span>Verifying...</span>
                   </>
                 ) : (

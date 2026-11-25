@@ -564,7 +564,7 @@ export const StaffAccountsTab: React.FC<{
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#002F4A] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] disabled:opacity-60 flex items-center gap-1.5 cursor-pointer transition"
               >
                 {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
               </button>

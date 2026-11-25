@@ -1964,8 +1964,8 @@ const ReviewRow = memo(function ReviewRow({
             onClick={() => onToggle(e.id)}
             className={`px-3 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
               isOpen
-                ? 'bg-[#002F4A] text-white border-[#002F4A] shadow-2xs'
-                : 'bg-[#eef5f9] hover:bg-[#002F4A] text-[#002F4A] hover:text-white border-[#cfe0ea] hover:border-[#002F4A]'
+                ? 'bg-[#d5eae6] text-[#144741] border-[#9fd0c7] shadow-2xs'
+                : 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]'
             }`}
           >
             {isOpen ? 'Hide' : 'Manage'}

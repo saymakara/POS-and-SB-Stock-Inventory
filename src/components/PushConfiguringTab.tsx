@@ -1111,12 +1111,12 @@ return (
                     setPusherPasswordError('');
                     setIsPushAllModalOpen(true);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-[#002F4A] hover:bg-[#002238] text-white shadow-2xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Push alerts to all devices (Requires Pusher Password verification)"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   <span>{waitingDevices.length === 0 && configuringDevices.length > 0 ? 'Re-push All' : 'Notify All Ready'}</span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10.5px] font-mono bg-white/20 text-white">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10.5px] font-mono bg-[#1d5c55]/10 text-[#1d5c55] border border-[#c3e0da]">
                     {waitingDevices.length > 0 ? `${waitingDevices.length} Waiting` : 'Pushed'}
                   </span>
                 </button>
@@ -1266,14 +1266,14 @@ return (
                   }}
                   className={`group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
                     isLight
-                      ? 'bg-[#002F4A] hover:bg-[#002238] text-white border-[#002238]'
-                      : 'bg-white hover:bg-slate-50 text-[#002F4A] border-white/90'
+                      ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]'
+                      : 'bg-white hover:bg-slate-50 text-[#1d5c55] border-white/90'
                   }`}
                   title="Push alerts to all devices (Requires Pusher Password verification)"
                 >
                   <Lock
                     className={`w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform duration-150 ${
-                      isLight ? 'text-white' : 'text-[#002F4A]'
+                      isLight ? 'text-[#1d5c55]' : 'text-[#1d5c55]'
                     }`}
                   />
                   <span className="tracking-tight font-bold">
@@ -1284,8 +1284,8 @@ return (
                   <span
                     className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md text-[11px] font-mono font-bold ${
                       isLight
-                        ? 'bg-white/20 text-white border border-white/30'
-                        : 'bg-[#002F4A]/8 text-[#002F4A] border border-[#002F4A]/15'
+                        ? 'bg-[#1d5c55]/10 text-[#1d5c55] border border-[#c3e0da]'
+                        : 'bg-[#1d5c55]/10 text-[#1d5c55] border border-[#c3e0da]'
                     }`}
                   >
                     {waitingDevices.length > 0 ? (
@@ -1434,14 +1434,14 @@ return (
                   }}
                   className={`group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
                     isLight
-                      ? 'bg-[#002F4A] hover:bg-[#002238] text-white border-[#002238]'
-                      : 'bg-white hover:bg-slate-50 text-[#002F4A] border-white/90'
+                      ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]'
+                      : 'bg-white hover:bg-slate-50 text-[#1d5c55] border-white/90'
                   }`}
                   title="Push alerts to all devices (Requires Pusher Password verification)"
                 >
                   <Lock
                     className={`w-4 h-4 shrink-0 group-hover:scale-110 transition-transform duration-150 ${
-                      isLight ? 'text-white' : 'text-[#002F4A]'
+                      isLight ? 'text-[#1d5c55]' : 'text-[#1d5c55]'
                     }`}
                   />
                   <span className="tracking-tight font-bold">
@@ -1452,8 +1452,8 @@ return (
                   <span
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold ${
                       isLight
-                        ? 'bg-white/20 text-white border border-white/30'
-                        : 'bg-[#002F4A]/8 text-[#002F4A] border border-[#002F4A]/15'
+                        ? 'bg-[#1d5c55]/10 text-[#1d5c55] border border-[#c3e0da]'
+                        : 'bg-[#1d5c55]/10 text-[#1d5c55] border border-[#c3e0da]'
                     }`}
                   >
                     {waitingDevices.length > 0 ? (
@@ -1712,7 +1712,7 @@ return (
                   <button
                     type="button"
                     onClick={() => handleTeamPushClick(branchKey, branchSerials)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-[#002F4A] hover:bg-[#002238] text-white shadow-2xs active:scale-[0.98]"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs active:scale-[0.98]"
                     title="Sends 1 single Telegram notification with attached file for this branch"
                   >
                     <Send className="w-3.5 h-3.5" />

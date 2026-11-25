@@ -555,7 +555,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             exit={{ opacity: 0, y: -6 }}
             transition={SPRING}
             onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(true); setNewCount(0); }}
-            className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#002F4A] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002238]"
+            className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-xs font-semibold shadow-xs cursor-pointer transition"
           >
             <Sparkles className="w-3.5 h-3.5" />
             {newCount} new {newCount === 1 ? 'entry' : 'entries'} · Show

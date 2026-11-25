@@ -333,11 +333,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isAuthenticating || lockoutSeconds > 0}
-                className="w-full py-3 rounded-xl bg-[#002F4A] hover:bg-[#002238] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs hover:shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAuthenticating ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#1d5c55]/30 border-t-[#1d5c55] rounded-full animate-spin" />
                     <span>Signing In...</span>
                   </>
                 ) : (

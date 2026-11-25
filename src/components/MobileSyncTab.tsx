@@ -1980,7 +1980,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     setTgSavedNotice(true);
                     setTimeout(() => setTgSavedNotice(false), 2000);
                   }}
-                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer"
+                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer transition"
                 >
                   {tgSavedNotice ? 'Webhook Saved ✓' : 'Save Webhook'}
                 </button>

@@ -752,8 +752,8 @@ return (
               className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer ${
                 showTrendChart
                   ? isLight
-                    ? 'bg-[#002F4A] text-white border-[#002F4A]'
-                    : 'bg-white text-[#002F4A] border-white'
+                    ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] border-[#c3e0da] hover:border-[#9fd0c7]'
+                    : 'bg-white text-[#1d5c55] border-white'
                   : isLight
                   ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'

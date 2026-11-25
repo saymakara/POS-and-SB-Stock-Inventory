@@ -613,7 +613,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 type="button"
                 onClick={handleSave}
                 disabled={!isAdminLike}
-                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm shadow-2xs cursor-pointer bg-[#002F4A] hover:bg-[#002238] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm shadow-2xs cursor-pointer bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
                 <span>Save Configuration</span>
@@ -2014,7 +2014,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={onExportBackup}
-                    className="px-4 py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-xs font-semibold tracking-wide shadow-xs flex items-center gap-2 transition cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>Download Complete JSON Backup</span>
@@ -2255,7 +2255,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 navigator.clipboard?.writeText('/mybots');
                                 if (onToast) onToast('Copied "/mybots" to clipboard!');
                               }}
-                              className="px-2 py-0.5 rounded bg-[#002F4A] text-white text-[10px] font-bold hover:bg-[#002238] cursor-pointer inline-flex items-center gap-1"
+                              className="px-2 py-0.5 rounded bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[10px] font-bold cursor-pointer inline-flex items-center gap-1 transition"
                             >
                               <Copy className="w-3 h-3" />
                               Copy
@@ -2365,7 +2365,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
                                 if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-[#002F4A] text-white text-[11px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[11px] font-bold cursor-pointer transition"
                             >
                               Copy Command
                             </button>
@@ -2554,7 +2554,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             }
                           }
                         }}
-                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
+                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>

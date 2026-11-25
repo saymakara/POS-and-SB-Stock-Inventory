@@ -322,7 +322,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
               </div>
             </div>
             {error && <div role="alert" className="flex gap-2 items-start text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
-            <button type="submit" disabled={busy} className="mt-1 w-full py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] disabled:opacity-60 text-white text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer">
+            <button type="submit" disabled={busy} className="mt-1 w-full py-2.5 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] disabled:opacity-60 text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer transition">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />} Sign in {!busy && <ArrowRight className="w-4 h-4" />}
             </button>
             <p className="text-[11px] text-slate-500 leading-snug">Forgot your password? Ask your admin to set a new one in Accounts &amp; Access.</p>
@@ -342,7 +342,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
               <input id="npw2" className={input} type="password" value={newPw2} onChange={(e) => setNewPw2(e.target.value)} autoComplete="new-password" />
             </div>
             {error && <div role="alert" className="flex gap-2 items-start text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
-            <button type="submit" disabled={busy} className="w-full py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] disabled:opacity-60 text-white text-sm font-extrabold cursor-pointer">
+            <button type="submit" disabled={busy} className="w-full py-2.5 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] disabled:opacity-60 text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-sm font-extrabold cursor-pointer transition">
               {busy ? 'Saving…' : 'Save password and continue'}
             </button>
             <button type="button" onClick={() => signOutEverywhere()} className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer">Sign out</button>

@@ -4584,7 +4584,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                     }
                     setActiveAlertNotif(null);
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer shadow-xs transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer shadow-xs transition"
                 >
                   Review Request
                 </button>
@@ -5346,7 +5346,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       <button
                         type="button"
                         onClick={() => setActiveTab('dashboard')}
-                        className="mt-4 px-4 py-2 rounded-xl bg-[#002F4A] text-white text-xs font-bold hover:bg-[#002238] transition cursor-pointer"
+                        className="mt-4 px-4 py-2 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-xs font-bold transition cursor-pointer"
                       >
                         Return to Dashboard
                       </button>
