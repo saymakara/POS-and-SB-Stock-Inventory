@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { unpackKpiLists } from '../utils/kpiPack';
 import { todayPP } from '../utils/time';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 import { clearOnUserChange } from '../utils/userScopedCache';
@@ -347,6 +348,26 @@ const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v5_';
 const SESSION_SERIES_PREFIX = 'kpi_series_cache_v5_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
+
+/**
+ * (25 Nov 2026, speed) The KPI summary in its compact form (SQL 20261125_03_kpi_lite.sql): the same values, ~3.3x smaller
+ * (each list is { k: keys, n: names, r: rows as arrays }; a staff / branch name is sent once and referred to by number).
+ * Turned back here into exactly the rows the full summary has. When the database does not have the compact functions
+ * yet, the full ones are used, as before.
+ */
+let liteRpcSupported: boolean | null = null;
+const isMissingRpc = (msg: string | undefined) => /PGRST202|42883|does not exist|not in the stand-in|schema cache/i.test(msg || '');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function kpiRpc(full: 'kpi_dashboard_summary' | 'kpi_dashboard_staff_slice', args: Record<string, unknown>): Promise<{ data: any; error: { message: string } | null }> {
+  if (liteRpcSupported !== false) {
+    const res = await supabase.rpc(`${full}_lite`, args);
+    if (!res.error) { liteRpcSupported = true; return { data: unpackKpiLists(res.data), error: null }; }
+    if (!isMissingRpc(res.error.message)) return { data: null, error: res.error };
+    liteRpcSupported = false;
+  }
+  const res = await supabase.rpc(full, args);
+  return { data: res.data, error: res.error };
+}
 let pendingStorageTimer: number | null = null;
 const pendingSlicesToPersist = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
 let pendingSeriesToPersist = false;
@@ -771,7 +792,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
     let d: any = null;
     let usedSlice = false;
     if (canSlice) {
-      const sliceRes = await supabase.rpc('kpi_dashboard_staff_slice', { p_from: from, p_to: to });
+      const sliceRes = await kpiRpc('kpi_dashboard_staff_slice', { p_from: from, p_to: to });
       if (!sliceRes.error && sliceRes.data && typeof sliceRes.data === 'object') {
         staffSliceRpcSupported = true;
         d = sliceRes.data;
@@ -782,7 +803,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
     }
 
     if (!d) {
-      const fullRes = await supabase.rpc('kpi_dashboard_summary', { p_from: from, p_to: to });
+      const fullRes = await kpiRpc('kpi_dashboard_summary', { p_from: from, p_to: to });
       if (fullRes.error) throw new Error(fullRes.error.message);
       d = fullRes.data || {};
     }

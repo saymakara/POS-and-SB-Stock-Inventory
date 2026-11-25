@@ -58,6 +58,26 @@ import { prefetchKpi } from '../services/kpiService';
 import { prefetchAudit } from '../services/auditCache';
 import { prefetchStaff } from '../services/staffCache';
 import { prefetchSims } from '../services/materialsService';
+
+/**
+ * (25 Nov 2026, speed) A screen's data is fetched when the pointer rests on its menu entry (120 ms: a deliberate hover,
+ * not a sweep across the menu), so the answer is usually on its way - or already here - when the click lands. Before,
+ * it started at the click. The same fetch the screen makes when opened (each is shared and kept fresh for minutes, so a
+ * hover followed by a click never fetches twice). Touch screens: at the tap, as before.
+ */
+function prefetchTabData(id: string): void {
+  if (id === 'kpi_performance') prefetchKpi();
+  else if (id === 'audit_log') prefetchAudit();
+  else if (id === 'users') prefetchStaff();
+  else if (id === 'mobile_sync' || id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents()).catch(() => {});
+  else if (id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr()).catch(() => {});
+  else if (id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc()).catch(() => {});
+  else if (id === 'mobile_sync_visit') import('../services/mvCache').then((m) => m.prefetchMv()).catch(() => {});
+  else if (id === 'sim_cards') prefetchSims();
+}
+let hoverTimer = 0;
+const hoverIntent = (id: string) => { window.clearTimeout(hoverTimer); hoverTimer = window.setTimeout(() => prefetchTabData(id), 120); };
+const hoverEnd = () => { window.clearTimeout(hoverTimer); };
 import { prefetchTabChunk } from '../app/appSetup';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
@@ -336,12 +356,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => {
                         prefetchTabChunk(item.id);
+                        hoverIntent(item.id);
                       }}
+                      onMouseLeave={hoverEnd}
                       onPointerDown={() => {
                         prefetchTabChunk(item.id);
-                        if (item.id === 'kpi_performance') prefetchKpi();
-                        else if (item.id === 'audit_log') prefetchAudit();
-                        else if (item.id === 'users') prefetchStaff();
+                        prefetchTabData(item.id);
                       }}
                       onFocus={() => {
                         prefetchTabChunk(item.id);
@@ -373,13 +393,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               aria-current={on ? 'page' : undefined}
                               onMouseEnter={() => {
                                 prefetchTabChunk(c.id);
+                                hoverIntent(c.id);
                               }}
+                              onMouseLeave={hoverEnd}
                               onPointerDown={() => {
                                 prefetchTabChunk(c.id);
-                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') import('../services/fieldCache').then((m) => m.prefetchFieldEvents());
-                                else if (c.id === 'mobile_sync_khqr') import('../services/khqrCache').then((m) => m.prefetchKhqr());
-                                else if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
-                                else if (c.id === 'sim_cards') prefetchSims();
+                                prefetchTabData(c.id);
                               }}
                               onFocus={() => {
                                 prefetchTabChunk(c.id);

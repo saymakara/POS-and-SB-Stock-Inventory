@@ -15,9 +15,7 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary, deletePhoneRecords } from '../services/supabaseService';
-import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache } from '../services/mvCache';
-const mvKey = (r: { from: string | null; to: string | null }, activity: string, region: FieldScope, branchId: string, search: string, page: number, pageSize: number) =>
-  JSON.stringify([r.from, r.to, activity, region, branchId, search, page, pageSize]);
+import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache, mvKey, afterMvPrefetch } from '../services/mvCache';
 import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Period, periodRange } from '../services/khqrCache';
@@ -119,8 +117,8 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     if (s) { setMvSummary(k, s); markFresh('mv:s:' + k); }
     setSummary((prev) => s || prev);                                   // a failed refresh keeps the numbers on screen
   }, [from, to]);
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { afterMvPrefetch(load); }, [load]);             // (25 Nov 2026) a read already on its way is waited for, not repeated
+  useEffect(() => { afterMvPrefetch(loadStats); }, [loadStats]);
 
   useEffect(() => {
     let timer = 0;

@@ -12,7 +12,7 @@ import {
   registerPortalCacheInvalidator,
   type SyncDomain,
 } from '../utils/portalSync';
-import { clearOnUserChange, cacheOwner, shareInflight } from '../utils/userScopedCache';
+import { clearOnUserChange, cacheOwner, shareInflight, hasEarly, takeEarly } from '../utils/userScopedCache';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -390,6 +390,7 @@ export async function fetchDeviceStageCountsFromSupabase(
   branchId?: string
 ): Promise<DeviceStageSummary | null> {
   if (!isSupabaseConfigured) return null;
+  if (hasEarly('stage:' + (branchId && branchId !== 'ALL' ? branchId : ''))) { const e = await takeEarly<any>('stage:' + (branchId && branchId !== 'ALL' ? branchId : '')); if (e) return e; }   // (25 Nov 2026) started at sign-in
   const normalizedBranch = branchId && branchId !== 'ALL' ? branchId : null;
 
   try {
@@ -1056,6 +1057,7 @@ export interface RequisitionQueryParams {
 
 export async function fetchRequisitionsFromSupabase(limit = 1000, offset = 0): Promise<Requisition[] | null> {
   if (!isSupabaseConfigured) return null;
+  if (limit === 1000 && offset === 0 && hasEarly('req')) { const e = await takeEarly<any>('req'); if (e) return e; }   // (25 Nov 2026) started at sign-in
   const safeLimit = Math.max(100, Math.min(limit, 1000));
   try {
     const allRows: any[] = [];
@@ -1127,6 +1129,7 @@ export async function fetchHistoricalMerchantsFromSupabase(
   offset = 0
 ): Promise<HistoricalMerchantRecord[] | null> {
   if (!isSupabaseConfigured) return null;
+  if (limit === 1000 && offset === 0 && hasEarly('hist')) { const e = await takeEarly<any>('hist'); if (e) return e; }   // (25 Nov 2026) started at sign-in
   try {
     const res = await fetchPaginatedRows('historical_merchants', 'record_id', {
       limit: Math.max(100, Math.min(limit, 1000)),
@@ -1827,6 +1830,9 @@ export const getCachedBranchRegions = (): Record<string, string> | null => cache
 
 export async function fetchBranchRegions(): Promise<Record<string, string>> {
   if (cachedBranchRegions) return cachedBranchRegions;
+  return shareInflight('branchRegions', readBranchRegions);           // (25 Nov 2026) one read when asked twice at once
+}
+async function readBranchRegions(): Promise<Record<string, string>> {
   try {
     const { data, error } = await supabase.from('branches').select('id,region').limit(1000);
     if (error) throw error;
@@ -2055,6 +2061,14 @@ let pendingGroupsRpcSupported: boolean | null = null;
  * Waiting records per device type (badges of the Merchant App Review sub-menus).
  * Uses grouped server RPC (~3ms, ~300 rows) with paginated fallback for older/mocked backends.
  */
+/** (25 Nov 2026) The raw waiting-record groups (null when they could not be read) - read once at sign-in, used by the
+ *  first count of the app (countPendingFieldEventsByType). */
+export async function fetchPendingFieldEventGroups(): Promise<Array<Record<string, any>> | null> {
+  if (!isSupabaseConfigured || pendingGroupsRpcSupported === false) return null;
+  const { data, error } = await supabase.rpc('pending_field_event_groups');
+  return !error && Array.isArray(data) ? (data as Array<Record<string, any>>) : null;
+}
+
 export async function countPendingFieldEventsByType(
   scope: FieldScope = 'ALL',
   branches: Branch[] = []
@@ -2073,7 +2087,9 @@ export async function countPendingFieldEventsByType(
 
     const regionsPromise = fetchBranchRegions();
     if (pendingGroupsRpcSupported !== false) {
-      const { data: grpData, error: grpErr } = await supabase.rpc('pending_field_event_groups');
+      // (25 Nov 2026) the first count after sign-in uses the groups read at the sign-in tap (see startEarly in AuthGate)
+      const early = await takeEarly<Array<Record<string, any>>>('pendgroups');
+      const { data: grpData, error: grpErr } = early ? { data: early, error: null } : await supabase.rpc('pending_field_event_groups');
       if (!grpErr && Array.isArray(grpData)) {
         pendingGroupsRpcSupported = true;
         const targets = (grpData as Array<Record<string, any>>).map((r) => ({
@@ -3127,6 +3143,7 @@ export async function fetchBranchesFromSupabase(
   offset = 0
 ): Promise<{ id: string; code: string; name: string; region: string }[] | null> {
   if (!isSupabaseConfigured) return null;
+  if (limit === 500 && offset === 0 && hasEarly('branches')) { const e = await takeEarly<any>('branches'); if (e) return e; }   // (25 Nov 2026) started at sign-in
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {

@@ -22,7 +22,7 @@ import {
   deletePhoneRecords, fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrSharedMids, QrSharedMid, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 import {
-  clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
+  clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory, afterKhqrPrefetch, hasCachedShared, getCachedShared, setCachedShared,
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
@@ -49,8 +49,6 @@ import { onPortalSync } from '../utils/portalSync';
  */
 
 // (29 Oct 2026) KHQR details are kept for this month and last month only (older months: monthly totals below)
-/** (5 Nov 2026) the last "same MID, 2+ staff" answer per period (memory only) */
-const sharedCache = new Map<string, any>();
 const PERIOD_LABEL: Record<Period, string> = {
   ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
@@ -167,23 +165,24 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     const fk = `qr:sum:${from}|${to}`;
     const hit = getCachedSummary(from, to);
     if (hit) setSummary(hit);
-    if (sharedCache.has(fk)) setShared(sharedCache.get(fk)!);
-    if (hit && sharedCache.has(fk) && force !== true && isFresh(fk)) return;   // (5 Nov 2026) fetched moments ago
+    if (hasCachedShared(fk)) setShared(getCachedShared(fk)!);
+    if (hit && hasCachedShared(fk) && force !== true && isFresh(fk)) return;   // (5 Nov 2026) fetched moments ago
     const [sum, sm] = await Promise.all([fetchQrSummary(from, to), fetchQrSharedMids(from, to, 200)]);
     if (seq !== statSeq.current) return;
     if (sum) { setCachedSummary(from, to, sum); setSummary(sum); }
     setShared(sm);
-    sharedCache.set(fk, sm);
+    setCachedShared(fk, sm);
     if (sum) markFresh(fk);
   }, [from, to]);
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { afterKhqrPrefetch('stats', loadStats); }, [loadStats]);
 
   const loadMonthHistory = useCallback(async (force = false) => {
-    if (getCachedHistory() && force !== true && isFresh('qr:hist', 120000)) return;
+    const kept = getCachedHistory();
+    if (kept && force !== true && isFresh('qr:hist', 120000)) { setHistory(kept); return; }   // (25 Nov 2026) fetched moments ago (e.g. on hover): shown as it is
     const hist = await fetchQrMonthHistory(1);
     if (hist) { setCachedHistory(hist.slice(0, 1)); setHistory(hist.slice(0, 1)); markFresh('qr:hist'); }
   }, []);
-  useEffect(() => { loadMonthHistory(); }, [loadMonthHistory]);
+  useEffect(() => { afterKhqrPrefetch('hist', loadMonthHistory); }, [loadMonthHistory]);
 
   const reqSeq = useRef(0);
   const load = useCallback(async (force = false, silent = false) => {
@@ -211,7 +210,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       if (seq === reqSeq.current) setLoading(false);
     }
   }, [filters, page, pageSize]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { afterKhqrPrefetch('entries', load); }, [load]);   // (25 Nov 2026) a read already on its way is waited for, not repeated
 
   // Live: new entries are announced (the list does not jump while someone reads it) – "Show" loads them.
   // (20 Nov 2026) The figures (summary, same MID by 2+ staff, this month) are worked out again at most once a minute

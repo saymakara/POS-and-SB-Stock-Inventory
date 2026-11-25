@@ -30,7 +30,7 @@ import {
 } from '../services/supabaseService';
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
-import { getCachedFieldEvents, isFieldCacheComplete, isFieldReviewedReady, setCachedFieldEvents } from '../services/fieldCache';
+import { fieldPrefetchRunning, onFieldFirstPage, getCachedFieldEvents, isFieldCacheComplete, isFieldReviewedReady, setCachedFieldEvents } from '../services/fieldCache';
 import { onPortalSync } from '../utils/portalSync';
 import { FieldScope, normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -500,8 +500,29 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   useEffect(() => {
     // Only reuse cached records if all PENDING + reviewed pages finished within the freshness window (realtime keeps them current)
-    if (getCachedFieldEvents() && isFieldCacheComplete() && isFieldReviewedReady() && isFresh('field', 300000)) {
+    const cacheReady = () => Boolean(getCachedFieldEvents() && isFieldCacheComplete() && isFieldReviewedReady() && isFresh('field', 300000));
+    const running = fieldPrefetchRunning();
+    let alive = true;
+    if (cacheReady()) {
       setReviewedReady(true);
+    } else if (running) {
+      // (25 Nov 2026) the same records are already on their way (fetched when the menu entry was pointed at): wait for
+      // them instead of asking the database a second time; their first page is shown as soon as it is here
+      const offFirst = onFieldFirstPage((firstPage) => {
+        if (alive) startTransition(() => { setEvents((prev) => (prev && prev.length ? prev : [...firstPage])); });
+      });
+      void running.then(() => {
+        offFirst();
+        if (!alive) return;
+        const mem = getCachedFieldEvents();
+        if (mem && cacheReady()) {
+          startTransition(() => {
+            setEvents((prev) => (prev && prev.length > mem.length ? prev : [...mem]));
+            setPendingReady(true);
+            setReviewedReady(true);
+          });
+        } else void load();
+      });
     } else {
       void load();
     }
@@ -541,6 +562,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       }, 650);
     });
   return () => {
+      alive = false;
       unsub();
       unsubSync();
       window.clearTimeout(syncTimer);

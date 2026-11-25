@@ -1,6 +1,9 @@
-import { clearFresh } from '../utils/freshness';
+import { clearFresh, isFresh, markFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
-import type { MvVisit, MvVisitSummary } from './supabaseService';
+import { fetchMvVisitSummary, fetchMvVisitsPage, type MvVisit, type MvVisitSummary } from './supabaseService';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { periodRange } from './khqrCache';
+import type { FieldScope } from '../utils/fieldScope';
 
 /**
  * (4 Nov 2026) Merchant Visit: the last answers, kept in memory only (they hold merchant details; never written to disk,
@@ -16,3 +19,34 @@ export const setMvSummary = (k: string, v: MvVisitSummary) => { if (summaries.si
 export function clearMvCache(): void { pages.clear(); summaries.clear(); clearFresh('mv:'); }
 
 registerPortalCacheInvalidator(['mv', 'kpi'], clearMvCache);
+
+/** The page key of one Merchant Visit list view (as the page uses it). */
+export const mvKey = (r: { from: string | null; to: string | null }, activity: string, region: FieldScope, branchId: string, search: string, page: number, pageSize: number) =>
+  JSON.stringify([r.from, r.to, activity, region, branchId, search, page, pageSize]);
+
+/**
+ * (25 Nov 2026, speed) The page's first view (this month, all activities, page 1 of 50) and its figures, fetched when the
+ * menu entry is pointed at - the same two requests the page makes when it opens, marked as just fetched so the page
+ * shows them without asking again. Memory only, as the rest of this cache.
+ */
+let inflight: Promise<void> | null = null;
+export function prefetchMv(): Promise<void> {
+  if (!isSupabaseConfigured) return Promise.resolve();
+  if (inflight) return inflight;
+  const r = periodRange('MONTH');
+  const key = mvKey(r, '', 'ALL', '', '', 1, 50);
+  const sk = `${r.from}|${r.to}`;
+  const needPage = !(pages.has(key) && isFresh('mv:p:' + key));
+  const needSum = !(summaries.has(sk) && isFresh('mv:s:' + sk));
+  if (!needPage && !needSum) return Promise.resolve();
+  inflight = Promise.all([
+    needPage ? fetchMvVisitsPage({ from: r.from, to: r.to, activity: undefined, region: 'ALL', branchId: undefined, search: '', page: 1, pageSize: 50 })
+      .then((res) => { setMvPage(key, { rows: res.rows, total: res.total }); markFresh('mv:p:' + key); }).catch(() => {}) : null,
+    needSum ? fetchMvVisitSummary(r.from, r.to).then((s) => { if (s) { setMvSummary(sk, s); markFresh('mv:s:' + sk); } }).catch(() => {}) : null,
+  ]).then(() => undefined).finally(() => { inflight = null; });
+  return inflight;
+}
+/** Runs `fn` now, or - when the page's first view is on its way - once it is here (then from its fresh copy). */
+export function afterMvPrefetch(fn: () => unknown): void {
+  if (inflight) void inflight.then(() => fn(), () => fn()); else void fn();
+}
