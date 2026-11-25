@@ -6189,14 +6189,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       >
                                         {hasVal ? (
                                           <span
-                                            className={`inline-flex items-center justify-center min-w-[38px] h-[23px] px-1.5 rounded text-[11.5px] font-figure tabular-nums font-medium ${
+                                            className={`inline-flex items-center justify-center min-w-[38px] h-[23px] px-1.5 rounded-md text-[11.5px] font-figure tabular-nums ${
                                               row.isManagement
-                                                ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80'
+                                                ? 'bg-indigo-50/80 text-indigo-700 font-medium'
                                                 : paceRatio >= 100
-                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                                                ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
                                                 : paceRatio >= 70
-                                                ? 'bg-sky-50 text-sky-800 border border-sky-300'
-                                                : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                                ? 'text-slate-600 font-normal'
+                                                : 'text-slate-400 font-normal'
                                             }`}
                                           >
                                             {isTaskMode ? fmtInt(c.val) : fmtPts(c.val)}
