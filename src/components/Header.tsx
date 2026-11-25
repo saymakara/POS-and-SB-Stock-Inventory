@@ -730,13 +730,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-150 ${
                 isSearchFocused
-                  ? 'bg-white border-[#003857] ring-3 ring-[#003857]/15 shadow-sm'
+                  ? 'bg-white border-[#002F4A] ring-3 ring-[#002F4A]/15 shadow-sm'
                   : 'bg-slate-100/90 hover:bg-slate-100 border-slate-200/90 hover:border-slate-300 shadow-2xs'
               }`}
             >
               <Search
                 className={`w-4 h-4 shrink-0 transition-colors ${
-                  isSearchFocused ? 'text-[#003857]' : 'text-slate-400'
+                  isSearchFocused ? 'text-[#002F4A]' : 'text-slate-400'
                 }`}
               />
               <input
@@ -793,7 +793,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     <button
                       type="button"
                       onClick={() => { setIsSearchFocused(false); onTrace(localSearch.trim()); }}
-                      className="w-full px-4 py-2.5 text-left text-xs text-[#003857] bg-sky-50 hover:bg-sky-100 flex items-center gap-2 cursor-pointer"
+                      className="w-full px-4 py-2.5 text-left text-xs text-[#002F4A] bg-sky-50 hover:bg-sky-100 flex items-center gap-2 cursor-pointer"
                     >
                       <Search className="w-3.5 h-3.5" />
                       <span>Show everything about &ldquo;{localSearch.trim()}&rdquo; (status, history, requests, phone records)</span>
@@ -853,7 +853,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
-                                      <span className="text-xs font-bold font-mono text-zinc-900 group-hover:text-[#003857] truncate">
+                                      <span className="text-xs font-bold font-mono text-zinc-900 group-hover:text-[#002F4A] truncate">
                                         {d.serial}
                                       </span>
                                       <span
@@ -900,7 +900,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                   <Building2 className="w-3.5 h-3.5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-xs font-bold text-zinc-900 group-hover:text-[#003857] truncate">
+                                  <div className="text-xs font-bold text-zinc-900 group-hover:text-[#002F4A] truncate">
                                     Branch Code {b.id} — {b.name}
                                   </div>
                                   <div className="text-[10px] text-slate-500 truncate">
@@ -928,7 +928,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                         onSelectTab('inventory_pos');
                         setIsSearchFocused(false);
                       }}
-                      className="font-bold text-[#003857] hover:underline cursor-pointer flex items-center gap-1"
+                      className="font-bold text-[#002F4A] hover:underline cursor-pointer flex items-center gap-1"
                     >
                       <span>Filter in Inventory</span>
                       <ArrowRight className="w-3 h-3" />
@@ -987,7 +987,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   {/* Clean, Modern Header */}
                   <div className="px-4 py-3 bg-slate-50/80 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-[#002F4A]/10 text-[#002F4A] flex items-center justify-center">
                         <Bell className="w-3.5 h-3.5" />
                       </div>
                       <div className="flex items-center gap-2">
@@ -995,7 +995,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                           Notifications
                         </span>
                         {unreadCount > 0 ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#003857] text-white">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#002F4A] text-white">
                             {unreadCount} new
                           </span>
                         ) : (
@@ -1056,14 +1056,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                           >
                             {/* Accent left indicator stripe for unread */}
                             {!n.read && (
-                              <span className="absolute left-0 top-3 bottom-3 w-1 bg-[#003857] rounded-r" />
+                              <span className="absolute left-0 top-3 bottom-3 w-1 bg-[#002F4A] rounded-r" />
                             )}
 
                             {/* Icon Avatar */}
                             <div
                               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border transition ${
                                 !n.read
-                                  ? 'bg-[#003857]/10 text-[#003857] border-[#003857]/30 group-hover:bg-[#003857] group-hover:text-white'
+                                  ? 'bg-[#002F4A]/10 text-[#002F4A] border-[#002F4A]/30 group-hover:bg-[#002F4A] group-hover:text-white'
                                   : 'bg-slate-100 text-slate-500 border-slate-200'
                               }`}
                             >
@@ -1165,7 +1165,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   : `Branch Code ${currentBranch.id}`}
               </div>
             </div>
-            <div className="w-8 h-8 rounded-full border flex items-center justify-center bg-[#003857] text-white border-[#003857]/40 shadow-2xs">
+            <div className="w-8 h-8 rounded-full border flex items-center justify-center bg-[#002F4A] text-white border-[#002F4A]/40 shadow-2xs">
               <UserCircle2 className="w-5 h-5" />
             </div>
           </div>
@@ -1192,13 +1192,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           type="button"
           onClick={t.onTap}
           aria-current={t.active ? 'page' : undefined}
-          className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] font-semibold cursor-pointer ${t.active ? 'text-[#003857]' : 'text-slate-500'}`}
+          className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] font-semibold cursor-pointer ${t.active ? 'text-[#002F4A]' : 'text-slate-500'}`}
         >
           {/* (13 Nov 2026, speed) a plain bar with a short fade (was a shared-layout animation: on every page change the
               animation library measured the whole page right after the new page was inserted - up to 230 ms frozen on a
               laptop, even with this phone bar hidden) */}
           {t.active && (
-            <span className="tabbar-pill-in absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]" aria-hidden />
+            <span className="tabbar-pill-in absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#002F4A]" aria-hidden />
           )}
           <span className="relative">
             <t.icon className="w-5 h-5" aria-hidden />

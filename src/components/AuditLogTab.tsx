@@ -300,7 +300,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     : 'sb-card-header-dark';
   const headingClass = isLight ? 'text-[#002f49]' : 'text-white';
   const subtextClass = isLight ? 'text-[#5b7083]' : 'text-slate-300';
-  const navyTitleClass = isLight ? 'text-[#003857]' : 'text-[#5cc8ff]';
+  const navyTitleClass = isLight ? 'text-[#002F4A]' : 'text-[#5cc8ff]';
   const inputClass = isLight
     ? 'surface-inset-light text-[#002f49]'
     : 'surface-inset-dark text-white';
@@ -320,9 +320,9 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           <div className="space-y-2.5 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-medium tracking-tight flex items-center gap-3 text-slate-900 dark:text-white leading-tight">
               {serverMode ? (
-                <Server className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857] dark:text-[#5cc8ff]" aria-hidden="true" />
+                <Server className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A] dark:text-[#5cc8ff]" aria-hidden="true" />
               ) : (
-                <History className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857] dark:text-[#5cc8ff]" aria-hidden="true" />
+                <History className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A] dark:text-[#5cc8ff]" aria-hidden="true" />
               )}
               <span>Staff &amp; Admin Audit Log</span>
             </h1>
@@ -341,7 +341,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 onClick={() => void refreshServerLogs()}
                 disabled={loading}
                 aria-label="Refresh audit log from the server"
-                className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42] disabled:opacity-60 disabled:cursor-wait"
+                className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#002F4A] hover:bg-[#002238] text-white border-[#002238] disabled:opacity-60 disabled:cursor-wait"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-white ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} aria-hidden="true" />
                 <span>{loading ? 'Refreshing…' : 'Refresh'}</span>

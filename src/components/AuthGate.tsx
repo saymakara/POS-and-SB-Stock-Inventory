@@ -292,7 +292,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
   if (phase === 'ready') return <>{children(profile)}</>;
 
   const card = 'w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-xl p-7';
-  const input = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/15';
+  const input = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 outline-none focus:border-[#002F4A] focus:ring-2 focus:ring-[#002F4A]/15';
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <div className={card}>
@@ -322,7 +322,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
               </div>
             </div>
             {error && <div role="alert" className="flex gap-2 items-start text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
-            <button type="submit" disabled={busy} className="mt-1 w-full py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] disabled:opacity-60 text-white text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer">
+            <button type="submit" disabled={busy} className="mt-1 w-full py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] disabled:opacity-60 text-white text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />} Sign in {!busy && <ArrowRight className="w-4 h-4" />}
             </button>
             <p className="text-[11px] text-slate-500 leading-snug">Forgot your password? Ask your admin to set a new one in Accounts &amp; Access.</p>
@@ -330,7 +330,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
         )}
         {phase === 'change' && profile && (
           <form onSubmit={changePassword} className="flex flex-col gap-3.5" noValidate>
-            <div className="flex items-start gap-2 text-sm text-slate-700"><KeyRound className="w-4 h-4 mt-0.5 text-[#003857]" />
+            <div className="flex items-start gap-2 text-sm text-slate-700"><KeyRound className="w-4 h-4 mt-0.5 text-[#002F4A]" />
               <span>Welcome, <b>{profile.name}</b>. Please choose your own password before you continue.</span></div>
             <div>
               <label htmlFor="npw" className="block text-xs font-bold text-slate-700 mb-1">New password</label>
@@ -342,7 +342,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
               <input id="npw2" className={input} type="password" value={newPw2} onChange={(e) => setNewPw2(e.target.value)} autoComplete="new-password" />
             </div>
             {error && <div role="alert" className="flex gap-2 items-start text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>}
-            <button type="submit" disabled={busy} className="w-full py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] disabled:opacity-60 text-white text-sm font-extrabold cursor-pointer">
+            <button type="submit" disabled={busy} className="w-full py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] disabled:opacity-60 text-white text-sm font-extrabold cursor-pointer">
               {busy ? 'Saving…' : 'Save password and continue'}
             </button>
             <button type="button" onClick={() => signOutEverywhere()} className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer">Sign out</button>

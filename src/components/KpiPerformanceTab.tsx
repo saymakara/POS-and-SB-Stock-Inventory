@@ -3427,7 +3427,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   );
 
   const navTabs: { id: KpiView; label: string; Icon: React.ElementType; accentColor: string; count?: number }[] = [
-    { id: 'all', label: 'Overview', Icon: BarChart3, accentColor: 'text-[#003857]' },
+    { id: 'all', label: 'Overview', Icon: BarChart3, accentColor: 'text-[#002F4A]' },
     { id: 'staff', label: 'Staff KPI', Icon: Users, accentColor: 'text-sky-600', count: filteredStaff.length },
     { id: 'branches', label: 'Branch KPI', Icon: Building2, accentColor: 'text-emerald-600', count: filteredBranches.length },
     { id: 'timeline', label: 'Performance Trend', Icon: Calendar, accentColor: 'text-indigo-600' },
@@ -3538,7 +3538,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />
               <span>
                 KPI Performance{' '}
                 <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
@@ -3835,7 +3835,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#003857] border border-sky-100 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#002F4A] border border-sky-100 flex items-center justify-center shrink-0">
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
@@ -4243,7 +4243,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         >
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#003857] border border-sky-100 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#002F4A] border border-sky-100 flex items-center justify-center shrink-0">
                 <Layers className="w-4 h-4" />
               </div>
               <div>
@@ -5163,12 +5163,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <span className="inline-flex items-center gap-2 text-slate-900 font-bold">
                 {leaderboardMode === 'staff' ? (
                   <>
-                    <Users className="w-4 h-4 text-[#003857]" />
+                    <Users className="w-4 h-4 text-[#002F4A]" />
                     <span>Top 10 Individual Performers · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
                   </>
                 ) : (
                   <>
-                    <Building2 className="w-4 h-4 text-[#003857]" />
+                    <Building2 className="w-4 h-4 text-[#002F4A]" />
                     <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
                   </>
                 )}
@@ -5204,7 +5204,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       ))}
                     </colgroup>
                     <thead>
-                      <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wide select-none">
+                      <tr className="navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold uppercase tracking-wide select-none">
                         <th className="text-center border-b border-white/20">No.</th>
                         {leaderboardMode === 'staff' ? (
                           <>
@@ -5294,7 +5294,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                               </td>
                               <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
-                                <span className="font-bold text-[#003857] text-[13.5px]">
+                                <span className="font-bold text-[#002F4A] text-[13.5px]">
                                   {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                                 </span>
                               </td>
@@ -5357,7 +5357,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               {isTaskMode ? fmtPts(b.totalPoints) : fmtInt(b.totalTasks)}
                             </td>
                             <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
-                              <span className="font-bold text-[#003857] text-[13.5px]">
+                              <span className="font-bold text-[#002F4A] text-[13.5px]">
                                 {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                               </span>
                             </td>
@@ -5384,7 +5384,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         >
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#003857] border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#002F4A] border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
@@ -5411,7 +5411,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   onClick={() => setTimelineExpanded((v) => !v)}
                   aria-expanded={timelineExpanded}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/90 bg-white text-[#003857] hover:bg-slate-50 shadow-2xs transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/90 bg-white text-[#002F4A] hover:bg-slate-50 shadow-2xs transition cursor-pointer"
                 >
                   <span>{timelineExpanded ? 'Collapse (10d)' : `Expand (1 mo · ${Math.min(30, timeSeries.length)}d)`}</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${timelineExpanded ? 'rotate-180' : ''}`} />
@@ -5455,7 +5455,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
             <div className="min-w-[1140px] w-full">
-              <div className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
+              <div className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -5495,7 +5495,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span className="text-right tabular-nums font-normal text-slate-800">
                       {isTaskMode ? fmtPts(t.totalPoints) : fmtInt(t.totalTasks)}
                     </span>
-                    <span className="text-right tabular-nums font-figure font-normal text-[#003857]">
+                    <span className="text-right tabular-nums font-figure font-normal text-[#002F4A]">
                       {isTaskMode ? fmtInt(t.totalTasks) : fmtPts(t.totalPoints)}
                     </span>
                     <span className="text-right tabular-nums">
@@ -5524,7 +5524,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <button
                 type="button"
                 onClick={() => setTimelineExpanded((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold text-[#003857] hover:bg-white border border-slate-200/90 bg-white/80 shadow-2xs transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold text-[#002F4A] hover:bg-white border border-slate-200/90 bg-white/80 shadow-2xs transition cursor-pointer"
               >
                 <span>{timelineExpanded ? 'Collapse to 10 Days' : `Expand to 1 Month (${Math.min(30, timeSeries.length)} Days)`}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${timelineExpanded ? 'rotate-180' : ''}`} />
@@ -5546,7 +5546,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           {/* Section 7 Header Bar */}
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
+              <div className="w-8 h-8 rounded-xl bg-[#002F4A] text-white flex items-center justify-center shrink-0 shadow-2xs">
                 <BarChart3 className="w-4 h-4" />
               </div>
               <div>
@@ -5873,7 +5873,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       onChange={(e) => { const v = e.target.value as 'ALL' | KpiRating; startMatrixTransition(() => setStatusFilter(v)); }}
                       className={`text-xs rounded-xl border px-2.5 py-1 cursor-pointer font-medium outline-none transition ${
                         statusFilter !== 'ALL'
-                          ? 'border-[#004e75]/40 bg-sky-50/90 text-[#003857]'
+                          ? 'border-[#004e75]/40 bg-sky-50/90 text-[#002F4A]'
                           : 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700'
                       }`}
                     >
@@ -5988,12 +5988,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
                       <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
                         <thead>
-                          <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
-                            <th className="sticky left-0 bg-[#003857] z-30 px-1.5 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
+                          <tr className="navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
+                            <th className="sticky left-0 bg-[#002F4A] z-30 px-1.5 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
                               No.
                             </th>
                             <th
-                              className={`sticky left-[36px] bg-[#003857] z-30 px-3 py-2.5 text-left ${tableMode === 'staff' ? 'w-[238px] min-w-[238px]' : 'w-[228px] min-w-[228px] border-r border-slate-700/90 shadow-[2px_0_5px_rgba(0,0,0,0.18)]'} cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20`}
+                              className={`sticky left-[36px] bg-[#002F4A] z-30 px-3 py-2.5 text-left ${tableMode === 'staff' ? 'w-[238px] min-w-[238px]' : 'w-[228px] min-w-[228px] border-r border-slate-700/90 shadow-[2px_0_5px_rgba(0,0,0,0.18)]'} cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20`}
                               onClick={() => {
                                 setMonthlySortKey('name');
                                 setMonthlySortDir((d) => (monthlySortKey === 'name' ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
@@ -6006,7 +6006,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             </th>
                             {tableMode === 'staff' && (
                               <th
-                                className="sticky left-[274px] bg-[#003857] z-30 px-1.5 py-2.5 text-center w-[52px] min-w-[52px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_5px_rgba(0,0,0,0.18)]"
+                                className="sticky left-[274px] bg-[#002F4A] z-30 px-1.5 py-2.5 text-center w-[52px] min-w-[52px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_5px_rgba(0,0,0,0.18)]"
                                 onClick={() => {
                                   setMonthlySortKey('branchId');
                                   setMonthlySortDir((d) => (monthlySortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
@@ -6222,7 +6222,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-600 border-l border-slate-200/60 whitespace-nowrap">
                                           {isTaskMode ? fmtPts(rowPts) : fmtInt(rowTasks)}
                                         </td>
-                                        <td className="px-2 py-2 text-center tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap">
+                                        <td className="px-2 py-2 text-center tabular-nums font-figure font-medium text-[#002F4A] whitespace-nowrap">
                                           {isTaskMode ? fmtInt(row.total) : fmtPts(row.total)}
                                         </td>
                                         <td className="px-1.5 py-2 text-center tabular-nums font-normal text-slate-700">
@@ -6277,7 +6277,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   <td
                                     key={m.ym}
                                     className={`px-1 py-2 text-center tabular-nums text-[11.5px] font-figure border-r border-slate-200 ${
-                                      m.isCurrent ? 'bg-sky-100/50 text-[#003857] font-medium' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
+                                      m.isCurrent ? 'bg-sky-100/50 text-[#002F4A] font-medium' : mSum > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
                                     }`}
                                     title={`All ${tableMode === 'branch' ? 'branches' : 'staff'} in ${m.fullLabel}: ${m.isFuture ? 'Upcoming month' : `${fmtPts(mPts)} pts · ${fmtInt(mTasks)} tasks`}`}
                                   >
@@ -6288,7 +6288,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 border-l border-slate-300 text-xs whitespace-nowrap">
                                 {isTaskMode ? fmtPts(monthlyTotals.grandPoints) : fmtInt(monthlyTotals.grandTasks)}
                               </td>
-                              <td className="px-2 py-2.5 text-center tabular-nums font-medium text-[#003857] text-xs whitespace-nowrap">
+                              <td className="px-2 py-2.5 text-center tabular-nums font-medium text-[#002F4A] text-xs whitespace-nowrap">
                                 {isTaskMode ? fmtInt(monthlyTotals.grandTotal) : fmtPts(monthlyTotals.grandTotal)}
                               </td>
                               <td className="px-1.5 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs">
@@ -6316,12 +6316,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
                         <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
                           <thead>
-                            <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
-                              <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
+                            <tr className="navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
+                              <th className="sticky left-0 bg-[#002F4A] z-30 px-2 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
                                 No.
                               </th>
                               <th
-                                className="sticky left-[36px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[210px] min-w-[210px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_4px_rgba(0,0,0,0.18)]"
+                                className="sticky left-[36px] bg-[#002F4A] z-30 px-3 py-2.5 text-left w-[210px] min-w-[210px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_4px_rgba(0,0,0,0.18)]"
                                 onClick={() => {
                                   setDailySortKey('branchName');
                                   setDailySortDir((d) => (dailySortKey === 'branchName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -6582,7 +6582,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <>
               <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
                 <div className="min-w-[1220px] w-full">
-                <div className={`${KPI_BRANCH_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
+                <div className={`${KPI_BRANCH_GRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff" sortKey="staffCount" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
@@ -6633,7 +6633,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? `${fmtPts(b.totalPoints)}` : fmtInt(b.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
+                            <span className="text-right tabular-nums font-figure font-medium text-[#002F4A] whitespace-nowrap pr-1">
                               {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
@@ -6695,12 +6695,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
                 <thead>
-                  <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
-                    <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
+                  <tr className="navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold uppercase tracking-wider select-none">
+                    <th className="sticky left-0 bg-[#002F4A] z-30 px-2 py-2.5 text-center w-[36px] min-w-[36px] font-semibold text-[11px] text-white/90 border-b border-white/20">
                       No.
                     </th>
                     <th
-                      className="sticky left-[36px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[205px] min-w-[205px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                      className="sticky left-[36px] bg-[#002F4A] z-30 px-3 py-2.5 text-left w-[205px] min-w-[205px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
                       onClick={() => {
                         setDailyStaffSortKey('staffName');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -6712,7 +6712,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </div>
                     </th>
                     <th
-                      className="sticky left-[241px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_4px_rgba(0,0,0,0.18)]"
+                      className="sticky left-[241px] bg-[#002F4A] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] cursor-pointer select-none hover:bg-white/10 transition-colors border-r border-slate-700/90 border-b border-white/20 shadow-[2px_0_4px_rgba(0,0,0,0.18)]"
                       onClick={() => {
                         setDailyStaffSortKey('branchId');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -7001,7 +7001,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           <>
             <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               <div className="min-w-[1220px] w-full">
-                <div className={`${KPI_STAFF_GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
+                <div className={`${KPI_STAFF_GRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[10.5px] font-semibold uppercase tracking-wide px-3 py-2.5`}>
                   <span className="text-center text-white/80">No.</span>
                   <SortableHeader label="Staff" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -7071,7 +7071,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                             </span>
-                            <span className="text-right tabular-nums font-figure font-medium text-[#003857] whitespace-nowrap pr-1">
+                            <span className="text-right tabular-nums font-figure font-medium text-[#002F4A] whitespace-nowrap pr-1">
                               {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                             </span>
                             <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
@@ -7143,7 +7143,7 @@ const TaskPtsCell: React.FC<{
   const taskStr = decimalTasks ? fmtPts(tasks) : fmtInt(tasks);
   const taskUnit = tasks === 1 ? 'task' : 'tasks';
   const ptsStr = fmtPts(pts);
-  const primaryColor = emphasis ? 'text-[#003857] font-semibold' : 'text-slate-800 font-medium';
+  const primaryColor = emphasis ? 'text-[#002F4A] font-semibold' : 'text-slate-800 font-medium';
   return (
     <span
       className={`font-figure tabular-nums block w-full whitespace-nowrap ${alignCls} ${primaryColor}`}

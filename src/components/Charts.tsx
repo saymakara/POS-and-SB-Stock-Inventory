@@ -1003,9 +1003,9 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const isLight = theme === 'light';
     const gridColor = isLight ? 'rgba(148, 163, 184, 0.18)' : 'rgba(255,255,255,0.08)';
     const axisColor = isLight ? '#64748b' : '#94a3b8';
-    const rightAxisColor = isLight ? '#4F518C' : '#a2a5e0';
+    const rightAxisColor = isLight ? '#475569' : '#94a3b8';
     const primaryStroke = primarySeriesMeta.color;
-    const staffStroke = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
+    const staffStroke = isLight ? '#475569' : '#94a3b8';
     const dotFill = isLight ? '#ffffff' : '#0f172a';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
@@ -1251,7 +1251,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.restore();
     }
 
-    // 2. Secondary Series: Dashed Smooth Active Staff Trendline
+    // 2. Secondary Series: G04 Pewter Long Dash Active Staff Trendline (dotless when idle)
     const staffPts = activeItems.map((item, idx) => ({
       x: padLeft + idx * groupW + groupW / 2,
       y: baseY - (item.activeStaff / staffScale.max) * plotH,
@@ -1260,40 +1260,27 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
     if (staffPts.length > 0 && staffPts.some((p) => p.val > 0)) {
       ctx.save();
-      traceMonotoneSpline(ctx, staffPts, padTop, baseY);
-      ctx.lineTo(staffPts[staffPts.length - 1].x, baseY);
-      ctx.lineTo(staffPts[0].x, baseY);
-      ctx.closePath();
-      const staffGrad = ctx.createLinearGradient(0, padTop, 0, baseY);
-      staffGrad.addColorStop(0, hexToRgba(staffStroke, isLight ? 0.07 : 0.10));
-      staffGrad.addColorStop(1, hexToRgba(staffStroke, 0));
-      ctx.fillStyle = staffGrad;
-      ctx.fill();
-      ctx.restore();
-
-      ctx.save();
       ctx.strokeStyle = staffStroke;
-      ctx.lineWidth = 2.1;
+      ctx.lineWidth = 1.85;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.setLineDash([5, 4]);
+      ctx.setLineDash([10, 5]);
       traceMonotoneSpline(ctx, staffPts, padTop, baseY);
       ctx.stroke();
       ctx.restore();
     }
 
-    // 3. Hollow Circular Data Nodes (drawn after both splines so nodes stay crisp)
+    // 3. Data Nodes (Active Staff stays dotless at rest; shows a crisp node only on hover)
     staffPts.forEach((pt, idx) => {
       const isHov = hover?.idx === idx;
-      if (pt.val === 0 && !isHov) return;
-      if (pt.val > 0 && primaryPts[idx]?.val > 0 && Math.abs(pt.y - primaryPts[idx].y) < 10 && !isHov) return;
+      if (!isHov) return;
       ctx.save();
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, isHov ? 4.2 : 2.6, 0, Math.PI * 2);
-      ctx.fillStyle = isHov ? staffStroke : dotFill;
+      ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = staffStroke;
       ctx.fill();
       ctx.lineWidth = 1.8;
-      ctx.strokeStyle = isHov ? dotFill : staffStroke;
+      ctx.strokeStyle = dotFill;
       ctx.stroke();
       ctx.restore();
     });
@@ -1542,8 +1529,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
           >
             <span className="inline-flex items-center gap-1.5">
               <span
-                className={`w-2.5 border-t-[2px] border-dashed inline-block ${
-                  isLight ? 'border-[#4F518C]' : 'border-[#a2a5e0]'
+                className={`w-3.5 border-t-[2px] border-dashed inline-block ${
+                  isLight ? 'border-[#475569]' : 'border-slate-400'
                 }`}
               />
               {hoverItem.isFuture && hoverTotal === 0 && hoverItem.activeStaff === 0

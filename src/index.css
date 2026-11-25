@@ -189,7 +189,7 @@
 /* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
    (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
 .sb-sidebar-gradient {
-  background-color: #002F4A;   /* a little darker than #003857 (18 Nov 2026) */
+  background-color: #002F4A;   /* signature solid sidebar navy blue */
   background-image: none;
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
@@ -498,7 +498,7 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(0, 56, 87, 0.38) !important;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(0, 47, 74, 0.38) !important;
 }
 
 /* Segmented tabs already have a high-contrast active pill; suppress the outer double ring on tab buttons */
@@ -717,7 +717,7 @@ button:hover:not(:disabled),
   font-family: var(--font-mono); font-size: 12px; color: #334155;
   padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;
 }
-.data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
+.data-table .serial-btn:hover { border-color: #002F4A; color: #002F4A; background: #eef5f9; }
 .data-table th:first-child, .data-table td:first-child { padding-left: 16px; }
 /* the action button stays in view on small screens (avoid 51 sticky compositor layers on desktop) */
 .data-table th.col-no, .data-table td.col-no { width: 52px; min-width: 52px; text-align: center; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 12px; padding-left: 14px; }
@@ -805,10 +805,10 @@ button:hover:not(:disabled),
 /* A drop-down filter that is not on "All" is tinted (set by utils/filterMarks.ts) */
 select[data-filtered="true"] {
   background-color: #e3f0f8 !important;
-  border-color: #003857 !important;
-  color: #003857 !important;
+  border-color: #002F4A !important;
+  color: #002F4A !important;
   font-weight: 600;
-  box-shadow: 0 0 0 2px rgba(0, 56, 87, 0.14);
+  box-shadow: 0 0 0 2px rgba(0, 47, 74, 0.14);
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="dark"] select[data-filtered="true"] {
@@ -1307,7 +1307,7 @@ img { height: auto; }
 /* cards: a barely-there shadow lift on hover (pointer devices only) */
 @media (hover: hover) {
   .fr-table-frame, .surface-card { transition: box-shadow 260ms var(--ease-premium), border-color 260ms var(--ease-premium); }
-  .fr-table-frame:hover { box-shadow: 0 6px 22px -10px rgba(0, 56, 87, 0.22); }
+  .fr-table-frame:hover { box-shadow: 0 6px 22px -10px rgba(0, 47, 74, 0.22); }
 }
 
 /* the thin, quiet scroll bar of tables and lists */
@@ -1417,7 +1417,7 @@ b, strong { font-weight: 700; }
 }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-md { height: 36px; padding: 0 14px; border-radius: var(--radius-xl); }
-.btn-primary { background: #003857; color: #ffffff; }
+.btn-primary { background: #002F4A; color: #ffffff; }
 .btn-primary:not(:disabled):hover { background: #1e5b88; }
 .btn-secondary { background: #ffffff; color: #334155; border-color: #e2e8f0; }
 .btn-secondary:not(:disabled):hover { background: #f8fafc; border-color: #cbd5e1; }

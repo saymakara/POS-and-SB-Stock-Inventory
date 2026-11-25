@@ -511,56 +511,56 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     switch (activeSubTab) {
       case 'brand_logo':
         return {
-          icon: <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'Brand & Logo Studio',
           subtitle: 'Portal Branding, Logos & Live Mockups',
           desc: 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.',
         };
       case 'kpi':
         return {
-          icon: <Target className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Target className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'KPI Points & Rules',
           subtitle: 'Institutional Targets & Scoring Matrix',
           desc: 'Configure point weights, operational SLA targets, monthly goals, and role-based performance evaluation parameters.',
         };
       case 'hardware':
         return {
-          icon: <Layers className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Layers className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'Serial Standards & Allocation',
           subtitle: 'Hardware Prefixes & Model Formats',
           desc: 'Manage hardware serial prefixes, validation patterns, and model stock allocation rules across warehouses.',
         };
       case 'sla':
         return {
-          icon: <Clock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Clock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'SLA & Turnaround Policies',
           subtitle: 'Operational SLAs & Escalation Timers',
           desc: 'Define service level agreements, turnaround targets for technician visits, and resolution escalations.',
         };
       case 'customFields':
         return {
-          icon: <SlidersHorizontal className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <SlidersHorizontal className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'Custom & Dynamic Fields',
           subtitle: 'Schema Extensions & Field Governance',
           desc: 'Manage dynamic metadata fields, validation constraints, and operational tags across devices and merchants.',
         };
       case 'data':
         return {
-          icon: <Database className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Database className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'Data Backup & Export',
           subtitle: 'Snapshots, Export & Reset Controls',
           desc: 'Manage full system backups, export audit records, and securely administer database restore points.',
         };
       case 'security':
         return {
-          icon: <Lock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Lock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'Security, Branding & Telegram',
           subtitle: 'Access Controls & Bot Notifications',
           desc: 'Configure notification channels, Telegram bot alerts, audit log policies, and institutional access security.',
         };
       case 'health':
         return {
-          icon: <Activity className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Activity className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'System Health & Telemetry',
           subtitle: 'Database Connectivity & Services Status',
           desc: 'Real-time health telemetry across Supabase database tables, edge functions, API latency, and queue states.',
@@ -568,7 +568,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       case 'policy':
       default:
         return {
-          icon: <Settings className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Settings className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />,
           title: 'System & Policy Settings',
           subtitle: '',
           desc: 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.',
@@ -613,7 +613,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 type="button"
                 onClick={handleSave}
                 disabled={!isAdminLike}
-                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm shadow-2xs cursor-pointer bg-[#002F4A] hover:bg-[#002238] text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
                 <span>Save Configuration</span>
@@ -633,7 +633,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           role="tablist"
         >
           {([
-            { id: 'policy' as const, label: 'MID & Battery Policy', icon: ShieldCheck, accent: 'text-[#003857] dark:text-sky-400' },
+            { id: 'policy' as const, label: 'MID & Battery Policy', icon: ShieldCheck, accent: 'text-[#002F4A] dark:text-sky-400' },
             {
               id: 'kpi' as const,
               label: 'KPI Points & Rules',
@@ -712,7 +712,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             ) : loadingKpi ? (
               <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#003857] mb-2" />
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#002F4A] mb-2" />
                 <p className="text-xs text-slate-500 font-medium">Loading KPI point rules and target settings...</p>
               </div>
             ) : (
@@ -2014,7 +2014,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={onExportBackup}
-                    className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-[#002F4A] hover:bg-[#002238] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>Download Complete JSON Backup</span>
@@ -2155,7 +2155,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     onChange={(e) =>
                       setFormState({ ...formState, bankInstitutionName: e.target.value })
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                   />
                 </div>
 
@@ -2171,7 +2171,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         sessionTimeoutMinutes: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                   >
                     <option value={15}>15 Minutes</option>
                     <option value={30}>30 Minutes (Recommended)</option>
@@ -2189,7 +2189,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     onChange={(e) =>
                       setFormState({ ...formState, phoneReviewScope: e.target.value as 'PHNOM_PENH' | 'ALL' })
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                   >
                     <option value="ALL">Phnom Penh and Regional staff</option>
                     <option value="PHNOM_PENH">Phnom Penh staff only</option>
@@ -2204,7 +2204,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               {/* LEFT COLUMN: Telegram Bot Alert Config & Default Group */}
               <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
                 <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#003857] border border-sky-200 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#002F4A] border border-sky-200 flex items-center justify-center">
                     <Send className="w-4 h-4 text-sky-600" />
                   </div>
                   <div>
@@ -2226,7 +2226,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowBotFatherGuide((prev) => !prev)}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003857] hover:underline cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#002F4A] hover:underline cursor-pointer"
                       >
                         <HelpCircle className="w-3.5 h-3.5" />
                         {showBotFatherGuide ? 'Hide Token Guide' : 'Where is my Bot Token?'}
@@ -2255,7 +2255,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 navigator.clipboard?.writeText('/mybots');
                                 if (onToast) onToast('Copied "/mybots" to clipboard!');
                               }}
-                              className="px-2 py-0.5 rounded bg-[#003857] text-white text-[10px] font-bold hover:bg-[#002a42] cursor-pointer inline-flex items-center gap-1"
+                              className="px-2 py-0.5 rounded bg-[#002F4A] text-white text-[10px] font-bold hover:bg-[#002238] cursor-pointer inline-flex items-center gap-1"
                             >
                               <Copy className="w-3 h-3" />
                               Copy
@@ -2281,7 +2281,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           value={tgBotToken}
                           onChange={(e) => setTgBotToken(e.target.value)}
                           placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
-                          className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                          className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                         />
                         <button
                           type="button"
@@ -2365,7 +2365,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
                                 if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-[#003857] text-white text-[11px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-[#002F4A] text-white text-[11px] font-bold cursor-pointer"
                             >
                               Copy Command
                             </button>
@@ -2486,7 +2486,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         value={tgConfigChatId}
                         onChange={(e) => setTgConfigChatId(e.target.value)}
                         placeholder="e.g. -5428585935 or -1005428585935"
-                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                       />
                       {tgConfigChatId && (
                         <button
@@ -2513,7 +2513,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       value={tgWebhookUrl}
                       onChange={(e) => setTgWebhookUrl(e.target.value)}
                       placeholder="Leave blank to use direct Bot Token above"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
                     />
                   </div>
 
@@ -2554,7 +2554,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             }
                           }
                         }}
-                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
+                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>
@@ -2676,7 +2676,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                               <div className="min-w-0 space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-black text-[#003857]">{rg.name}</span>
+                                  <span className="text-xs font-black text-[#002F4A]">{rg.name}</span>
                                   <span className="px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
                                     {rg.chatId}
                                   </span>
@@ -2721,7 +2721,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                   className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
                                   title={`Send a test notification to ${rg.name}`}
                                 >
-                                  <Send className="w-3 h-3 text-[#003857]" />
+                                  <Send className="w-3 h-3 text-[#002F4A]" />
                                   <span>{rgTestingId === rg.id ? 'Sending...' : 'Test Group'}</span>
                                 </button>
 

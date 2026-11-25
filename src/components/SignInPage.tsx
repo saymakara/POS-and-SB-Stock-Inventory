@@ -223,7 +223,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         >
           {/* Card Top Banner Strip */}
           <div className="px-6 sm:px-8 pt-7 pb-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/70 to-white text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#003857] text-white shadow-md mb-3">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#002F4A] text-white shadow-md mb-3">
               <Lock className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-zinc-900">
@@ -249,7 +249,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     placeholder="Enter Employee ID"
                     required
                     disabled={lockoutSeconds > 0}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#003857] focus:ring-3 focus:ring-[#003857]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#002F4A] focus:ring-3 focus:ring-[#002F4A]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </div>
               </div>
@@ -267,7 +267,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     placeholder="Enter password"
                     required
                     disabled={lockoutSeconds > 0}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#003857] focus:ring-3 focus:ring-[#003857]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#002F4A] focus:ring-3 focus:ring-[#002F4A]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
                   />
                   <button
                     type="button"
@@ -290,7 +290,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-slate-300 text-[#003857] focus:ring-[#003857]/20 cursor-pointer"
+                    className="rounded border-slate-300 text-[#002F4A] focus:ring-[#002F4A]/20 cursor-pointer"
                   />
                   <span className="text-slate-600 font-medium text-xs">
                     Remember this device
@@ -333,7 +333,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isAuthenticating || lockoutSeconds > 0}
-                className="w-full py-3 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-xl bg-[#002F4A] hover:bg-[#002238] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAuthenticating ? (
                   <>

@@ -688,7 +688,7 @@ const SimCardTabComponent: React.FC<{
                         whileTap={WHILE_TAP_BUTTON}
                         type="button"
                         onClick={() => setManagingSim(s)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-[#003857] hover:text-white text-slate-700 transition cursor-pointer border border-slate-200"
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-[#002F4A] hover:text-white text-slate-700 transition cursor-pointer border border-slate-200"
                         title="Manage SIM Card Lifecycle & Device Assignment"
                       >
                         Manage

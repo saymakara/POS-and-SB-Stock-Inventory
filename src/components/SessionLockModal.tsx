@@ -216,7 +216,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
                   placeholder={isSupabaseConfigured ? 'Your password' : `Enter ${validEmpPin} or 1234`}
                   className={`w-full text-center tracking-widest text-sm font-mono rounded-xl px-3 py-2.5 border focus:outline-none ${
                     isLight
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/15'
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-[#002F4A] focus:ring-2 focus:ring-[#002F4A]/15'
                       : 'bg-[#18191e] border-white/10 text-white focus:border-white/30'
                   }`}
                 />
@@ -230,7 +230,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
               <button
                 type="submit"
                 disabled={isUnlocking}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-60 active:scale-[0.98]"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-[#002F4A] hover:bg-[#002238] text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-60 active:scale-[0.98]"
               >
                 {isUnlocking ? (
                   <>

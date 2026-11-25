@@ -685,7 +685,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
               type="button"
               onClick={() => onNavigateTab('kpi_performance')}
               className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors duration-150 ${
-                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
               }`}
             >
               Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -1014,7 +1014,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
                   className={`relative px-2.5 py-1 rounded-full text-[11px] font-figure cursor-pointer transition-colors duration-150 ${
                     active
                       ? isLight
-                        ? 'text-[#003857] font-bold'
+                        ? 'text-[#002F4A] font-bold'
                         : 'text-white font-bold'
                       : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
                   }`}
@@ -1041,7 +1041,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               type="button"
               onClick={() => onNavigateTab('mobile_sync')}
               className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors duration-150 ${
-                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
               }`}
             >
               App Review <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -3015,7 +3015,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
                       active
                         ? isLight
-                          ? 'text-[#003857] font-bold'
+                          ? 'text-[#002F4A] font-bold'
                           : 'text-white font-bold'
                         : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
                     }`}
@@ -3462,7 +3462,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               ) : (
                 <>
                   <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
-                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
                 </>
               )}
             </div>
@@ -3530,7 +3530,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               ) : (
                 <>
                   <span>{fmtNum(deploymentSummary.pos)} POS · {fmtNum(deploymentSummary.sb)} SB</span>
-                  <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>
+                  <span className={`font-semibold group-hover:underline whitespace-nowrap ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}>
                     {fmtNum(deploymentSummary.uniqueMerchants)} merchants
                   </span>
                 </>
@@ -3631,7 +3631,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         e.stopPropagation();
                         onNavigateTab?.('requisitions');
                       }}
-                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}
                     >
                       {fmtNum(queues.reqPend)} req
                     </button>
@@ -3642,7 +3642,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         e.stopPropagation();
                         onNavigateTab?.('push_configuring');
                       }}
-                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+                      className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}
                     >
                       {fmtNum(queues.pushPend)} push
                     </button>
@@ -3716,7 +3716,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               ) : (
                 <>
                   <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
-                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
+                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}>{reachSharePct}%</span>
                 </>
               )}
             </div>
@@ -3789,7 +3789,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 velocityChannel === 'ALL'
                   ? channelActivity.totalTasks
                   : channelTotals[velocityChannel];
-              const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
+              const staffStrokeColor = isLight ? '#475569' : '#94a3b8';
 
               return (
                 <>
@@ -3839,17 +3839,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             : 'bg-slate-800/75 border-slate-700/80 text-slate-200'
                         }`}
                       >
-                        <span className="relative inline-flex items-center justify-center w-3.5 h-2 shrink-0">
-                          <span
-                            className="w-3.5 border-t-[2px] border-dashed inline-block"
-                            style={{ borderColor: staffStrokeColor }}
-                          />
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full border-[1.5px] absolute ${
-                              isLight ? 'bg-white' : 'bg-slate-900'
-                            }`}
-                            style={{ borderColor: staffStrokeColor }}
-                          />
+                        <span className="inline-flex items-center justify-center w-4 h-2 shrink-0" aria-hidden="true">
+                          <svg width="16" height="4" viewBox="0 0 16 4" className="block">
+                            <line
+                              x1="1"
+                              y1="2"
+                              x2="15"
+                              y2="2"
+                              stroke={staffStrokeColor}
+                              strokeWidth="1.9"
+                              strokeDasharray="6 3.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
                         </span>
                         Active staff
                       </span>
@@ -3998,7 +4000,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 onClick={() => onNavigateTab('inventory_pos')}
                 className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap cursor-pointer transition ${
                   isLight
-                    ? 'text-[#004e75] hover:text-[#003857]'
+                    ? 'text-[#004e75] hover:text-[#002F4A]'
                     : 'text-sky-400 hover:text-sky-300'
                 }`}
               >
@@ -4275,7 +4277,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         type="button"
                         onClick={() => onNavigateTab('inventory_pos')}
                         className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
-                          isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                          isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
                         }`}
                       >
                         Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -4383,7 +4385,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           type="button"
                           onClick={() => onNavigateTab('sim_cards')}
                           className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                            isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                            isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
                           }`}
                         >
                           SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -4392,7 +4394,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           type="button"
                           onClick={() => onNavigateTab('requisitions')}
                           className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
-                            isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                            isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
                           }`}
                         >
                           Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -4517,7 +4519,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               type="button"
               onClick={() => onNavigateTab(role === 'SUPER_ADMIN' ? 'settings' : 'audit_log')}
               className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition self-start lg:self-auto ${
-                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                isLight ? 'text-[#004e75] hover:text-[#002F4A]' : 'text-sky-400 hover:text-sky-300'
               }`}
             >
               {role === 'SUPER_ADMIN' ? 'Health' : 'Audit'} <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />

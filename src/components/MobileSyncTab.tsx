@@ -646,7 +646,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
       label: 'Return Device',
       sub: 'Return to Bank',
       icon: RefreshCw,
-      activeClass: 'bg-[#003857] text-white border-[#003857] shadow-sm',
+      activeClass: 'bg-[#002F4A] text-white border-[#002F4A] shadow-sm',
     },
     {
       id: 'LOST',
@@ -1709,7 +1709,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           <div className={`p-4 sm:p-5 border-b ${isLight ? 'sb-card-header-light' : 'sb-card-header-dark'} flex flex-col gap-3`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-9 h-9 rounded-xl bg-[#002F4A] text-white flex items-center justify-center shrink-0 shadow-md">
                   <Smartphone className="w-4.5 h-4.5 text-sky-400" />
                 </div>
                 <div>
@@ -1980,7 +1980,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     setTgSavedNotice(true);
                     setTimeout(() => setTgSavedNotice(false), 2000);
                   }}
-                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer"
+                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer"
                 >
                   {tgSavedNotice ? 'Webhook Saved ✓' : 'Save Webhook'}
                 </button>

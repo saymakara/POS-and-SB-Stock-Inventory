@@ -210,7 +210,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             tabIndex={clickable ? 0 : undefined}
             aria-pressed={clickable && stage !== 'FAULTY' ? isSelected : undefined}
             aria-label={a11yLabel}
-            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 select-none group shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003857] ${
+            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 select-none group shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002F4A] ${
               clickable ? 'cursor-pointer' : ''
             } ${isSelected ? style.ringActive : 'hover:border-zinc-400'}`}
           >

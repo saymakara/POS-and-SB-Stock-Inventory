@@ -302,14 +302,14 @@ export const StaffAccountsTab: React.FC<{
   };
 
   const input =
-    'px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold outline-none focus:border-[#003857]';
+    'px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold outline-none focus:border-[#002F4A]';
   return (
     <div className="flex flex-col gap-4 apple-tab-panel">
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="Staff accounts header">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <UserCog className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <UserCog className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />
               <span>
                 Staff Accounts
                 <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · Access &amp; Permissions</span>
@@ -377,7 +377,7 @@ export const StaffAccountsTab: React.FC<{
       )}
 
       {form && (
-        <div className="bg-white rounded-2xl border border-[#003857]/30 p-6 shadow-md flex flex-col gap-3.5">
+        <div className="bg-white rounded-2xl border border-[#002F4A]/30 p-6 shadow-md flex flex-col gap-3.5">
           <div className="text-sm font-extrabold text-slate-900">
             {isNew ? 'New account' : `Edit ${form.emp_id}`}
           </div>
@@ -564,7 +564,7 @@ export const StaffAccountsTab: React.FC<{
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#002F4A] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
               >
                 {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
               </button>
@@ -591,13 +591,13 @@ export const StaffAccountsTab: React.FC<{
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search ID, name, branch, location…"
                 aria-label="Search accounts"
-                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-[#003857]"
+                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-[#002F4A]"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-normal bg-slate-50 text-slate-800 outline-none focus:border-[#003857] cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-normal bg-slate-50 text-slate-800 outline-none focus:border-[#002F4A] cursor-pointer"
             >
               <option value="ALL">All Statuses ({list?.length || 0})</option>
               <option value="ONLINE">Online Now ({(list || []).filter(isStaffOnline).length})</option>
@@ -820,7 +820,7 @@ const StaffRow = memo(function StaffRow({
         )}
       </td>
       <td className="px-3 py-2.5">
-        {a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#003857]" />}
+        {a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#002F4A]" />}
         {ROLE_LABEL[a.role]}
       </td>
       <td className="px-3 py-2.5">
@@ -863,7 +863,7 @@ const StaffRow = memo(function StaffRow({
                 <button
                   type="button"
                   onClick={() => onEdit(a)}
-                  className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-[#003857] hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
+                  className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-[#002F4A] hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
                 >
                   Edit
                 </button>

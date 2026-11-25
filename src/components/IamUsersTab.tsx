@@ -154,9 +154,9 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
               {isSuperAdmin ? (
-                <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+                <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />
               ) : (
-                <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+                <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#002F4A]" aria-hidden />
               )}
               <span>
                 IAM Access Control
@@ -167,7 +167,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               Fine-grained authority matrix and staff identity management across Head Office and nationwide branches.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#eef5f9] text-[#002F4A] border border-[#002F4A]/20">
                 {filteredUsers.length} Staff Accounts
               </span>
               {isSuperAdmin && (
@@ -359,12 +359,12 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                     </td>
                     <td className="py-3 px-3">
                       {u.accessRole === 'SUPER_ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#003857] text-white shadow-2xs">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#002F4A] text-white shadow-2xs">
                           <ShieldAlert className="w-3 h-3 text-sky-300" /> SUPER ADMIN
                         </span>
                       ) : u.accessRole === 'ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#eef5f9] text-[#003857] border border-[#003857]/20">
-                          <ShieldCheck className="w-3 h-3 text-[#003857]" /> ADMIN HQ
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#eef5f9] text-[#002F4A] border border-[#002F4A]/20">
+                          <ShieldCheck className="w-3 h-3 text-[#002F4A]" /> ADMIN HQ
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">

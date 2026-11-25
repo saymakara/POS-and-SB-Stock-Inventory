@@ -69,7 +69,7 @@ export const KhqrRetentionSection = memo(function KhqrRetentionSection({ isSuper
             </label>
             {isSuperAdmin ? (
               <button type="button" onClick={save} disabled={keep === info.keepMonths || !!busy}
-                className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold flex items-center gap-2 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+                className="px-4 py-2 rounded-xl bg-[#002F4A] hover:bg-[#002238] text-white text-xs font-semibold flex items-center gap-2 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
                 {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save
               </button>
             ) : (

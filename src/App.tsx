@@ -4584,7 +4584,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                     }
                     setActiveAlertNotif(null);
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer shadow-xs transition"
+                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#002F4A] hover:bg-[#002238] text-white cursor-pointer shadow-xs transition"
                 >
                   Review Request
                 </button>
@@ -4659,7 +4659,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.6 }}
-                className="pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-md border border-white/20 bg-[#003857]/95 dark:bg-[#002840]/95 shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65),0_6px_16px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.22)]"
+                className="pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-md border border-white/20 bg-[#002F4A]/95 dark:bg-[#002840]/95 shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65),0_6px_16px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.22)]"
               >
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${iconBox}`}>
                   <Icon className="w-4 h-4" />
@@ -4707,7 +4707,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         </div>
       )}
       {!serverError && (savePaused || newVersion) && (
-        <div role="alert" className={`fixed top-0 inset-x-0 z-[70] text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3 ${savePaused ? 'bg-rose-700' : 'bg-[#003857]'}`}>
+        <div role="alert" className={`fixed top-0 inset-x-0 z-[70] text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3 ${savePaused ? 'bg-rose-700' : 'bg-[#002F4A]'}`}>
           <span>{savePaused ? 'Saving is paused because several saves failed. Your last change may not be saved – please reload the page.' : 'A new version of this system is available. Please reload to use it.'}</span>
           <button type="button" onClick={() => window.location.reload()} className="underline cursor-pointer">Reload now</button>
         </div>
@@ -5346,7 +5346,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       <button
                         type="button"
                         onClick={() => setActiveTab('dashboard')}
-                        className="mt-4 px-4 py-2 rounded-xl bg-[#003857] text-white text-xs font-bold hover:bg-[#002a42] transition cursor-pointer"
+                        className="mt-4 px-4 py-2 rounded-xl bg-[#002F4A] text-white text-xs font-bold hover:bg-[#002238] transition cursor-pointer"
                       >
                         Return to Dashboard
                       </button>

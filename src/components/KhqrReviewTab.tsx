@@ -360,7 +360,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <span className="text-[12px] text-slate-500">· latest month only</span>
           </div>
           <div className="min-w-[880px]">
-            <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+            <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
               <span>Month</span>
               <span className="text-right">Entries</span>
               <span className="text-right">New Installation</span>
@@ -555,7 +555,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             exit={{ opacity: 0, y: -6 }}
             transition={SPRING}
             onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(true); setNewCount(0); }}
-            className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#003857] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002a42]"
+            className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#002F4A] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002238]"
           >
             <Sparkles className="w-3.5 h-3.5" />
             {newCount} new {newCount === 1 ? 'entry' : 'entries'} · Show
@@ -581,7 +581,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* Entries */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="KHQR entries">
         <div className="min-w-[1160px]">
-          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
             {(() => {
               const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
               const allHeader = headerItems.length > 0 && headerItems.every((i) => pick.sel.has(i.id));
@@ -717,7 +717,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         </span>
       </div>
       <div className="min-w-[1080px]">
-        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
           <NoCell
             header
             box={isSuper && pageItems.length > 0 && (
@@ -839,7 +839,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
         <span className="text-[12px] text-slate-500">· same day (Phnom Penh time) · {periodLabel}</span>
       </div>
       <div className="min-w-[1160px]">
-        <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
+        <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
           <NoCell header>No.</NoCell>
           <span>Date</span>
           <span>MID</span>

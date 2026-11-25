@@ -279,7 +279,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
-              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden />
+              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#002F4A]' : 'text-sky-300'}`} aria-hidden />
               <span>Historical Merchant Records</span>
             </h1>
 
@@ -309,7 +309,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Total Decommissioned
               </span>
-              <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#002F4A]/12 text-[#002F4A] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
                 <RotateCcw className="w-4 h-4" />
               </div>
             </div>
@@ -318,7 +318,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
               <span>Historical returns</span>
-              <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Archival</span>
+              <span className="text-[#002F4A] dark:text-[#7cc4ed] font-semibold">Archival</span>
             </div>
           </div>
 

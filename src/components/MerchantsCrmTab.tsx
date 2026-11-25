@@ -486,7 +486,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   // --- Monthly Hardware Deployment Trends per Merchant MID (Recharts Data Engine) ---
   const MID_SERIES_COLORS = [
     // (31 Oct 2026, UI standard) six clearly different colours (three navies looked the same; green and red read as status)
-    '#003857', // ABA navy
+    '#002F4A', // ABA navy
     '#3b8fc4', // light brand blue
     '#d9822b', // orange
     '#8b5cf6', // violet
@@ -727,7 +727,7 @@ return (
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
-              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
+              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#002F4A]' : 'text-sky-300'}`} />
               <span>Merchant Deployment &amp; Hardware</span>
             </h1>
             <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
@@ -752,8 +752,8 @@ return (
               className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer ${
                 showTrendChart
                   ? isLight
-                    ? 'bg-[#003857] text-white border-[#003857]'
-                    : 'bg-white text-[#003857] border-white'
+                    ? 'bg-[#002F4A] text-white border-[#002F4A]'
+                    : 'bg-white text-[#002F4A] border-white'
                   : isLight
                   ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -772,7 +772,7 @@ return (
               <span className={`text-xs font-semibold ${subtextClass}`}>
                 Active Merchants
               </span>
-              <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-[#002F4A]/12 text-[#002F4A] dark:text-[#7cc4ed] flex items-center justify-center">
                 <Store className="w-4 h-4" />
               </div>
             </div>
@@ -803,7 +803,7 @@ return (
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
               <span>POS (2…) &bull; SB (6…)</span>
-              <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Swapped Units</span>
+              <span className="text-[#002F4A] dark:text-[#7cc4ed] font-semibold">Swapped Units</span>
               {/* Removed Full Suite */}
             </div>
           </div>
@@ -855,7 +855,7 @@ return (
       <div className={`${cardClass} rounded-xl p-4 sm:p-5 flex flex-col gap-4`}>
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-[#002F4A]/12 text-[#002F4A] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
               <BarChart3 className="w-4.5 h-4.5" />
             </div>
             <div>
@@ -990,7 +990,7 @@ return (
 
         {/* Recharts Responsive Canvas */}
         {!trendHasData ? (
-          <div className={`h-40 w-full flex flex-col items-center justify-center text-center rounded-xl border border-dashed ${isLight ? 'border-slate-300' : 'border-[#003857]'}`}>
+          <div className={`h-40 w-full flex flex-col items-center justify-center text-center rounded-xl border border-dashed ${isLight ? 'border-slate-300' : 'border-[#002F4A]'}`}>
             <BarChart3 className="w-5 h-5 text-slate-400 mb-1.5" />
             <p className={`text-xs font-semibold ${headingClass}`}>No deployments recorded in this period</p>
             <p className={`text-[11px] ${subtextClass}`}>
@@ -1022,7 +1022,7 @@ return (
                 <XAxis
                   dataKey="month"
                   tick={{ fill: isLight ? '#002f49' : '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-                  axisLine={{ stroke: isLight ? '#cbd8e3' : '#003857' }}
+                  axisLine={{ stroke: isLight ? '#cbd8e3' : '#002F4A' }}
                   tickLine={false}
                   interval={monthTickInterval}
                 />
@@ -1036,7 +1036,7 @@ return (
                 <Tooltip
                   contentStyle={{
                     backgroundColor: isLight ? '#ffffff' : '#001d2e',
-                    borderColor: isLight ? '#cbd8e3' : '#003857',
+                    borderColor: isLight ? '#cbd8e3' : '#002F4A',
                     borderRadius: '8px',
                     fontSize: '12px',
                     fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -1078,7 +1078,7 @@ return (
                 <XAxis
                   dataKey="month"
                   tick={{ fill: isLight ? '#002f49' : '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-                  axisLine={{ stroke: isLight ? '#cbd8e3' : '#003857' }}
+                  axisLine={{ stroke: isLight ? '#cbd8e3' : '#002F4A' }}
                   tickLine={false}
                   interval={monthTickInterval}
                 />
@@ -1091,7 +1091,7 @@ return (
                 <Tooltip
                   contentStyle={{
                     backgroundColor: isLight ? '#ffffff' : '#001d2e',
-                    borderColor: isLight ? '#cbd8e3' : '#003857',
+                    borderColor: isLight ? '#cbd8e3' : '#002F4A',
                     borderRadius: '8px',
                     fontSize: '12px',
                     fontFamily: 'Plus Jakarta Sans, sans-serif',

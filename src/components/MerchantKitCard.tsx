@@ -170,7 +170,7 @@ const KitAddDialog: React.FC<{ device: Device; kit?: DeviceKit; baseline: boolea
       <fieldset className="flex flex-wrap gap-2" aria-label="Connection">
         <legend className="text-xs font-semibold text-slate-600 mb-1.5 w-full">Connection</legend>
         {(['SIM', 'WIFI'] as const).map((c) => (
-          <label key={c} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm cursor-pointer ${conn === c ? 'border-[#003857] bg-sky-50' : 'border-slate-200'}`}>
+          <label key={c} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm cursor-pointer ${conn === c ? 'border-[#002F4A] bg-sky-50' : 'border-slate-200'}`}>
             <input type="radio" name="kit-conn" checked={conn === c} onChange={() => setConn(c)} />{c === 'SIM' ? '4G SIM card' : "Merchant's own Wi-Fi"}
           </label>
         ))}

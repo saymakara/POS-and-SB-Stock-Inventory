@@ -295,7 +295,7 @@ const MaterialSummaryCardsStrip: React.FC<{
 
           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-x-1.5 gap-y-0.5 flex-wrap text-[10.5px] text-slate-600 font-normal">
             <span title="Admin HQ Stock" className="whitespace-nowrap">
-              In Stock: <span className="font-semibold text-[#003857]">{hardwareSummary.adminStock.toLocaleString()}</span>
+              In Stock: <span className="font-semibold text-[#002F4A]">{hardwareSummary.adminStock.toLocaleString()}</span>
             </span>
             <span title="Branch Reserve" className="whitespace-nowrap">
               Reserve: <span className="font-semibold text-sky-700">{hardwareSummary.branchReserve.toLocaleString()}</span>
@@ -351,7 +351,7 @@ const MaterialSummaryCardsStrip: React.FC<{
 
             <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-x-1.5 gap-y-0.5 flex-wrap text-[10.5px] text-slate-600 font-normal">
               <span title="Available In Stock (Head Office)" className="whitespace-nowrap">
-                In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
+                In Stock: <span className="font-semibold text-[#002F4A]">{summary.adminStock.toLocaleString()}</span>
               </span>
               <span title="Under Branch Reserve" className="whitespace-nowrap">
                 Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
@@ -1615,7 +1615,7 @@ const MaterialStockPanelComponent: React.FC<{
                         </td>
 
                         <td className="px-4 py-2.5 text-right font-mono tabular-nums">
-                          <span className={r.onHand > 0 ? 'font-semibold text-[#003857]' : 'text-slate-300'}>
+                          <span className={r.onHand > 0 ? 'font-semibold text-[#002F4A]' : 'text-slate-300'}>
                             {r.onHand.toLocaleString()}
                           </span>
                         </td>
@@ -1645,7 +1645,7 @@ const MaterialStockPanelComponent: React.FC<{
                               </button>
                               <button
                                 type="button"
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-[#003857] hover:text-[#003857] text-slate-700 transition cursor-pointer whitespace-nowrap shadow-2xs"
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-[#002F4A] hover:text-[#002F4A] text-slate-700 transition cursor-pointer whitespace-nowrap shadow-2xs"
                                 onClick={() => {
                                   setDlgParams({ code: r.code, branchId: r.branchId });
                                   setDlg('ADJUST');
@@ -1772,7 +1772,7 @@ const MaterialStockPanelComponent: React.FC<{
                           <button
                             type="button"
                             onClick={() => setManagingItem(s)}
-                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:border-[#003857] hover:text-[#003857] text-slate-700 transition cursor-pointer shadow-2xs"
+                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:border-[#002F4A] hover:text-[#002F4A] text-slate-700 transition cursor-pointer shadow-2xs"
                           >
                             Manage
                           </button>

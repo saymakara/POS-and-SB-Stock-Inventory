@@ -334,7 +334,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   };
 
   const itemClass = `p-3.5 rounded-lg border flex items-center justify-between gap-4 ${
-    isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#001d2e] border-[#003857]'
+    isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#001d2e] border-[#002F4A]'
   }`;
 
   return (

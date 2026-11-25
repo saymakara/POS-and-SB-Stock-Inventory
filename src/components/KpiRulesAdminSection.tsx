@@ -144,7 +144,7 @@ const KpiRuleRow = memo(function KpiRuleRow({
               aria-label={`Points for ${rule.subCategory}`}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              className="w-20 px-2 py-1 text-right font-figure font-medium text-slate-900 rounded-lg border border-slate-200 bg-white tabular-nums focus:ring-1 focus:ring-[#003857] outline-none"
+              className="w-20 px-2 py-1 text-right font-figure font-medium text-slate-900 rounded-lg border border-slate-200 bg-white tabular-nums focus:ring-1 focus:ring-[#002F4A] outline-none"
             />
             <span className="text-xs text-slate-500">pts</span>
           </div>
@@ -180,7 +180,7 @@ const KpiRuleRow = memo(function KpiRuleRow({
               disabled={busy || !changed}
               onClick={() => onSaveRule(rule, Math.max(0, Number(draft) || 0))}
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
-                changed ? 'bg-[#003857] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
+                changed ? 'bg-[#002F4A] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
               }`}
             >
               {savingCode === rule.code ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
@@ -575,174 +575,33 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   };
 
   return (
-    <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="Management KPI and KPI Point Settings">
-      <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Settings2 className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
-          <h3 className="text-[13px] font-semibold text-slate-900">Management KPI &amp; KPI Point Matrix</h3>
-          <span className="text-[12px] text-slate-600 font-medium">
-            · {isAdmin ? 'admin editable point weights & targets' : 'official scoring guide'}
-          </span>
-        </div>
+    <div className="space-y-5" aria-label="Management KPI and KPI Point Settings">
+      {/* ───────────── 1. Booth Event, Standby VIP & Per-Submission Rules ───────────── */}
+      {isAdmin && <KpiEventSettingsCard toast={toast} />}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-[11px] flex-wrap`} role="tablist" aria-label="KPI category filter">
-            {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit'] as const).map((c) => {
-              const active = catFilter === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setCatFilter(c)}
-                  className={`relative px-2.5 py-1 rounded-full cursor-pointer transition-colors whitespace-nowrap ${
-                    active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
-                  }`}
-                >
-                  {active && (
-                    <PillMotion
-                      layoutId="kpi-rules-cat-pill"
-                      aria-hidden
-                      transition={SPRING_TAB_PILL}
-                      className={CAPSULE_PILL_CLS}
-                    />
-                  )}
-                  <span className="relative z-10">{c === 'ALL' ? 'All categories' : c}</span>
-                </button>
-              );
-            })}
+      {/* ───────────── 2. KPI Target Points, Work Days & Holiday Settings ───────────── */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="KPI Target Points, Work Days and Holiday Settings">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[13.5px] font-semibold text-slate-900">
+            <Target className="w-4 h-4 text-[#002F4A]" />
+            <span>KPI Target Points, Work Days &amp; Holiday Settings</span>
           </div>
           {isAdmin && (
-            <button
-              type="button"
-              onClick={handleSyncCheck}
-              disabled={Boolean(syncBusy)}
-              data-kpi-sync
-              title="Find Merchant Visit app tasks that have no KPI task yet and add them"
-              className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check' ? 'animate-spin' : ''}`} /> Sync from Merchant Visit
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setShowAdd((s) => !s)}
-              className="btn btn-primary text-xs py-1.5 px-3 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add KPI Task
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="p-4 flex flex-col gap-3.5">
-        {isAdmin && <KpiEventSettingsCard toast={toast} />}
-        {isAdmin && showAdd && (
-          <form onSubmit={handleAddRule} className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-end">
-            <div>
-              <label className="block text-[11px] text-slate-600 mb-1">Task Code</label>
-              <input
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value)}
-                placeholder="e.g. POS_TRAINING"
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono uppercase"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] text-slate-600 mb-1">Category</label>
-              <select
-                value={newCat}
-                onChange={(e) => {
-                  const c = e.target.value as KpiCategory;
-                  setNewCat(c);
-                  if (c === 'Merchant Visit' && newSub.trim()) setNewCode(mvCodeOf(newSub));
-                }}
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAutoCalculateTargets}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[#1e5b88] border border-sky-200 hover:bg-sky-100 text-xs font-medium cursor-pointer transition"
+                title="Auto-calculate Monthly & Quarterly targets: Daily target × Effective Work Days"
               >
-                <option value="POS Terminal">POS Terminal</option>
-                <option value="Sound Box">Sound Box</option>
-                <option value="KHQR">KHQR</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Merchant Visit">Merchant Visit</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] text-slate-600 mb-1">Sub-Category / Task Name</label>
-              <input
-                value={newSub}
-                onChange={(e) => {
-                  setNewSub(e.target.value);
-                  // a Merchant Visit rule counts the visits whose activity has this name: the code follows the name
-                  if (newCat === 'Merchant Visit') setNewCode(mvCodeOf(e.target.value));
-                }}
-                placeholder={newCat === 'Merchant Visit' ? 'The activity name, exactly as in the app (e.g. Account Opening)' : 'e.g. Merchant Staff Training'}
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] text-slate-600 mb-1">Description / Rule</label>
-              <input
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="How this task is verified"
-                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] text-slate-600 mb-1">KPI Points</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={newPts}
-                  onChange={(e) => setNewPts(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-slate-600 mb-1">Unit</label>
-                <input
-                  value={newUnit}
-                  onChange={(e) => setNewUnit(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button type="submit" disabled={savingCode === 'NEW'} className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center">
-                {savingCode === 'NEW' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Auto-calculate targets ({effectiveWorkDays}d)</span>
               </button>
-              <button type="button" onClick={() => setShowAdd(false)} className="btn btn-secondary text-xs py-1.5 px-2.5">Cancel</button>
-            </div>
-          </form>
-        )}
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-              <Target className="w-4 h-4 text-[#003857]" />
-              <span>KPI Target Points, Work Days &amp; Holiday Settings</span>
-            </div>
-            {isAdmin && (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleAutoCalculateTargets}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[#1e5b88] border border-sky-200 hover:bg-sky-100 text-xs font-medium cursor-pointer transition"
-                  title="Auto-calculate Monthly & Quarterly targets: Daily target × Effective Work Days"
-                >
-                  <Calculator className="w-3.5 h-3.5" />
-                  <span>Auto-calculate targets ({effectiveWorkDays}d)</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={savingTargets}
-                  onClick={handleSaveTargets}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002b44] text-white text-xs font-medium cursor-pointer disabled:opacity-50 transition"
+              <button
+                type="button"
+                disabled={savingTargets}
+                onClick={handleSaveTargets}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#002F4A] hover:bg-[#002238] text-white text-xs font-medium cursor-pointer disabled:opacity-50 transition"
                 >
                   {savingTargets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save targets
                 </button>
@@ -750,6 +609,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             )}
           </div>
 
+          <div className="p-5 bg-slate-50/40 space-y-3.5">
           {/* Working Days in Month & Exclude/Include Holiday Rules */}
           <div className="rounded-xl border border-slate-200 bg-white p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Work Days & Schedule (5 cols) */}
@@ -882,7 +742,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             {/* Effective Target Days Summary (3 cols) */}
             <div className="md:col-span-3 bg-slate-50 rounded-lg p-2.5 border border-slate-100 flex flex-col justify-center">
               <div className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-600">Effective Workdays</div>
-              <div className="text-lg font-bold text-[#003857] tabular-nums leading-tight">
+              <div className="text-lg font-bold text-[#002F4A] tabular-nums leading-tight">
                 {effectiveWorkDays} <span className="text-xs font-normal text-slate-600">days in month</span>
               </div>
               <div className="text-[10.5px] text-slate-600">
@@ -949,18 +809,18 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                           return next;
                         });
                       }}
-                      className="w-full text-base font-bold text-[#003857] tabular-nums px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#1e5b88] outline-none"
+                      className="w-full text-base font-bold text-[#002F4A] tabular-nums px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-[#1e5b88] outline-none"
                     />
                   </div>
                 ) : (
-                  <div className="text-base font-bold text-[#003857] tabular-nums mt-1">{fmtPts(tForm[key])} <span className="text-xs font-normal text-slate-500">pts</span></div>
+                  <div className="text-base font-bold text-[#002F4A] tabular-nums mt-1">{fmtPts(tForm[key])} <span className="text-xs font-normal text-slate-500">pts</span></div>
                 )}
                 <p className="text-[11px] text-slate-500 mt-1 leading-tight">{helper}</p>
               </div>
             ))}
           </div>
 
-          <div className="text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+          <div className="text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
             <span>
               Individual Target: Daily (<strong>{tForm.staffDailyTarget} pts</strong>) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays)} pts/mo</strong>
             </span>
@@ -968,10 +828,11 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               Branch Target: Dynamically multiplies Individual Target by the number of staff in each branch (Benchmark 5 staff: <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays * 5)} pts/mo</strong>)
             </span>
           </div>
-        </div>
+          </div>
+      </section>
 
-        {/* ───────────── 3. Management Level KPI Exemption (User-Defined) ───────────── */}
-        <div className="rounded-xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50/70 p-4 space-y-3.5 shadow-2xs">
+      {/* ───────────── 3. Management Level KPI Exemption (User-Defined) ───────────── */}
+      <section className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 p-5 space-y-3.5 shadow-2xs" aria-label="Management Level KPI Exemption">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center shrink-0">
@@ -1189,12 +1050,158 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </div>
             )}
           </div>
+      </section>
+
+      {/* ───────────── 4. KPI Point Matrix ───────────── */}
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="KPI Point Matrix">
+        <div className="px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Settings2 className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
+            <h3 className="text-[13.5px] font-semibold text-slate-900">KPI Point Matrix</h3>
+            <span className="text-[12px] text-slate-500 font-medium">
+              · {isAdmin ? 'admin editable point weights' : 'official scoring guide'}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={`${CAPSULE_TRACK_COMPACT_CLS} text-[11px] flex-wrap`} role="tablist" aria-label="KPI category filter">
+              {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit'] as const).map((c) => {
+                const active = catFilter === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setCatFilter(c)}
+                    className={`relative px-2.5 py-1 rounded-full cursor-pointer transition-colors whitespace-nowrap ${
+                      active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                    }`}
+                  >
+                    {active && (
+                      <PillMotion
+                        layoutId="kpi-rules-cat-pill"
+                        aria-hidden
+                        transition={SPRING_TAB_PILL}
+                        className={CAPSULE_PILL_CLS}
+                      />
+                    )}
+                    <span className="relative z-10">{c === 'ALL' ? 'All categories' : c}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleSyncCheck}
+                disabled={Boolean(syncBusy)}
+                data-kpi-sync
+                title="Find Merchant Visit app tasks that have no KPI task yet and add them"
+                className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check' ? 'animate-spin' : ''}`} /> Sync from Merchant Visit
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowAdd((s) => !s)}
+                className="btn btn-primary text-xs py-1.5 px-3 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add KPI Task
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 overflow-x-auto overflow-y-hidden min-h-[380px] transition-all">
+        {isAdmin && showAdd && (
+          <div className="p-4 border-b border-slate-200 bg-slate-50/70">
+            <form onSubmit={handleAddRule} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5 items-end">
+              <div>
+                <label className="block text-[11px] text-slate-600 mb-1">Task Code</label>
+                <input
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value)}
+                  placeholder="e.g. POS_TRAINING"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-600 mb-1">Category</label>
+                <select
+                  value={newCat}
+                  onChange={(e) => {
+                    const c = e.target.value as KpiCategory;
+                    setNewCat(c);
+                    if (c === 'Merchant Visit' && newSub.trim()) setNewCode(mvCodeOf(newSub));
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                >
+                  <option value="POS Terminal">POS Terminal</option>
+                  <option value="Sound Box">Sound Box</option>
+                  <option value="KHQR">KHQR</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Merchant Visit">Merchant Visit</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-600 mb-1">Sub-Category / Task Name</label>
+                <input
+                  value={newSub}
+                  onChange={(e) => {
+                    setNewSub(e.target.value);
+                    if (newCat === 'Merchant Visit') setNewCode(mvCodeOf(e.target.value));
+                  }}
+                  placeholder={newCat === 'Merchant Visit' ? 'The activity name, exactly as in the app (e.g. Account Opening)' : 'e.g. Merchant Staff Training'}
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-600 mb-1">Description / Rule</label>
+                <input
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  placeholder="How this task is verified"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] text-slate-600 mb-1">KPI Points</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={newPts}
+                    onChange={(e) => setNewPts(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-600 mb-1">Unit</label>
+                  <input
+                    value={newUnit}
+                    onChange={(e) => setNewUnit(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="submit" disabled={savingCode === 'NEW'} className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center">
+                  {savingCode === 'NEW' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+                </button>
+                <button type="button" onClick={() => setShowAdd(false)} className="btn btn-secondary text-xs py-1.5 px-2.5">Cancel</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="overflow-x-auto overflow-y-hidden min-h-[380px] transition-all">
           <table className="w-full text-left border-collapse min-w-[820px]">
             <thead>
-              <tr className="glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
+              <tr className="glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-medium uppercase tracking-wider">
                 <th className="py-2.5 px-3.5 text-right w-12">No.</th>
                 <SortTh k="category" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Category</SortTh>
                 <SortTh k="subCategory" sort={ruleSort} onSort={toggleRuleSort} className="py-2.5 px-3.5 whitespace-nowrap">Sub-Category / KPI Task</SortTh>
@@ -1222,7 +1229,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {syncPreview && (
         createPortal(
@@ -1295,7 +1302,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </button>
               <button type="button" onClick={handleSyncApply} data-kpi-sync-apply
                 disabled={Boolean(syncBusy) || (!syncPreview.candidates.length && !syncIncludeDeleted)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#003857] hover:bg-[#002b44] disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer">
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#002F4A] hover:bg-[#002b44] disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer">
                 {syncBusy === 'apply' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 Add {syncPreview.candidates.length + (syncIncludeDeleted ? syncPreview.deletedSkipped.length : 0)} KPI task(s)
               </button>
@@ -1390,6 +1397,6 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
         document.body
         )
       )}
-    </section>
+    </div>
   );
 });

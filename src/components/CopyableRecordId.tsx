@@ -114,7 +114,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
       className={`group/copy inline-flex items-center gap-1 -ml-1 px-1 py-0.5 rounded text-[11px] font-mono transition cursor-pointer max-w-full select-none active:scale-95 ${
         copied
           ? 'text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold'
-          : 'text-slate-500 hover:text-[#003857] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:text-slate-400'
+          : 'text-slate-500 hover:text-[#002F4A] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:text-slate-400'
       } ${className}`}
       title={title || (copied ? `Copied: ${id}` : `Click to copy ${id}`)}
     >
@@ -123,7 +123,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
         <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden />
       ) : (
         <Copy
-          className="w-3 h-3 text-slate-400 group-hover/copy:text-[#003857] dark:group-hover/copy:text-sky-300 shrink-0 opacity-60 group-hover/copy:opacity-100 transition"
+          className="w-3 h-3 text-slate-400 group-hover/copy:text-[#002F4A] dark:group-hover/copy:text-sky-300 shrink-0 opacity-60 group-hover/copy:opacity-100 transition"
           aria-hidden
         />
       )}

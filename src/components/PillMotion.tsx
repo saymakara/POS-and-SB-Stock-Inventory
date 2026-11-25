@@ -14,11 +14,11 @@ export const CAPSULE_TRACK_COMPACT_CLS =
 export const CAPSULE_PILL_CLS =
   'absolute inset-0 rounded-full bg-white dark:bg-slate-700 shadow-[0_1px_4px_rgba(15,23,42,0.12)] z-0 pointer-events-none';
 export const CAPSULE_BTN_ACTIVE_CLS = 'text-slate-900 dark:text-white font-bold';
-export const CAPSULE_BTN_NAVY_ACTIVE_CLS = 'text-[#003857] dark:text-white font-bold';
+export const CAPSULE_BTN_NAVY_ACTIVE_CLS = 'text-[#002F4A] dark:text-white font-bold';
 export const CAPSULE_BTN_INACTIVE_CLS =
   'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-medium';
 export const CAPSULE_COUNT_ACTIVE_CLS =
-  'bg-slate-100 text-[#003857] border border-slate-200/80 font-bold dark:bg-slate-600 dark:text-white dark:border-slate-500';
+  'bg-slate-100 text-[#002F4A] border border-slate-200/80 font-bold dark:bg-slate-600 dark:text-white dark:border-slate-500';
 export const CAPSULE_COUNT_WARN_ACTIVE_CLS =
   'bg-amber-100 text-amber-800 border border-amber-200/80 font-bold dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30';
 export const CAPSULE_COUNT_INACTIVE_CLS =

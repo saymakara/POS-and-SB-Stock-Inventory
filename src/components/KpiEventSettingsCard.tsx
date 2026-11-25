@@ -59,13 +59,13 @@ export const KpiEventSettingsCard = memo(function KpiEventSettingsCard({ toast, 
     }
   };
 
-  const radio = 'mt-0.5 accent-[#003857] cursor-pointer';
+  const radio = 'mt-0.5 accent-[#002F4A] cursor-pointer';
   return (
-    <section className="rounded-xl border border-slate-200 bg-white" aria-label="Booth Event and Standby VIP KPI" data-kpi-event-settings>
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden" aria-label="Booth Event and Standby VIP KPI" data-kpi-event-settings>
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Tent className="w-4 h-4 text-[#1e5b88]" aria-hidden />
-          <h4 className="text-[13px] font-semibold text-slate-900">Booth Event, Standby VIP &amp; per-submission KPI</h4>
+          <h4 className="text-[13.5px] font-semibold text-slate-900">Booth Event, Standby VIP &amp; per-submission KPI</h4>
         </div>
         <button type="button" onClick={save} disabled={!changed || busy || missing} data-kpi-event-save
           className="btn btn-primary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
@@ -73,13 +73,13 @@ export const KpiEventSettingsCard = memo(function KpiEventSettingsCard({ toast, 
         </button>
       </div>
       {missing ? (
-        <p className="px-4 py-3 text-xs text-amber-700">These settings need the server update (SQL 20261122_03) before they can be used.</p>
+        <p className="px-5 py-3.5 text-xs text-amber-700">These settings need the server update (SQL 20261122_03) before they can be used.</p>
       ) : (
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
           <fieldset className="flex flex-col gap-2">
             <legend className="text-[12px] font-semibold text-slate-800 mb-1">Booth Event</legend>
             {BOOTH_OPTIONS.map((o) => (
-              <label key={o.v} className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${form.boothMode === o.v ? 'border-[#003857]/40 bg-sky-50/60' : 'border-slate-200'}`}>
+              <label key={o.v} className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${form.boothMode === o.v ? 'border-[#002F4A]/40 bg-sky-50/60' : 'border-slate-200'}`}>
                 <input type="radio" name="booth-mode" className={radio} checked={form.boothMode === o.v} onChange={() => setForm({ ...form, boothMode: o.v })} data-booth-mode={o.v} />
                 <span><span className="font-semibold text-slate-900">{o.title}</span><br /><span className="text-slate-600">{o.text}</span></span>
               </label>
@@ -99,7 +99,7 @@ export const KpiEventSettingsCard = memo(function KpiEventSettingsCard({ toast, 
             <fieldset className="flex flex-col gap-2">
               <legend className="text-[12px] font-semibold text-slate-800 mb-1">Standby VIP (AEON)</legend>
               {STANDBY_OPTIONS.map((o) => (
-                <label key={o.v} className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${form.standbyMode === o.v ? 'border-[#003857]/40 bg-sky-50/60' : 'border-slate-200'}`}>
+                <label key={o.v} className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${form.standbyMode === o.v ? 'border-[#002F4A]/40 bg-sky-50/60' : 'border-slate-200'}`}>
                   <input type="radio" name="standby-mode" className={radio} checked={form.standbyMode === o.v} onChange={() => setForm({ ...form, standbyMode: o.v })} data-standby-mode={o.v} />
                   <span><span className="font-semibold text-slate-900">{o.title}</span><br /><span className="text-slate-600">{o.text}</span></span>
                 </label>

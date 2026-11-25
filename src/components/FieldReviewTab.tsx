@@ -296,7 +296,7 @@ const CopySerialButton: React.FC<{ value: string; label?: string }> = ({ value, 
       className={`inline-flex items-center justify-center p-0.5 rounded transition cursor-pointer shrink-0 active:scale-95 ${
         copied
           ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400'
-          : 'text-slate-400 hover:text-[#003857] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:hover:text-sky-300 opacity-60 hover:opacity-100'
+          : 'text-slate-400 hover:text-[#002F4A] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:hover:text-sky-300 opacity-60 hover:opacity-100'
       }`}
     >
       {copied ? <Check className="w-3 h-3" aria-hidden /> : <Copy className="w-3 h-3" aria-hidden />}
@@ -1171,7 +1171,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               { f: 'PENDING' as Filter, label: 'Waiting', Icon: Clock, accent: 'text-amber-500' },
               { f: 'APPROVED' as Filter, label: 'Approved', Icon: CheckCircle2, accent: 'text-emerald-600' },
               { f: 'REJECTED' as Filter, label: 'Rejected', Icon: XCircle, accent: 'text-rose-600' },
-              { f: 'ALL' as Filter, label: 'All', Icon: ScanLine, accent: 'text-[#003857]' },
+              { f: 'ALL' as Filter, label: 'All', Icon: ScanLine, accent: 'text-[#002F4A]' },
             ]).map(({ f, label, Icon, accent }) => {
               const isActive = filter === f;
   return (
@@ -1595,7 +1595,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="min-w-[1185px]">
           <div
-            className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
+            className={`${GRID} glass-table-thead navy-header-bar bg-[#002F4A] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
           >
             <span className="flex justify-center">
@@ -1954,8 +1954,8 @@ const ReviewRow = memo(function ReviewRow({
             onClick={() => onToggle(e.id)}
             className={`px-3 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
               isOpen
-                ? 'bg-[#003857] text-white border-[#003857] shadow-2xs'
-                : 'bg-[#eef5f9] hover:bg-[#003857] text-[#003857] hover:text-white border-[#cfe0ea] hover:border-[#003857]'
+                ? 'bg-[#002F4A] text-white border-[#002F4A] shadow-2xs'
+                : 'bg-[#eef5f9] hover:bg-[#002F4A] text-[#002F4A] hover:text-white border-[#cfe0ea] hover:border-[#002F4A]'
             }`}
           >
             {isOpen ? 'Hide' : 'Manage'}

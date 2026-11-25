@@ -14,14 +14,14 @@ import {
 
 /** (5 Nov 2026) Shared pieces of the material pages, in the portal's own style. */
 
-export const btnPrimary = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs cursor-pointer active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-default';
+export const btnPrimary = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#002F4A] hover:bg-[#002238] text-white shadow-2xs cursor-pointer active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-default';
 export const btnLight = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs cursor-pointer active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-default';
 export const btnRow = 'px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-default';
 export const inputCls = 'w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 outline-none focus:border-slate-400';
 export const labelCls = 'flex flex-col gap-1 text-xs font-semibold text-slate-600';
 
 const STATUS_TONE: Record<SerialStatus, string> = {
-  HQ_STOCK: 'bg-blue-50 text-[#003857] border-blue-200/90 font-semibold',
+  HQ_STOCK: 'bg-blue-50 text-[#002F4A] border-blue-200/90 font-semibold',
   IN_TRANSIT: 'bg-indigo-50 text-indigo-800 border-indigo-100',
   BRANCH_RESERVE: 'bg-sky-50 text-sky-800 border-sky-200/90 font-semibold',
   AT_MERCHANT: 'bg-emerald-50 text-emerald-800 border-emerald-200/90 font-semibold',
@@ -88,7 +88,7 @@ export const BusyLabel: React.FC<{ busy: boolean; children: React.ReactNode }> =
 export const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | string | undefined; sub?: string; tone?: 'bad' }> = ({ icon: Icon, label, value, sub, tone }) => (
   <div className="rounded-2xl bg-white border border-slate-200/90 px-4 py-3.5 shadow-2xs min-w-0">
     <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-      <Icon className="w-4 h-4 text-[#003857]" aria-hidden />{label}
+      <Icon className="w-4 h-4 text-[#002F4A]" aria-hidden />{label}
     </div>
     <div className={`mt-1.5 text-2xl font-bold tabular-nums ${tone === 'bad' ? 'text-rose-700' : 'text-slate-700'}`}>{value === undefined ? '—' : typeof value === 'number' ? value.toLocaleString() : value}</div>
     {sub && <div className="mt-0.5 text-xs text-slate-500 truncate" title={sub}>{sub}</div>}

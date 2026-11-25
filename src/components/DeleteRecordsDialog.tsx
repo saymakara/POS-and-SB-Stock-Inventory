@@ -143,10 +143,10 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
         checked
           ? light
             ? 'bg-emerald-500 text-white shadow-xs border border-emerald-400'
-            : 'bg-[#003857] text-white shadow-xs border border-[#003857]'
+            : 'bg-[#002F4A] text-white shadow-xs border border-[#002F4A]'
           : light
           ? 'border-2 border-white/80 group-hover/btn:border-white group-hover/nocell:border-white bg-white/10'
-          : 'border-2 border-slate-300 group-hover/btn:border-[#003857] group-hover/nocell:border-[#003857] bg-white shadow-2xs'
+          : 'border-2 border-slate-300 group-hover/btn:border-[#002F4A] group-hover/nocell:border-[#002F4A] bg-white shadow-2xs'
       }`}
     >
       {checked && <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />}
