@@ -1153,29 +1153,47 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
 
         {loading ? (
           <div
-            className={`h-[292px] rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 ${
-              isLight ? 'border-slate-200/80 bg-slate-50/60' : 'border-slate-800 bg-slate-900/40'
-            }`}
+            className="h-[292px] flex flex-col justify-between pt-3 pb-1 px-1"
+            role="status"
             aria-busy="true"
             aria-label="Loading monthly installation chart"
           >
-            <div className="flex items-end gap-2.5 h-16">
-              {[0.38, 0.62, 0.45, 0.8, 0.55, 0.92].map((h, i) => (
-                <div key={i} className="flex items-end gap-1">
-                  <span
-                    className={`w-2.5 rounded-t-sm animate-pulse ${isLight ? 'bg-slate-300/75' : 'bg-slate-700/75'}`}
-                    style={{ height: `${Math.round(h * 46)}px` }}
-                  />
-                  <span
-                    className={`w-2.5 rounded-t-sm animate-pulse ${isLight ? 'bg-slate-200/90' : 'bg-slate-800/90'}`}
-                    style={{ height: `${Math.round(h * 60)}px` }}
-                  />
+            <div className="relative flex-1 flex items-end">
+              <div className="flex flex-col justify-between h-full pr-3 py-1">
+                {[0, 1, 2, 3].map((k) => (
+                  <div key={k} className="skeleton h-2.5 w-7 rounded" />
+                ))}
+              </div>
+              <div className="relative flex-1 h-full flex items-end gap-3 sm:gap-5 px-2 pb-1">
+                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between py-1">
+                  {[0, 1, 2, 3].map((k) => (
+                    <div
+                      key={k}
+                      className={`w-full border-t border-dashed ${isLight ? 'border-slate-200/80' : 'border-slate-800'}`}
+                    />
+                  ))}
                 </div>
+                {[
+                  [38, 62], [54, 76], [46, 68], [66, 86], [58, 78], [72, 92],
+                ].map(([posH, sbH], i) => (
+                  <div key={i} className="relative z-10 flex-1 h-full flex items-end justify-center gap-1.5">
+                    <div
+                      className="skeleton w-3.5 sm:w-5 rounded-t-md"
+                      style={{ height: `${posH}%` }}
+                    />
+                    <div
+                      className="skeleton w-3.5 sm:w-5 rounded-t-md opacity-70"
+                      style={{ height: `${sbH}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-around pl-10 pr-2 pt-2.5">
+              {[0, 1, 2, 3, 4, 5].map((k) => (
+                <div key={k} className="skeleton h-2.5 w-10 rounded" />
               ))}
             </div>
-            <span className={`text-[12px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              Syncing Phnom Penh Merchant Visit installations…
-            </span>
           </div>
         ) : (
           <GroupedBarChart
@@ -3875,20 +3893,68 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   {kpiPending ? (
                     <>
                       <div
-                        className="w-full h-[248px] flex flex-col justify-end gap-3 px-2 py-4"
+                        className="w-full h-[248px] flex flex-col justify-between pt-3 pb-1 px-1"
                         role="status"
                         aria-label="Loading daily volume chart"
                       >
-                        <div className="flex-1 flex items-end gap-2.5 px-2">
-                          {[38, 62, 54, 74, 48, 82, 68, 90, 58, 76, 64, 42].map((h, idx) => (
-                            <div
-                              key={idx}
-                              className="flex-1 skeleton rounded-t-md"
-                              style={{ height: `${h}%` }}
-                            />
+                        <div className="relative flex-1 flex items-center">
+                          <div className="flex flex-col justify-between h-full pr-2.5 py-1">
+                            {[0, 1, 2, 3].map((k) => (
+                              <div key={k} className="skeleton h-2.5 w-7 rounded" />
+                            ))}
+                          </div>
+                          <div className="relative flex-1 h-full flex flex-col justify-between py-1">
+                            {[0, 1, 2, 3].map((k) => (
+                              <div
+                                key={k}
+                                className={`w-full border-t border-dashed ${isLight ? 'border-slate-200/80' : 'border-slate-800'}`}
+                              />
+                            ))}
+                            <svg
+                              viewBox="0 0 600 185"
+                              preserveAspectRatio="none"
+                              className="absolute inset-0 w-full h-full animate-pulse"
+                              aria-hidden="true"
+                            >
+                              <defs>
+                                <linearGradient id="dailyVolWaveSkel" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor={isLight ? '#cbd5e1' : '#334155'} stopOpacity="0.38" />
+                                  <stop offset="100%" stopColor={isLight ? '#cbd5e1' : '#334155'} stopOpacity="0.02" />
+                                </linearGradient>
+                              </defs>
+                              <path
+                                d="M0 168 C45 168, 55 62, 105 56 C145 50, 165 164, 200 166 C240 168, 255 34, 310 40 C365 46, 385 166, 425 166 C465 166, 495 76, 540 70 C575 66, 588 164, 600 166 L600 185 L0 185 Z"
+                                fill="url(#dailyVolWaveSkel)"
+                              />
+                              <path
+                                d="M0 168 C45 168, 55 62, 105 56 C145 50, 165 164, 200 166 C240 168, 255 34, 310 40 C365 46, 385 166, 425 166 C465 166, 495 76, 540 70 C575 66, 588 164, 600 166"
+                                fill="none"
+                                stroke={isLight ? '#cbd5e1' : '#475569'}
+                                strokeWidth="2.4"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M0 170 C48 170, 60 94, 108 88 C148 84, 165 168, 200 170 C240 170, 260 72, 312 76 C365 80, 385 168, 425 170 C465 170, 495 106, 542 102 C575 100, 588 168, 600 170"
+                                fill="none"
+                                stroke={isLight ? '#94a3b8' : '#64748b'}
+                                strokeWidth="1.75"
+                                strokeDasharray="10 5"
+                                strokeLinecap="round"
+                                opacity="0.6"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex flex-col justify-between h-full pl-2.5 py-1">
+                            {[0, 1, 2, 3].map((k) => (
+                              <div key={k} className="skeleton h-2.5 w-6 rounded" />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pl-10 pr-9 pt-2">
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => (
+                            <div key={k} className="skeleton h-2.5 w-4 rounded" />
                           ))}
                         </div>
-                        <div className="h-2.5 w-full skeleton rounded" />
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2" aria-hidden="true">
                         {[0, 1, 2, 3, 4].map((idx) => (
@@ -3898,8 +3964,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               isLight ? 'bg-slate-50/70 border-slate-200/70' : 'bg-slate-800/40 border-slate-700/60'
                             }`}
                           >
-                            <div className="skeleton h-2.5 w-14 rounded" />
-                            <div className="skeleton h-4 w-12 rounded" />
+                            <div className="flex items-center gap-1.5">
+                              <div className="skeleton w-2 h-2 rounded-full" />
+                              <div className="skeleton h-2.5 w-14 rounded" />
+                            </div>
+                            <div className="flex items-end justify-between gap-1.5">
+                              <div className="skeleton h-4 w-12 rounded" />
+                              <div className="skeleton h-3.5 w-8 rounded" />
+                            </div>
                           </div>
                         ))}
                       </div>

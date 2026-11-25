@@ -5189,8 +5189,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ] as const;
 
                 const renderMetricCell = (key: string, tasks: number, pts: number) => (
-                  <td key={key} className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
-                    <TaskPtsCell tasks={tasks} pts={pts} mode={metricMode} align="right" />
+                  <td key={key} className="py-2.5 px-1.5 text-center tabular-nums whitespace-nowrap">
+                    <TaskPtsCell tasks={tasks} pts={pts} mode={metricMode} align="center" />
                   </td>
                 );
 
@@ -5221,16 +5221,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           </>
                         )}
                         {top10ChannelCols.map(({ key, label }) => (
-                          <th key={key} className="text-right border-b border-white/20 whitespace-nowrap">
+                          <th key={key} className="text-center border-b border-white/20 whitespace-nowrap">
                             {label}
                           </th>
                         ))}
                         <th className="text-center border-b border-white/20 whitespace-nowrap">Category Mix</th>
                         {leaderboardMode === 'branch' && (
-                          <th className="text-right border-b border-white/20 whitespace-nowrap">Avg / Staff</th>
+                          <th className="text-center border-b border-white/20 whitespace-nowrap">Avg / Staff</th>
                         )}
-                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Pts' : 'Total Tasks'}</th>
-                        <th className="text-right border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Tasks' : 'Total Pts'}</th>
+                        <th className="text-center border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Pts' : 'Total Tasks'}</th>
+                        <th className="text-center border-b border-white/20 whitespace-nowrap">{isTaskMode ? 'Total Tasks' : 'Total Pts'}</th>
                       </tr>
                     </thead>
 
@@ -5290,10 +5290,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   />
                                 </div>
                               </td>
-                              <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
+                              <td className="py-2.5 px-1.5 text-center tabular-nums text-slate-600 font-medium whitespace-nowrap">
                                 {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                               </td>
-                              <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
+                              <td className="py-2.5 px-1.5 text-center tabular-nums whitespace-nowrap">
                                 <span className="font-bold text-[#002F4A] text-[13.5px]">
                                   {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                                 </span>
@@ -5350,13 +5350,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 />
                               </div>
                             </td>
-                            <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
-                              <TaskPtsCell tasks={b.tasksPerStaff} pts={b.ptsPerStaff} mode={metricMode} align="right" decimalTasks />
+                            <td className="py-2.5 px-1.5 text-center tabular-nums whitespace-nowrap">
+                              <TaskPtsCell tasks={b.tasksPerStaff} pts={b.ptsPerStaff} mode={metricMode} align="center" decimalTasks />
                             </td>
-                            <td className="py-2.5 px-1.5 text-right tabular-nums text-slate-600 font-medium whitespace-nowrap">
+                            <td className="py-2.5 px-1.5 text-center tabular-nums text-slate-600 font-medium whitespace-nowrap">
                               {isTaskMode ? fmtPts(b.totalPoints) : fmtInt(b.totalTasks)}
                             </td>
-                            <td className="py-2.5 px-1.5 text-right tabular-nums whitespace-nowrap">
+                            <td className="py-2.5 px-1.5 text-center tabular-nums whitespace-nowrap">
                               <span className="font-bold text-[#002F4A] text-[13.5px]">
                                 {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                               </span>

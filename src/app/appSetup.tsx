@@ -250,12 +250,58 @@ export const historyRecordFor = (
 // screen's code takes longer than 120 ms to arrive, so a quick switch never flashes it
 export const TabLoading = () => (
   <div className="space-y-4 min-h-[calc(100vh-11rem)] loading-in" aria-busy="true" aria-label="Loading">
-    <div className="skeleton h-9 rounded-xl w-1/3" />
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5">
-      {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[92px] rounded-[18px]" />)}
+    {/* Page Header + Action Pills */}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-1.5">
+        <div className="skeleton h-7 w-56 rounded-lg" />
+        <div className="skeleton h-3.5 w-72 rounded" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="skeleton h-9 w-24 rounded-xl" />
+        <div className="skeleton h-9 w-28 rounded-xl" />
+      </div>
     </div>
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3">
-      {[92, 80, 86, 74, 88, 70].map((w, i) => <div key={i} className="skeleton h-4 rounded" style={{ width: `${w}%` }} />)}
+    {/* 4 Summary Metric Cards */}
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="rounded-[18px] border border-slate-200/80 bg-white px-4 py-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="skeleton h-3 w-24 rounded" />
+            <div className="skeleton w-7 h-7 rounded-full" />
+          </div>
+          <div className="skeleton h-7 w-16 rounded-md" />
+          <div className="skeleton h-2.5 w-28 rounded" />
+        </div>
+      ))}
+    </div>
+    {/* Filter Toolbar + Table Header + Structured Rows */}
+    <div className="rounded-2xl border border-slate-200/80 bg-white overflow-hidden">
+      <div className="p-3.5 border-b border-slate-100 flex flex-wrap items-center gap-2">
+        <div className="skeleton h-8 w-56 rounded-xl" />
+        <div className="skeleton h-8 w-28 rounded-xl" />
+        <div className="skeleton h-8 flex-1 min-w-[160px] max-w-xs rounded-xl ml-auto" />
+      </div>
+      <div className="h-9 bg-[#155484]/12 px-4 flex items-center gap-4">
+        <div className="skeleton h-3 w-8 rounded" />
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-3 w-32 rounded" />
+        <div className="skeleton h-3 w-28 rounded hidden sm:block" />
+        <div className="skeleton h-3 w-16 rounded ml-auto" />
+      </div>
+      <div className="divide-y divide-slate-100">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="px-4 py-3 flex items-center gap-4">
+            <div className="skeleton h-3.5 w-6 rounded shrink-0" />
+            <div className="skeleton h-4 w-28 rounded shrink-0" />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="skeleton h-3.5 w-44 max-w-full rounded" />
+              <div className="skeleton h-2.5 w-28 rounded" />
+            </div>
+            <div className="skeleton h-5 w-16 rounded-full hidden sm:block shrink-0" />
+            <div className="skeleton h-7 w-16 rounded-lg shrink-0" />
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );
