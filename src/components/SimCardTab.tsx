@@ -619,17 +619,17 @@ const SimCardTabComponent: React.FC<{
                     </td>
                     <td className="px-2.5 py-2.5 whitespace-nowrap">
                       {hw.type === 'SOUND_BOX' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#4F518C]/10 text-[#4F518C] border border-[#4F518C]/20">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-normal bg-[#4F518C]/10 text-[#4F518C] border border-[#4F518C]/20">
                           <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
                           <span>Sound Box</span>
                         </span>
                       ) : hw.type === 'POS' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[#184e77]/10 text-[#184e77] border border-[#184e77]/20">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-normal bg-[#184e77]/10 text-[#184e77] border border-[#184e77]/20">
                           <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" aria-hidden />
                           <span>POS Terminal</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/80">
                           <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden />
                           <span>Available (Both)</span>
                         </span>
