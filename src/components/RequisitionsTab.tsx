@@ -527,7 +527,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
               className={`text-base sm:text-lg font-extrabold tracking-tight ${navyTitleClass} flex items-center gap-2`}
             >
               <ScrollText className="w-4.5 h-4.5" />
-              <span>Branch Stock Requests &amp; Dispatch</span>
+              <span>Branch Stock Requests</span>
             </h2>
             <span className={`text-xs font-semibold ${subtextClass}`}>
               ({fmtNum(requisitions.length)} Record(s) · HQ Stock: {fmtNum(hqPosCount)} POS, {fmtNum(hqSbCount)} SB)

@@ -564,7 +564,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           <div className="overflow-x-auto overflow-y-hidden">
             <table className="data-table branches-table w-full min-w-[1040px] table-fixed">
               <colgroup>
-                {(['2.5%', '3.0%', '19.2%', '6.2%', '6.4%', '7.6%', '6.6%', '9.4%', '7.8%', '5.7%', '8.8%', '16.8%'] as const).map((w, idx) => (
+                {(['2.5%', '3.0%', '17.6%', '8.8%', '6.4%', '7.6%', '6.6%', '9.4%', '7.8%', '5.7%', '8.8%', '15.8%'] as const).map((w, idx) => (
                   <col key={idx} style={{ width: w }} />
                 ))}
               </colgroup>
@@ -573,7 +573,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   <th className="text-center"><span className="sr-only">Expand</span></th>
                   <th className="text-right">No.</th>
                   <SortTh k="name" sort={brSort} onSort={brToggle}>Branch Name</SortTh>
-                  <SortTh k="code" sort={brSort} onSort={brToggle} align="center" className="text-center">Code</SortTh>
+                  <SortTh k="code" sort={brSort} onSort={brToggle} align="center" className="text-center whitespace-nowrap">Branch Code</SortTh>
                   <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="text-right">POS</SortTh>
                   <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="text-right">Sound Box</SortTh>
                   <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="text-right">Total</SortTh>
@@ -640,7 +640,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Branch Code */}
                           <td className="text-center font-mono">
-                            <span className="inline-block px-2 py-0.5 rounded-md text-[11.5px] font-mono bg-zinc-100 text-zinc-900 border border-zinc-200 whitespace-nowrap tabular-nums">
+                            <span className="inline-block px-2 py-0.5 rounded-lg text-[11.5px] font-mono font-medium bg-slate-100 text-slate-700 whitespace-nowrap tabular-nums">
                               {b.code}
                             </span>
                           </td>
