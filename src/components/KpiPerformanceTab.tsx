@@ -6483,14 +6483,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         >
                                           {hasTasks ? (
                                             <span
-                                              className={`inline-flex items-center justify-center min-w-[24px] h-[21px] px-1 rounded text-[11px] tabular-nums font-normal ${
+                                              className={`inline-flex items-center justify-center min-w-[26px] h-[22px] px-1 rounded-md text-[11.5px] tabular-nums ${
                                                 isHol || isWk
-                                                  ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed'
-                                                  : d.count >= 20
-                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                                                  ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
+                                                  : d.count >= 40
+                                                  ? 'bg-[#1d5c55] text-white font-semibold shadow-2xs'
+                                                  : d.count >= 25
+                                                  ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
                                                   : d.count >= 10
-                                                  ? 'bg-sky-50 text-sky-800 border border-sky-300'
-                                                  : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                                  ? 'text-slate-600 font-normal'
+                                                  : 'text-slate-400 font-normal'
                                               }`}
                                             >
                                               {d.count}
@@ -6886,14 +6888,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               >
                                 {hasTasks ? (
                                   <span
-                                    className={`inline-flex items-center justify-center min-w-[24px] h-[21px] px-1 rounded text-[11px] tabular-nums font-normal ${
+                                    className={`inline-flex items-center justify-center min-w-[26px] h-[22px] px-1 rounded-md text-[11.5px] tabular-nums ${
                                       isHol || isWk
-                                        ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed'
+                                        ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
+                                        : d.count >= 40
+                                        ? 'bg-[#1d5c55] text-white font-semibold shadow-2xs'
+                                        : d.count >= 25
+                                        ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
                                         : d.count >= 10
-                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                                        : d.count >= 5
-                                        ? 'bg-sky-50 text-sky-800 border border-sky-300'
-                                        : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                        ? 'text-slate-600 font-normal'
+                                        : 'text-slate-400 font-normal'
                                     }`}
                                   >
                                     {d.count}
