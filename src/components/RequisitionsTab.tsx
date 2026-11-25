@@ -536,7 +536,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
 
           <div className="flex items-center gap-2">
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.985 }}
               type="button"
               onClick={handleExportCsv}
               disabled={shownReqs.length === 0}
@@ -547,7 +547,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
               <span>Export CSV</span>
             </motion.button>
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.985 }}
               type="button"
               onClick={onOpenRequestModal}
               className="btn btn-primary"
@@ -969,7 +969,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                         type="button"
                         onClick={rerunAutoMatch}
                         title="Fill each line with the oldest available Head Office unit of that type (FIFO)"
-                        className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#155484] hover:bg-[#114670] text-white transition shadow-xs text-xs"
+                        className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] transition shadow-2xs text-xs"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
                         <span>Auto-Match from HO Stock</span>
@@ -995,7 +995,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-[11px] ${subtextClass}`}>Serials fill the free lines by type. Units not in Head Office stock are reported, not added.</span>
-                      <button type="button" disabled={!serialText.trim()} onClick={() => applySerialList(serialText)} className="px-3 py-1.5 rounded-lg bg-[#155484] hover:bg-[#114670] text-white disabled:opacity-40 cursor-pointer">Match serials</button>
+                      <button type="button" disabled={!serialText.trim()} onClick={() => applySerialList(serialText)} className="px-3 py-1.5 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] font-semibold disabled:opacity-40 cursor-pointer transition">Match serials</button>
                     </div>
                     {serialReport.length > 0 && (
                       <ul role="status" className="text-[11px] space-y-0.5">
@@ -1171,7 +1171,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <span>Review Dispatch (Step 2 Preview)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1266,7 +1266,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     <button
                       type="button"
                       onClick={handleFinalDispatch}
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <Truck className="w-3.5 h-3.5" />
                       <span>Confirm &amp; Dispatch to Branch Code {arrangingReq.branchId}</span>
@@ -1552,7 +1552,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                 setSelectedRequisition(null);
                                 openEdit(r);
                               }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-95"
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-[0.985]"
                               title="Edit the quantity or reason"
                               aria-label="Edit"
                             >
@@ -1569,7 +1569,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                 setRejectingReq(r);
                                 setRejectText('');
                               }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-95"
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-[0.985]"
                               title="Reject this request with a reason (for example no stock)"
                               aria-label="Reject"
                             >
@@ -1586,7 +1586,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                   setSelectedRequisition(null);
                                   onApproveReturnRequisition?.(r.reqId, r.returnSerials, r.reason);
                                 }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-[0.985]"
                                 title="Approve and receive the returned units into Head Office stock"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
@@ -1603,7 +1603,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                 setSelectedRequisition(null);
                                 openArrangeModal(r);
                               }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-[0.985]"
                               title="Choose the serials and dispatch to the branch"
                               aria-label="Dispatch"
                             >
@@ -1623,7 +1623,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                             setSelectedRequisition(null);
                             onReceiveRequisition(r.reqId);
                           }}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-[0.985]"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
                           <span>Confirm Receipt</span>

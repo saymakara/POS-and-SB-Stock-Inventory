@@ -4687,7 +4687,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
                 <motion.button
                   whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileTap={{ scale: 0.985 }}
                   type="button"
                   onClick={() => setToastMessage(null)}
                   aria-label="Dismiss message"

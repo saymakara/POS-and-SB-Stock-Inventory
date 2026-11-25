@@ -3605,7 +3605,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               onClick={forceReload}
               aria-label="Refresh KPI Performance"
               title="Refresh KPI Performance"
-              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.985] transition-all duration-150 font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90"
               data-allow-repeat
             >
               {loading ? (

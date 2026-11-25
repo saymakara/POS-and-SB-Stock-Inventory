@@ -67,7 +67,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
       <button
         type="button"
         onClick={handleCopy}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-medium border transition cursor-pointer select-none active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-medium border transition cursor-pointer select-none active:scale-[0.985] ${
           copied
             ? 'bg-emerald-500/30 border-emerald-300/40 text-emerald-200'
             : 'bg-white/15 hover:bg-white/25 text-white border-transparent'
@@ -89,7 +89,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
       <button
         type="button"
         onClick={handleCopy}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs border transition cursor-pointer select-none active:scale-95 ${
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-xs border transition cursor-pointer select-none active:scale-[0.985] ${
           copied
             ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
             : 'bg-slate-100 hover:bg-slate-200/90 border-slate-200 text-slate-700 hover:text-slate-900'
@@ -111,7 +111,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
     <button
       type="button"
       onClick={handleCopy}
-      className={`group/copy inline-flex items-center gap-1 -ml-1 px-1 py-0.5 rounded text-[11px] font-mono transition cursor-pointer max-w-full select-none active:scale-95 ${
+      className={`group/copy inline-flex items-center gap-1 -ml-1 px-1 py-0.5 rounded text-[11px] font-mono transition cursor-pointer max-w-full select-none active:scale-[0.985] ${
         copied
           ? 'text-emerald-700 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold'
           : 'text-slate-500 hover:text-[#002F4A] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:text-slate-400'

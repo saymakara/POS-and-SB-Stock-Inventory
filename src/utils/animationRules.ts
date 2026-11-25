@@ -86,18 +86,18 @@ export const staggerRowStyle = (index: number): React.CSSProperties => ({
 });
 
 // ============================================================================
-// 4. SCALE INTERACTIVE BUTTONS TO 0.97 ON PRESS & 14. NO TWEEN WHILE HELD
+// 4. UNIFIED CLEAN CLICK PRESS (0.985 buttons · 0.96 icon buttons)
 // ============================================================================
-export const PRESS_SCALE = 0.97;
+export const PRESS_SCALE = 0.985;
 
 export const WHILE_TAP_BUTTON = {
   scale: PRESS_SCALE,
-  transition: { duration: 0.04, ease: EASE_OUT_CALM },
+  transition: { duration: 0.08, ease: EASE_OUT_CALM },
 } as const;
 
 export const WHILE_TAP_ICON = {
-  scale: 0.92,
-  transition: { duration: 0.04, ease: EASE_OUT_CALM },
+  scale: 0.96,
+  transition: { duration: 0.08, ease: EASE_OUT_CALM },
 } as const;
 
 // ============================================================================

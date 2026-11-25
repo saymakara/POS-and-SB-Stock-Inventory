@@ -330,7 +330,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               {/* Direct 1-Step Sign In Submit Button */}
               <motion.button
                 whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.985 }}
                 type="submit"
                 disabled={isAuthenticating || lockoutSeconds > 0}
                 className="w-full py-3 rounded-xl bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs hover:shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"

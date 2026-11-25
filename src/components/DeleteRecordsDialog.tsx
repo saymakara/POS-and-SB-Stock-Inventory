@@ -134,7 +134,7 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
         onChange();
       }
     }}
-    className={`group/btn cursor-pointer inline-flex shrink-0 items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+    className={`group/btn cursor-pointer inline-flex shrink-0 items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg transition-all active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
       light ? 'hover:bg-white/20' : 'hover:bg-slate-200/75'
     }`}
   >

@@ -573,7 +573,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {!showArchivedView && visibleDevices.length > 0 && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           onClick={handleSelectTenUnits}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
           title="Quick-select 10 serials to assign to a Branch Code"
@@ -586,7 +586,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {selectedSns.length > 0 && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           onClick={() => setSelectedSns([])}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer shadow-2xs"
           title="Clear all selected serials"
@@ -598,7 +598,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
       <motion.button
         whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.985 }}
         onClick={() => {
           setShowArchivedView((prev) => !prev);
           setSelectedSns([]);
@@ -623,7 +623,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {!isAdminLike && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           onClick={onOpenReqModal}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-2xs transition cursor-pointer"
         >
@@ -634,7 +634,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
       <motion.button
         whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.985 }}
         onClick={() => setShowExportMenu((v) => !v)}
         aria-expanded={showExportMenu}
         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
@@ -646,7 +646,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {isAdminLike && (onOpenBatchModal || onOpenImportModal) && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           onClick={() => {
             if (onOpenBatchModal) onOpenBatchModal();
             else if (onOpenImportModal) onOpenImportModal();
@@ -1368,7 +1368,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         type="button"
                         onClick={handleOpenBulkAssign}
                         disabled={!targetBulkBranch}
-                        className="px-3.5 py-1.5 rounded-lg bg-white text-[#002F4A] hover:bg-slate-100 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                        className="px-3.5 py-1.5 rounded-lg bg-white text-[#002F4A] hover:bg-slate-100 text-xs font-bold tracking-wide transition-all active:scale-[0.985] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                       >
                         {targetBulkBranch
                           ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
@@ -1380,7 +1380,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   {!fulfillingRequisition && (
                     <button
                       onClick={handleOpenBulkReturnAdmin}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.985] cursor-pointer shadow-xs"
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
                       <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
@@ -1390,7 +1390,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   {isAdminLike && onDeletePermanently && (
                     <button
                       onClick={handleOpenBulkDelete}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.985] cursor-pointer shadow-xs"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-rose-300" />
                       <span>Delete Permanently</span>
@@ -1402,7 +1402,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 {isAdminLike && onDeletePermanently && (
                   <button
                     onClick={handleOpenBulkDelete}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.985] cursor-pointer shadow-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-rose-300" />
                     <span>Delete Permanently</span>
@@ -1410,7 +1410,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 )}
                 <button
                   onClick={handleOpenBulkRestore}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#002F4A] text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#002F4A] text-xs font-bold tracking-wide transition-all active:scale-[0.985] cursor-pointer shadow-xs"
                 >
                   <ArchiveRestore className="w-3.5 h-3.5 text-[#002F4A]" />
                   <span>Restore {selectedSns.length} to Active Dashboard</span>
@@ -1420,7 +1420,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
               <button
                 onClick={() => setSelectedSns([])}
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/15 text-xs font-semibold tracking-wide transition-all active:scale-[0.98] cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/15 text-xs font-semibold tracking-wide transition-all active:scale-[0.985] cursor-pointer"
               >
                 Clear
               </button>

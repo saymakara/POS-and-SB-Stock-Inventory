@@ -391,7 +391,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white cursor-pointer"
+              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer transition"
             >
               Close
             </button>

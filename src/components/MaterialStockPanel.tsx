@@ -1266,7 +1266,7 @@ const MaterialStockPanelComponent: React.FC<{
       {isAdmin && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           type="button"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700/20 transition cursor-pointer shadow-xs"
           onClick={() => {
@@ -1281,7 +1281,7 @@ const MaterialStockPanelComponent: React.FC<{
       {isAdmin && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           type="button"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
           onClick={() => {
@@ -1296,7 +1296,7 @@ const MaterialStockPanelComponent: React.FC<{
       {isAdmin && (
         <motion.button
           whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.985 }}
           type="button"
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
           onClick={() => setDlg('OPENING')}
@@ -1307,7 +1307,7 @@ const MaterialStockPanelComponent: React.FC<{
       )}
       <motion.button
         whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.985 }}
         type="button"
         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
         onClick={activeLedgerView === 'BALANCES' ? exportBalancesCsv : exportDetailedInventoryCsv}
@@ -1317,7 +1317,7 @@ const MaterialStockPanelComponent: React.FC<{
       </motion.button>
       <motion.button
         whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.985 }}
         type="button"
         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
         onClick={changed}

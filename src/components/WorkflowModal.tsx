@@ -1326,7 +1326,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-0.5 rounded-md bg-[#155484] hover:bg-[#114670] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
+                              className="px-2 py-0.5 rounded-md bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[10.5px] font-semibold cursor-pointer shrink-0 transition"
                             >
                               Replace Battery
                             </button>
@@ -1357,7 +1357,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-1 rounded-lg bg-[#155484] hover:bg-[#114670] text-white text-[10.5px] font-semibold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[10.5px] font-semibold cursor-pointer transition"
                             >
                               Replace Battery
                             </button>
@@ -1700,7 +1700,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                         <button
                           type="button"
                           onClick={() => onChangeBattery(device)}
-                          className="px-2.5 py-1 rounded-lg bg-[#155484] hover:bg-[#114670] text-white text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                          className="px-2.5 py-1 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-2xs"
                           title="Open 2-step verification wizard to replace battery from old to new"
                         >
                           <BatteryCharging className="w-3 h-3" />
@@ -1926,7 +1926,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className={`${SIM_BTN_CANCEL_CLS} !px-3 !py-1.5 active:scale-[0.98] whitespace-nowrap`}
+                  className={`${SIM_BTN_CANCEL_CLS} !px-3 !py-1.5 active:scale-[0.985] whitespace-nowrap`}
                 >
                   Cancel
                 </button>
@@ -2317,7 +2317,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
               <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5 active:scale-[0.98]`}
+                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5 active:scale-[0.985]`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Edit</span>
@@ -2326,7 +2326,7 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
               <button
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition active:scale-[0.985] cursor-pointer inline-flex items-center gap-1.5"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Confirm &amp; Commit Changes</span>

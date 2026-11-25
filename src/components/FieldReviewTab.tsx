@@ -293,7 +293,7 @@ const CopySerialButton: React.FC<{ value: string; label?: string }> = ({ value, 
       }}
       aria-label={`Copy ${label} ${value}`}
       title={copied ? `Copied: ${value}` : `Copy ${value}`}
-      className={`inline-flex items-center justify-center p-0.5 rounded transition cursor-pointer shrink-0 active:scale-95 ${
+      className={`inline-flex items-center justify-center p-0.5 rounded transition cursor-pointer shrink-0 active:scale-[0.985] ${
         copied
           ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400'
           : 'text-slate-400 hover:text-[#002F4A] hover:bg-sky-50 dark:hover:bg-slate-700/60 dark:hover:text-sky-300 opacity-60 hover:opacity-100'
@@ -1078,7 +1078,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               onClick={load}
               aria-label="Refresh"
               title="Refresh Merchant App Review records"
-              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.985] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />
               <span>Sync Stream</span>
@@ -1535,7 +1535,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     type="button"
                     onClick={() => runBulk('reject')}
                     disabled={!!bulkBusy}
-                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-[0.97] whitespace-nowrap"
+                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-[0.985] whitespace-nowrap"
                   >
                     {bulkBusy === 'reject' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
@@ -1548,7 +1548,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     type="button"
                     onClick={() => runBulk('approve')}
                     disabled={!!bulkBusy}
-                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap"
+                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1 cursor-pointer transition-all active:scale-[0.985] whitespace-nowrap"
                   >
                     {bulkBusy === 'approve' ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
@@ -1564,7 +1564,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setDelOpen(true)}
                   disabled={!!bulkBusy || delBusy}
-                  className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.98] whitespace-nowrap"
+                  className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.985] whitespace-nowrap"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete {selectedAll.length}
                 </button>
@@ -2166,7 +2166,7 @@ const ReviewRow = memo(function ReviewRow({
                       type="button"
                       onClick={() => onReject(e)}
                       disabled={busy}
-                      className="btn-press inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all cursor-pointer bg-rose-50 hover:bg-rose-100/90 text-rose-700 border-rose-200/90 hover:border-rose-300 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                      className="btn-press inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all cursor-pointer bg-rose-50 hover:bg-rose-100/90 text-rose-700 border-rose-200/90 hover:border-rose-300 active:scale-[0.985] disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
                     >
                       <X className="w-3.5 h-3.5 text-rose-600 stroke-[2.4]" aria-hidden="true" />
                       Reject
@@ -2182,7 +2182,7 @@ const ReviewRow = memo(function ReviewRow({
                           ? 'Choose the branch first'
                           : undefined
                       }
-                      className={`btn-press inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all active:scale-[0.97] ${
+                      className={`btn-press inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all active:scale-[0.985] ${
                         canApprove
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 shadow-xs hover:shadow-sm cursor-pointer'
                           : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'

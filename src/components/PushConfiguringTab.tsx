@@ -1240,7 +1240,7 @@ return (
                   type="button"
                   onClick={handleManualRefreshQueue}
                   disabled={isRefreshingQueue}
-                  className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs border shadow-2xs cursor-pointer disabled:opacity-50 ${
+                  className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl active:scale-[0.985] transition-all duration-150 font-bold text-xs border shadow-2xs cursor-pointer disabled:opacity-50 ${
                     isLight
                       ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -1264,7 +1264,7 @@ return (
                     setPusherPasswordError('');
                     setIsPushAllModalOpen(true);
                   }}
-                  className={`group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
+                  className={`group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.985] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
                     isLight
                       ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]'
                       : 'bg-white hover:bg-slate-50 text-[#1d5c55] border-white/90'
@@ -1310,7 +1310,7 @@ return (
             <button
               type="button"
               onClick={() => handleCardClick('WAITING')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none shadow-2xs ${
                 pushStatusFilter === 'WAITING'
                   ? isLight
                     ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
@@ -1336,7 +1336,7 @@ return (
             <button
               type="button"
               onClick={() => handleCardClick(lockType === 'POS Terminal' ? 'POS' : 'SB')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none shadow-2xs ${
                 (lockType === 'POS Terminal' ? typeFilter === 'POS Terminal' : typeFilter === 'Sound Box')
                   ? isLight
                     ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
@@ -1363,7 +1363,7 @@ return (
             <button
               type="button"
               onClick={() => handleCardClick('ALL')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none shadow-2xs ${
                 isLight
                   ? 'bg-white border-slate-200/90 hover:border-slate-300'
                   : 'bg-[#141822] border-slate-800 hover:border-slate-700'
@@ -1408,7 +1408,7 @@ return (
                   type="button"
                   onClick={handleManualRefreshQueue}
                   disabled={isRefreshingQueue}
-                  className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer disabled:opacity-50 ${
+                  className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.985] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer disabled:opacity-50 ${
                     isLight
                       ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -1432,7 +1432,7 @@ return (
                     setPusherPasswordError('');
                     setIsPushAllModalOpen(true);
                   }}
-                  className={`group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
+                  className={`group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.985] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
                     isLight
                       ? 'bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7]'
                       : 'bg-white hover:bg-slate-50 text-[#1d5c55] border-white/90'
@@ -1482,7 +1482,7 @@ return (
             <button
               type="button"
               onClick={() => handleCardClick('WAITING')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none ${
                 pushStatusFilter === 'WAITING'
                   ? isLight
                     ? 'bg-white border-slate-400 ring-2 ring-slate-400/30 shadow-sm'
@@ -1509,7 +1509,7 @@ return (
             {lockType !== 'Sound Box' && <button
               type="button"
               onClick={() => handleCardClick('POS')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none ${
                 typeFilter === 'POS Terminal'
                   ? isLight
                     ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
@@ -1534,7 +1534,7 @@ return (
             {lockType !== 'POS Terminal' && <button
               type="button"
               onClick={() => handleCardClick('SB')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none ${
                 typeFilter === 'Sound Box'
                   ? isLight
                     ? 'bg-white border-[#4F518C] ring-2 ring-[#4F518C]/30 shadow-sm'
@@ -1559,7 +1559,7 @@ return (
             <button
               type="button"
               onClick={() => handleCardClick('ALL')}
-              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.985] outline-none ${
                 isLight
                   ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
                   : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
@@ -1640,7 +1640,7 @@ return (
                   setBranchFilter('ALL');
                   setPushStatusFilter('ALL');
                 }}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer active:scale-[0.97] transition-all duration-150"
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer active:scale-[0.985] transition-all duration-150"
               >
                 Clear Filters
               </button>
@@ -1699,7 +1699,7 @@ return (
                     <button
                       type="button"
                       onClick={() => handleTeamPushClick(branchKey, branchSerials)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs active:scale-[0.98]"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs active:scale-[0.985]"
                       title="Re-push alert & file for this branch"
                     >
                       <RotateCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1712,7 +1712,7 @@ return (
                   <button
                     type="button"
                     onClick={() => handleTeamPushClick(branchKey, branchSerials)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs active:scale-[0.98]"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs active:scale-[0.985]"
                     title="Sends 1 single Telegram notification with attached file for this branch"
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -1947,7 +1947,7 @@ return (
                                 <button
                                   type="button"
                                   onClick={() => handleRowPushClick(dev)}
-                                  className="chip chip-green hover:!bg-emerald-100 cursor-pointer transition active:scale-95 group"
+                                  className="chip chip-green hover:!bg-emerald-100 cursor-pointer transition active:scale-[0.985] group"
                                   title={`Status: Pushed to Telegram (${requestPushInfo.full}). Click to repush.`}
                                 >
                                   <CheckCircle2 className="w-3 h-3 text-emerald-600 group-hover:hidden" />
@@ -1962,7 +1962,7 @@ return (
                               <button
                                 type="button"
                                 onClick={() => handleRowPushClick(dev)}
-                                className="row-btn !text-sky-700 !bg-sky-50 !border-sky-200 hover:!bg-sky-600 hover:!text-white active:scale-95"
+                                className="row-btn !text-sky-700 !bg-sky-50 !border-sky-200 hover:!bg-sky-600 hover:!text-white active:scale-[0.985]"
                                 title="Device configured and ready. Click to push now or select checkbox for batch."
                               >
                                 Push Now
@@ -2040,7 +2040,7 @@ return (
               <button
                 type="button"
                 onClick={handleDownloadSelectedFile}
-                className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-[0.98] transition shrink-0"
+                className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-[0.985] transition shrink-0"
                 title="Download & view CSV configuration file for selected devices"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -2073,7 +2073,7 @@ return (
                   <button
                     type="button"
                     onClick={handleBatchPushClick}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.985] shadow-md shrink-0 ${
                       isBatchAllPushed
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                         : pushMode === 'total_csv_all'

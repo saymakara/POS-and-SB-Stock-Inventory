@@ -34,9 +34,9 @@ export const SIM_CARD_CLS =
 export const SIM_FOOTER_CLS =
   'px-5 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200/85 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 sm:rounded-b-2xl';
 export const SIM_BTN_CANCEL_CLS =
-  'px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer';
+  'px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/90 hover:border-slate-300 dark:border-slate-700 shadow-2xs transition cursor-pointer';
 export const SIM_BTN_PRIMARY_CLS =
-  'px-5 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-[0_2px_6px_-1px_rgba(21,84,132,0.35)] transition-all active:scale-[0.98] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50';
+  'px-5 py-2 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs transition inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50';
 
 const deviceSerialMapCache = new WeakMap<readonly object[], Map<string, any>>();
 

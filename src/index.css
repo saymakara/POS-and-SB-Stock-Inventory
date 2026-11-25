@@ -438,21 +438,25 @@ th.sticky {
   transition-timing-function: var(--ease-standard) !important;
 }
 
-/* Restrained Enterprise Tactile Feedback:
-   Calm, instant micro-depression (scale 0.985) on click without jitter, smooth organic release */
+/* Clean Click Standard across the system:
+   Instant, crisp 1.5% micro-press with smooth release, zero tap flash, zero text-select jitter */
 button:not(:disabled),
 [role="button"]:not(:disabled),
+.btn:not(:disabled),
 .tactile-btn:not(:disabled),
 .interactive-tab-btn,
 .row-btn {
   text-rendering: auto;
   letter-spacing: 0.01em;
-  transition: background-color var(--duration-fast) var(--ease-standard),
-              border-color var(--duration-fast) var(--ease-standard),
-              color var(--duration-fast) var(--ease-standard),
-              box-shadow var(--duration-fast) var(--ease-standard),
-              opacity var(--duration-fast) var(--ease-standard),
-              transform var(--duration-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: background-color 140ms var(--ease-standard),
+              border-color 140ms var(--ease-standard),
+              color 140ms var(--ease-standard),
+              box-shadow 140ms var(--ease-standard),
+              opacity 140ms var(--ease-standard),
+              transform 110ms var(--ease-standard);
 }
 
 /* Prevent button labels inheriting body letter-spacing:0 */
@@ -463,17 +467,16 @@ button strong,
   letter-spacing: inherit;
 }
 
-/* Calm Active Press: 1.5% micro-depression for precise tactile confirmation */
-/* Rule 4: Scale to 0.97 on press & Rule 14: Don't tween while held */
+/* Unified Clean Click Press (1.5% crisp depression, never overwrites color transitions) */
 button:active:not(:disabled),
 [role="button"]:active:not(:disabled),
+.btn:active:not(:disabled),
 .tactile-btn:active:not(:disabled),
 .interactive-tab-btn:active,
 .row-btn:active:not(:disabled),
 .btn-press:active:not(:disabled),
 .btn-tactile:active:not(:disabled) {
-  transform: scale(0.97) translateZ(0);
-  transition: transform 40ms cubic-bezier(0, 0, 0.2, 1) !important;
+  transform: scale(0.985);
 }
 
 /* Strict Disabled Protection: Blocks double-triggers and cursor anomalies */
@@ -490,7 +493,12 @@ textarea:disabled {
   cursor: not-allowed !important;
 }
 
-/* Accessible, High-Contrast Focus Ring without layout shifts */
+/* Accessible, Clean Keyboard-Only Focus Ring (never flashes on mouse click) */
+button:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none !important;
+}
 button:focus-visible,
 [role="button"]:focus-visible,
 input:focus-visible,
@@ -498,7 +506,7 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(0, 47, 74, 0.38) !important;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(29, 92, 85, 0.34) !important;
 }
 
 /* Segmented tabs already have a high-contrast active pill; suppress the outer double ring on tab buttons */
@@ -508,15 +516,18 @@ a:focus-visible {
   box-shadow: none !important;
 }
 
-/* Fluid Hover state transitions */
+/* Fluid Hover state transitions (preserve smooth transform release while hovered) */
 button:hover:not(:disabled),
 [role="button"]:hover:not(:disabled),
+.btn:hover:not(:disabled),
 .tactile-btn:hover:not(:disabled),
 .row-btn:hover:not(:disabled) {
-  transition: background-color var(--duration-fast) var(--ease-standard),
-              border-color var(--duration-fast) var(--ease-standard),
-              color var(--duration-fast) var(--ease-standard),
-              box-shadow var(--duration-fast) var(--ease-standard);
+  transition: background-color 140ms var(--ease-standard),
+              border-color 140ms var(--ease-standard),
+              color 140ms var(--ease-standard),
+              box-shadow 140ms var(--ease-standard),
+              opacity 140ms var(--ease-standard),
+              transform 110ms var(--ease-standard);
 }
 
 /* Interactive Table Rows: smooth background hover, calm micro-depression on click */
@@ -1413,16 +1424,21 @@ b, strong { font-weight: 700; }
   height: 32px; padding: 0 12px; border-radius: var(--radius-lg);
   font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0;
   border: 1px solid transparent; cursor: pointer;
-  transition: background-color 0.14s, border-color 0.14s, color 0.14s, box-shadow 0.14s;
+  user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: background-color 140ms var(--ease-standard),
+              border-color 140ms var(--ease-standard),
+              color 140ms var(--ease-standard),
+              box-shadow 140ms var(--ease-standard),
+              transform 110ms var(--ease-standard);
 }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-md { height: 36px; padding: 0 14px; border-radius: var(--radius-xl); }
 .btn-primary { background: #eaf4f2; color: #1d5c55; border-color: #c3e0da; box-shadow: 0 1px 1px rgba(29, 92, 85, 0.05); }
 .btn-primary:not(:disabled):hover { background: #d5eae6; color: #144741; border-color: #9fd0c7; box-shadow: 0 2px 6px rgba(29, 92, 85, 0.10); }
-.btn-secondary { background: #ffffff; color: #334155; border-color: #e2e8f0; }
-.btn-secondary:not(:disabled):hover { background: #f8fafc; border-color: #cbd5e1; }
-.btn-danger { background: #ffffff; color: #be123c; border-color: #fecdd3; }
-.btn-danger:not(:disabled):hover { background: #fff1f2; border-color: #fda4af; }
+.btn-secondary { background: #ffffff; color: #334155; border-color: #e2e8f0; box-shadow: 0 1px 1px rgba(15, 23, 42, 0.04); }
+.btn-secondary:not(:disabled):hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.07); }
+.btn-danger { background: #fff5f6; color: #be123c; border-color: #fecdd3; box-shadow: 0 1px 1px rgba(190, 18, 60, 0.04); }
+.btn-danger:not(:disabled):hover { background: #ffe4e6; color: #9f1239; border-color: #fda4af; box-shadow: 0 2px 5px rgba(190, 18, 60, 0.09); }
 @media (pointer: coarse) { .btn { height: 40px; } .btn-md { height: 44px; } }
 .data-table .row-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; }
 

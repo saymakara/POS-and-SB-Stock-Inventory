@@ -238,7 +238,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             </select>
             <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
             <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh"
-              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90" data-allow-repeat>
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.985] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90" data-allow-repeat>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />}
               <span>Sync Review</span>
             </button>
@@ -388,7 +388,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 <button
                   type="button"
                   onClick={() => setDelOpen(true)}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.985] transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" aria-hidden />
                   Delete {pick.sel.size.toLocaleString()} permanently

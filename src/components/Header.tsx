@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
         >
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.985 }}
             transition={{ type: 'spring', stiffness: 500, damping: 28 }}
             type="button"
             onClick={() => {
@@ -244,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
           {isMobileView && (
             <motion.button
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.985 }}
               type="button"
               onClick={onCloseMobile}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
@@ -327,7 +327,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   return (
                     <React.Fragment key={item.id}>
                     <motion.button
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.985 }}
                       transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                       type="button"
                       onClick={() => {
@@ -363,7 +363,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           return (
                             <motion.button
                               key={c.id}
-                              whileTap={{ scale: 0.98 }}
+                              whileTap={{ scale: 0.985 }}
                               transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                               type="button"
                               onClick={() => {
@@ -425,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       {!isMobileView && (
         <div className="relative z-10 p-3 border-t border-white/10 bg-black/10">
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.985 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
@@ -715,7 +715,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 max-w-xl">
           {onToggleSidebar && (
             <motion.button
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.985 }}
               type="button"
               onClick={onToggleSidebar}
               className="p-2 rounded-xl cursor-pointer border bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200/90 shadow-2xs transition shrink-0"

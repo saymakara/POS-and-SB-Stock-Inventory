@@ -731,7 +731,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         {/* Card 4: Automated Reconciliation Trigger */}
         <motion.button
           whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.985 }}
           type="button"
           onClick={handleTriggerAutomatedReconciliation}
           className={`${cardSurface} p-4.5 rounded-2xl text-left flex items-center justify-between cursor-pointer border transition-all duration-200 ${
@@ -811,7 +811,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
               <div className="flex items-center flex-wrap gap-2">
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.985 }}
                   type="button"
                   onClick={handleTriggerAutomatedReconciliation}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 cursor-pointer transition ${
@@ -830,7 +830,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
                 {reconciliationReport.totalDiscrepancies > 0 && (
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.985 }}
                     type="button"
                     onClick={handleAutoReconcileAll}
                     className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 cursor-pointer shadow-md"
@@ -1003,7 +1003,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
                         <div className="flex items-center gap-2 shrink-0">
                           <motion.button
-                            whileTap={{ scale: 0.95 }}
+                            whileTap={{ scale: 0.985 }}
                             type="button"
                             onClick={() => handleResolveSingleDiscrepancy(disc)}
                             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -1222,7 +1222,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     </div>
 
                     <motion.button
-                      whileTap={{ scale: 0.93 }}
+                      whileTap={{ scale: 0.985 }}
                       type="button"
                       onClick={handlePickRandomFieldUnit}
                       className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer border transition-all ${
@@ -1288,7 +1288,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         return (
                           <motion.button
                             key={`${btn.id}-${btn.subMode}`}
-                            whileTap={{ scale: 0.95 }}
+                            whileTap={{ scale: 0.985 }}
                             type="button"
                             onClick={() => {
                               setStage(btn.id);
@@ -1629,7 +1629,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   {/* Primary iOS Submit Button */}
                   <motion.button
                     whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.96 }}
+                    whileTap={{ scale: 0.985 }}
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full py-3.5 rounded-2xl text-xs font-black tracking-wide bg-gradient-to-r from-[#141518] to-[#25262c] hover:from-[#1e2025] hover:to-[#31333a] border border-white/15 text-white shadow-lg shadow-black/40 flex items-center justify-center gap-2 cursor-pointer mt-1 transition-all"
@@ -1733,7 +1733,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                 </div>
 
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.985 }}
                   type="button"
                   onClick={() => setReconciliationOpen(!reconciliationOpen)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
@@ -1933,7 +1933,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <div className="flex items-center gap-2">
                           {isOutOfSync && onReconcileWebhookEvents && (
                             <motion.button
-                              whileTap={{ scale: 0.95 }}
+                              whileTap={{ scale: 0.985 }}
                               type="button"
                               onClick={() =>
                                 onReconcileWebhookEvents([evt], 'SINGLE')
@@ -1944,7 +1944,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                             </motion.button>
                           )}
                           <motion.button
-                            whileTap={{ scale: 0.95 }}
+                            whileTap={{ scale: 0.985 }}
                             type="button"
                             onClick={() => onOpenWorkflow(evt.serial)}
                             className="px-2.5 py-1 rounded-xl text-xs font-bold text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-500/20 cursor-pointer transition-all flex items-center gap-1"

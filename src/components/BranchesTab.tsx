@@ -1179,7 +1179,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           <button
                             type="submit"
                             disabled={editSaving || !editName.trim()}
-                            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white cursor-pointer disabled:opacity-50 transition shadow-2xs"
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer disabled:opacity-50 transition shadow-2xs"
                           >
                             {editSaving ? 'Saving…' : 'Save Changes'}
                           </button>
@@ -1261,7 +1261,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               setInspectedBranchCode(null);
                               onSelectBranchFilter(inspectedBranch.code);
                             }}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
                             title="Filter stock inventory ledger to this branch"
                           >
                             <span>Open in Ledger</span>

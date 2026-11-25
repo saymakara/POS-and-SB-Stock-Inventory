@@ -341,7 +341,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 onClick={() => void refreshServerLogs()}
                 disabled={loading}
                 aria-label="Refresh audit log from the server"
-                className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7] disabled:opacity-60 disabled:cursor-wait"
+                className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.985] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border-[#c3e0da] hover:border-[#9fd0c7] disabled:opacity-60 disabled:cursor-wait"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} aria-hidden="true" />
                 <span>{loading ? 'Refreshing…' : 'Refresh'}</span>
@@ -349,7 +349,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             )}
 
             <motion.button
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.985 }}
               type="button"
               onClick={handleExportCsv}
               disabled={filteredRows.length === 0}

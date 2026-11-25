@@ -384,7 +384,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
                     <div className="flex items-center gap-2 shrink-0">
                       <motion.button
-                        whileTap={{ scale: 0.92 }}
+                        whileTap={{ scale: 0.985 }}
                         type="button"
                         onClick={() => setPosQty((prev) => Math.max(0, prev - 1))}
                         disabled={posQty <= 0}
@@ -412,7 +412,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                       />
 
                       <motion.button
-                        whileTap={{ scale: 0.92 }}
+                        whileTap={{ scale: 0.985 }}
                         type="button"
                         onClick={() => setPosQty((prev) => Math.min(50, prev + 1))}
                         disabled={posQty >= 50}
@@ -443,7 +443,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
                     <div className="flex items-center gap-2 shrink-0">
                       <motion.button
-                        whileTap={{ scale: 0.92 }}
+                        whileTap={{ scale: 0.985 }}
                         type="button"
                         onClick={() => setSbQty((prev) => Math.max(0, prev - 1))}
                         disabled={sbQty <= 0}
@@ -471,7 +471,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                       />
 
                       <motion.button
-                        whileTap={{ scale: 0.92 }}
+                        whileTap={{ scale: 0.985 }}
                         type="button"
                         onClick={() => setSbQty((prev) => Math.min(50, prev + 1))}
                         disabled={sbQty >= 50}
@@ -577,7 +577,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
                 <div className="flex items-center gap-2">
                   <motion.button
-                    whileTap={{ scale: 0.94 }}
+                    whileTap={{ scale: 0.985 }}
                     type="button"
                     onClick={onClose}
                     className={SIM_BTN_CANCEL_CLS}
@@ -586,7 +586,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   </motion.button>
 
                   <motion.button
-                    whileTap={{ scale: 0.94 }}
+                    whileTap={{ scale: 0.985 }}
                     type="submit"
                     disabled={!!formError}
                     className={SIM_BTN_PRIMARY_CLS}
@@ -681,7 +681,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               {/* Pinned Action Footer Bar */}
               <div className={SIM_FOOTER_CLS}>
                 <motion.button
-                  whileTap={{ scale: 0.94 }}
+                  whileTap={{ scale: 0.985 }}
                   type="button"
                   onClick={() => setModalStep('FORM')}
                   className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
@@ -691,7 +691,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </motion.button>
 
                 <motion.button
-                  whileTap={{ scale: 0.94 }}
+                  whileTap={{ scale: 0.985 }}
                   type="button"
                   onClick={handleFinalConfirm}
                   disabled={!!formError}

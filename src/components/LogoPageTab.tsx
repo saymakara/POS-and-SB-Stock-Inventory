@@ -195,7 +195,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
 
         <div className="flex items-center gap-2.5 shrink-0">
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.985 }}
             type="button"
             onClick={handleResetBrand}
             className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-2 cursor-pointer transition-colors"
@@ -205,7 +205,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
           </motion.button>
 
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.985 }}
             type="button"
             onClick={handleApplyBrand}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#004953] to-[#006978] hover:from-[#003840] hover:to-[#005460] text-white text-xs font-extrabold flex items-center gap-2 cursor-pointer shadow-lg shadow-[#004953]/25 transition-all"
@@ -246,7 +246,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
                   <motion.div
                     key={key}
                     whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.985 }}
                     onClick={() => {
                       setSelectedPreset(key);
                       setCustomUrl('');

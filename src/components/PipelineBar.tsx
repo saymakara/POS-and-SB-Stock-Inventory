@@ -186,7 +186,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
               exit={{ opacity: 0, scale: 0.9, x: 8 }}
               transition={{ type: 'spring', stiffness: 500, damping: 32 }}
               type="button"
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.985 }}
               onClick={() => onSelectStage('ALL')}
               className={`px-2.5 py-1.5 rounded-md text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 ${
                 isLight ? 'text-zinc-700' : 'text-zinc-300'
