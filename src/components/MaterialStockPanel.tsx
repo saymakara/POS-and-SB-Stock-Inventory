@@ -971,7 +971,7 @@ const MaterialStockPanelComponent: React.FC<{
       total: number;
     }> = {
       POS_ADAPTOR: { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      STAND: { code: 'STAND', name: 'POS Stand Holder', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      STAND: { code: 'STAND', name: 'POS Stand', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
       DOCK: { code: 'DOCK', name: 'Charging Dock', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
       BATTERY: { code: 'BATTERY', name: 'Battery', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
       SB_ADAPTOR: { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
@@ -2150,7 +2150,7 @@ const OpeningDialog: React.FC<{ open: boolean; branches: Branch[]; onClose: () =
   const template = () => {
     const b = branches.find((x) => x.id !== '100')?.id || '105';
     downloadCsv('material-opening-stock-template', ['Branch', 'Material', 'Quantity', 'Number'], [
-      [b, 'POS AC Adaptor', 10, ''], [b, 'POS Stand Holder', 3, ''], [b, 'Charging Dock', 1, ''], [b, 'Sound Box AC Adaptor', 5, ''],
+      [b, 'POS AC Adaptor', 10, ''], [b, 'POS Stand', 3, ''], [b, 'Charging Dock', 1, ''], [b, 'Sound Box AC Adaptor', 5, ''],
       [b, 'SIM Card', '', '096 555 0142'], [b, 'Battery', '', 'BAT-100231'], ['100', 'POS AC Adaptor', 500, ''],
     ]);
   };

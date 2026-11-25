@@ -20,7 +20,7 @@ export const MATERIALS: MaterialType[] = [
   { code: 'SIM', name: 'SIM Card', short: 'SIM', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'CONNECTION' },
   { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'POS', tracking: 'SERIAL', kitRule: 'DEFAULT' },
   { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', short: 'AC Adaptor', deviceType: 'POS', tracking: 'QTY', kitRule: 'DEFAULT' },
-  { code: 'STAND', name: 'POS Stand Holder', short: 'Stand', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
+  { code: 'STAND', name: 'POS Stand', short: 'Stand', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
   { code: 'DOCK', name: 'Charging Dock', short: 'Dock', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
   { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', short: 'AC Adaptor', deviceType: 'SB', tracking: 'QTY', kitRule: 'DEFAULT' },
 ];
@@ -475,7 +475,7 @@ export function deriveDeviceKitMaterials(devices: Device[], group?: DeviceGroup)
           merchantName: d.merchantName || null,
           reqId: null,
           blocked: false,
-          note: 'POS Stand Holder (Countertop Swivel Stand)',
+          note: 'POS Stand (Countertop Swivel Stand)',
           updatedAt: d.deployedDate || d.updatedAt || nowStr,
           updatedBy: d.staff || d.installedByStaff || null,
         });

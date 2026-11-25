@@ -330,7 +330,7 @@ export function fieldEditFields(e: FieldEvent): EditField[] {
   if (e.kind === 'INSTALL' || e.kind === 'REPLACE') out.push({ key: 'outlet_name', label: 'Outlet Name', value: e.outletName, section: ent });
   (Array.isArray(entryP.details) ? entryP.details : []).forEach((d: any) => {
     if (!d || !d.k) return;
-    const item = /^(POS Terminal|AC Power Adaptor|AC Power Cable|Charging Dock|SIM Card|POS Stand Holder)$/.test(d.k);
+    const item = /^(POS Terminal|AC Power Adaptor|AC Power Cable|Charging Dock|SIM Card|POS Stand(?: Holder)?)$/.test(d.k);
     out.push({ key: 'details.' + d.k, label: d.k, value: d.v, section: ent, options: item ? ['1', 'N/a', 'Lost'] : undefined });
   });
   const checks = entryP.checks && typeof entryP.checks === 'object' ? entryP.checks : null;
