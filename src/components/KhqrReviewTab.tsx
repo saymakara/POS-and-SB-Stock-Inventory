@@ -310,7 +310,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : 'Registered KHQR installations'}
               icon={QrCode}
               accentColor="blue"
-              badge={summary ? '100% Synced' : undefined}
             />
             <BigKpiCard
               label="QR materials"
