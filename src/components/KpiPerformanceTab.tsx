@@ -7258,9 +7258,8 @@ const KpiChartsSkeleton: React.FC = () => (
           <div className="skeleton h-3 w-20 rounded" />
         </div>
         <div className="h-[220px] w-full flex items-end gap-3 px-2 pt-4">
-          {[45, 65, 80, 50, 92, 75, 60, 85, 95, 70].map((h, i) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (   // (25 Nov 2026) axis labels only: no fake bars while loading
             <div key={i} className="flex-1 flex flex-col gap-1 items-center h-full justify-end">
-              <div className="skeleton w-full rounded-t-md" style={{ height: `${h}%` }} />
               <div className="skeleton h-2.5 w-6 rounded mt-1" />
             </div>
           ))}
