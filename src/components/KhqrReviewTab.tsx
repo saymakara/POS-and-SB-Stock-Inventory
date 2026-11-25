@@ -58,7 +58,7 @@ const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as co
 const GRID =
   'grid items-center gap-x-3 grid-cols-[68px_150px_124px_minmax(170px,240px)_156px_52px_minmax(150px,1fr)_minmax(140px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[68px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SMGRID = 'grid items-center gap-x-3 grid-cols-[68px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
+const SMGRID = 'grid items-center gap-x-2.5 grid-cols-[60px_88px_134px_minmax(140px,0.85fr)_48px_minmax(170px,1.1fr)_56px_minmax(280px,2.2fr)_98px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -894,7 +894,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                   <span className="text-center tabular-nums font-semibold text-violet-700">{r.staffCount}</span>
                   <span className="truncate" title={names.join(', ')}>{names.join(', ')}</span>
                   <span className="text-center tabular-nums">{r.entries}</span>
-                  <span className="truncate" title={r.branches}>{r.branches || '—'}</span>
+                  <span className="leading-snug" title={r.branches}>{r.branches || '—'}</span>
                   <span className="tabular-nums">{t(r.firstAt)} – {t(r.lastAt)}</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 </div>
