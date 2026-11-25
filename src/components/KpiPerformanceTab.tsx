@@ -6497,10 +6497,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                             >
                                               {d.count}
                                             </span>
-                                          ) : isHol ? (
-                                            <span className="text-amber-500/70 text-[10px] select-none" title={dayMeta?.holidayName || 'Holiday'}>🎉</span>
                                           ) : (
-                                            <span className="text-slate-300 text-xs font-light select-none">·</span>
+                                            <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
                                           )}
                                         </td>
                                       );
@@ -6902,10 +6900,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   >
                                     {d.count}
                                   </span>
-                                ) : isHol ? (
-                                  <span className="text-amber-500/70 text-[10px] select-none" title={dayMeta?.holidayName || 'Holiday'}>🎉</span>
                                 ) : (
-                                  <span className="text-slate-300 text-xs font-light select-none">·</span>
+                                  <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
                                 )}
                               </td>
                             );
