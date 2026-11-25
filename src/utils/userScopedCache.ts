@@ -35,3 +35,17 @@ export function rememberRecent<K, V>(map: Map<K, V>, key: K, value: V, max: numb
   map.set(key, value);
   while (map.size > max) map.delete(map.keys().next().value as K);
 }
+
+/**
+ * (25 Nov 2026, speed) Identical requests made at the same moment share one answer: the second caller waits for the
+ * request already on its way instead of sending another. Nothing is kept afterwards, so every later call asks afresh
+ * (the answer is never older than before).
+ */
+const inflight = new Map<string, Promise<unknown>>();
+export function shareInflight<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const running = inflight.get(key) as Promise<T> | undefined;
+  if (running) return running;
+  const p = run().finally(() => { inflight.delete(key); });
+  inflight.set(key, p);
+  return p;
+}

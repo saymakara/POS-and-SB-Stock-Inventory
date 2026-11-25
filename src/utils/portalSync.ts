@@ -18,9 +18,12 @@ export type SyncDomain =
   | 'audit'
   | 'notifs';
 
+/** (25 Nov 2026) local: at least one of the changes in this batch was made in this browser (not only by someone else). */
+export interface SyncInfo { local: boolean }
+
 interface ListenerEntry {
   domains: Set<SyncDomain>;
-  cb: (changed: Set<SyncDomain>) => void;
+  cb: (changed: Set<SyncDomain>, info: SyncInfo) => void;
 }
 
 interface InvalidatorEntry {
@@ -35,6 +38,7 @@ const pendingBroadcast = new Set<SyncDomain>();
 const TAB_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 let emitTimer: number | null = null;
+let pendingLocal = false;
 let broadcastTimer: number | null = null;
 let remoteSender: ((domains: SyncDomain[]) => void) | null = null;
 
@@ -66,12 +70,14 @@ function flushEmit(): void {
   if (pendingEmit.size === 0) return;
   const changed = new Set(pendingEmit);
   pendingEmit.clear();
+  const info: SyncInfo = { local: pendingLocal };
+  pendingLocal = false;
 
   listeners.forEach((entry) => {
     for (const d of changed) {
       if (entry.domains.has(d)) {
         try {
-          entry.cb(changed);
+          entry.cb(changed, info);
         } catch {
           /* listener errors must not break sibling subscribers */
         }
@@ -143,6 +149,7 @@ export function emitPortalSync(
     });
   }
 
+  if (opts.source !== 'remote') pendingLocal = true;
   for (const d of list) {
     pendingEmit.add(d);
     if (opts.broadcast && opts.source !== 'remote') {
@@ -163,7 +170,7 @@ export function emitPortalSync(
 
 export function onPortalSync(
   domains: SyncDomain | SyncDomain[],
-  cb: (changed: Set<SyncDomain>) => void
+  cb: (changed: Set<SyncDomain>, info: SyncInfo) => void
 ): () => void {
   const entry: ListenerEntry = {
     domains: new Set(Array.isArray(domains) ? domains : [domains]),
@@ -172,5 +179,46 @@ export function onPortalSync(
   listeners.add(entry);
   return () => {
     listeners.delete(entry);
+  };
+}
+
+/**
+ * (25 Nov 2026, speed + free-plan quota) One rule for refreshing a heavy screen (the KPI summary is ~1.4 MB) when data
+ * changes: a change made in this browser refreshes after `delayMs` as before; changes made by others (a KHQR entry can
+ * arrive every few seconds) refresh at most once per `minGapMs` - the server keeps its KPI answer 3 minutes anyway, so
+ * asking more often brought back the same figures - and a tab in the background waits until it is shown again, then
+ * refreshes once. Nothing is skipped: the last change always leads to a refresh.
+ */
+export function createRefreshScheduler(run: () => void, opts: { delayMs?: number; minGapMs?: number } = {}) {
+  const delayMs = opts.delayMs ?? 700;
+  const minGapMs = opts.minGapMs ?? 60_000;
+  let timer = 0;
+  let lastRun = -Infinity;                                  // never refreshed yet: the first change is shown after delayMs
+  let waitingForTab = false;
+  const fire = () => { timer = 0; lastRun = Date.now(); run(); };
+  const onVisible = () => {
+    if (typeof document === 'undefined' || document.hidden || !waitingForTab) return;
+    waitingForTab = false;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(fire, delayMs);
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+  return {
+    trigger(info?: SyncInfo) {
+      if (typeof window === 'undefined') { run(); return; }
+      if (info?.local) {                                    // the person's own change: shown as quickly as before
+        window.clearTimeout(timer);
+        timer = window.setTimeout(fire, delayMs);
+        return;
+      }
+      if (typeof document !== 'undefined' && document.hidden) { waitingForTab = true; return; }
+      if (timer) return;                                    // already planned: this change is included
+      const wait = Math.max(delayMs, lastRun + minGapMs - Date.now());
+      timer = window.setTimeout(fire, wait);
+    },
+    dispose() {
+      window.clearTimeout(timer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+    },
   };
 }

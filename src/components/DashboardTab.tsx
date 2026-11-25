@@ -29,7 +29,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import { getCachedAudit } from '../services/auditCache';
 import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
-import { onPortalSync, type SyncDomain } from '../utils/portalSync';
+import { onPortalSync, createRefreshScheduler, type SyncDomain, type SyncInfo } from '../utils/portalSync';
 import {
   fetchMonthlyInstallFieldEvents,
   fetchPosBatterySummary,
@@ -1841,12 +1841,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   // Live dynamic sync across all portal domains when another user or phone app changes data
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    let metricsTimer = 0;
+    // (25 Nov 2026) the KPI summary (~1.4 MB) is refreshed by one shared rule: own changes as before, others' changes at
+    // most once a minute, background tabs when shown again (see createRefreshScheduler)
+    const metrics = createRefreshScheduler(() => { void loadPeriodMetrics(true); });
     let assetsTimer = 0;
     let installsTimer = 0;
     const unsub = onPortalSync(
       ['kpi', 'cc', 'materials', 'devices', 'field', 'qr', 'mv', 'staff', 'branches', 'requisitions'],
-      (changed: Set<SyncDomain>) => {
+      (changed: Set<SyncDomain>, info: SyncInfo) => {
         if (
           changed.has('kpi') ||
           changed.has('cc') ||
@@ -1856,10 +1858,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           changed.has('staff') ||
           changed.has('branches')
         ) {
-          window.clearTimeout(metricsTimer);
-          metricsTimer = window.setTimeout(() => {
-            void loadPeriodMetrics(true);
-          }, 700);
+          metrics.trigger(info);
         }
         if (changed.has('materials') || changed.has('devices') || changed.has('requisitions')) {
           window.clearTimeout(assetsTimer);
@@ -1876,7 +1875,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     );
     return () => {
-      window.clearTimeout(metricsTimer);
+      metrics.dispose();
       window.clearTimeout(assetsTimer);
       window.clearTimeout(installsTimer);
       unsub();
