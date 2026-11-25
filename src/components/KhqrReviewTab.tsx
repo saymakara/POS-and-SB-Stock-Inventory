@@ -177,7 +177,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   useEffect(() => { afterKhqrPrefetch('stats', loadStats); }, [loadStats]);
 
   const loadMonthHistory = useCallback(async (force = false) => {
-    if (getCachedHistory() && force !== true && isFresh('qr:hist', 120000)) return;
+    const kept = getCachedHistory();
+    if (kept && force !== true && isFresh('qr:hist', 120000)) { setHistory(kept); return; }   // (25 Nov 2026) fetched moments ago (e.g. on hover): shown as it is
     const hist = await fetchQrMonthHistory(1);
     if (hist) { setCachedHistory(hist.slice(0, 1)); setHistory(hist.slice(0, 1)); markFresh('qr:hist'); }
   }, []);
