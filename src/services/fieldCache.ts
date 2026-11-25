@@ -28,6 +28,11 @@ export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingCompl
 clearOnUserChange(clearFieldCache);
 
 let inflight: Promise<void> | null = null;
+/** (25 Nov 2026) The background read still on its way (null when none): the screen waits for it instead of reading again. */
+export const fieldPrefetchRunning = (): Promise<void> | null => inflight;
+const firstPageListeners = new Set<(list: FieldEvent[]) => void>();
+/** (25 Nov 2026) Called once the first page of waiting records of the background read is here (the screen shows it at once). */
+export const onFieldFirstPage = (fn: (list: FieldEvent[]) => void) => { firstPageListeners.add(fn); return () => { firstPageListeners.delete(fn); }; };
 export function prefetchFieldEvents(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
   if (events && pendingComplete && reviewedComplete && isFresh('field', 300_000)) return Promise.resolve();
@@ -38,6 +43,7 @@ export function prefetchFieldEvents(): Promise<void> {
         events = firstPage;
         pendingComplete = false;
       }
+      firstPageListeners.forEach((fn) => { try { fn(firstPage); } catch { /* a screen that is gone */ } });
     });
     const reviewedReq = fetchReviewedFieldEvents(1000, 0);
     const pending = await pendingReq;

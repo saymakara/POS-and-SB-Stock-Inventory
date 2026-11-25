@@ -9,6 +9,7 @@ import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 import { forgetSavedCopies } from '../utils/idbStorage';
 import { markNavigationTransition } from '../utils/perfMonitor';
+import { startEarly } from '../utils/userScopedCache';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -137,8 +138,20 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     setProfile(p);
     if (p.must_change_password) { setPhase('change'); return; }
     storeSession(p);
-    // (24 Nov 2026, speed) Give already-in-flight Dashboard RPCs up to 550ms while Sign-In still shows "Signing in…"
-    // so fast connections enter a fully populated Dashboard with zero skeleton flash, while slow connections never stall.
+    // (25 Nov 2026, speed) the stock lists the app reads first start now, while the app is still opening (they used to
+    // start only once it had opened). The app takes these answers instead of asking again (see takeEarly).
+    void import('../services/supabaseService').then((sup) => {
+      startEarly('req', () => sup.fetchRequisitionsFromSupabase());
+      startEarly('hist', () => sup.fetchHistoricalMerchantsFromSupabase());
+      startEarly('branches', () => sup.fetchBranchesFromSupabase());
+      if (p.role === 'SUPER_ADMIN' || p.role === 'ADMIN') void import('../services/staffCache').then((m) => m.prefetchStaff()).catch(() => {});   // (the app reads it too: one shared read)
+      if (p.role === 'BRANCH') { if (p.branch_id) startEarly('stage:' + p.branch_id, () => sup.fetchDeviceStageCountsFromSupabase(p.branch_id)); }
+      else startEarly('stage:', () => sup.fetchDeviceStageCountsFromSupabase());
+    }).catch(() => {});
+    // (24 Nov 2026, speed) Wait (at most 550 ms) while Sign-In still shows "Signing in…".
+    // (25 Nov 2026, speed) Only for the app's own code - not for the Dashboard's data any more: drawing the app takes about
+    // as long as the data takes to arrive, so the two now happen side by side instead of one after the other (~0.5 s
+    // sooner). The data reads were started at the sign-in tap and keep going; the battery summary too.
     if (fromSignIn) {
       const battWarm = Promise.all([
         import('../services/supabaseService'),
@@ -149,8 +162,9 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
           return sup.fetchPosBatterySummary(scopeIds, 24, 21);
         })
         .catch(() => null);
+      void battWarm;
       await Promise.race([
-        Promise.allSettled([warmPromise, battWarm]),
+        Promise.allSettled([warmPromise]),
         new Promise<void>((r) => window.setTimeout(r, 550)),
       ]);
     }
@@ -222,8 +236,9 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
       clearWorkstationLock();
       // (24 Nov 2026, speed) Overlap Dashboard's lightweight RPCs + main app chunk with staff_profiles fetch so
       // the Dashboard opens populated immediately on sign-in instead of waiting in a serial waterfall.
+      const appCode = import('../AppWithMotion.tsx').catch(() => null);
       const warmDashboard = Promise.all([
-        import('../AppWithMotion.tsx').catch(() => null),
+        appCode,
         import('../services/kpiService')
           .then((k) => {
             const cur = k.kpiPeriodRange('MONTH');
@@ -244,18 +259,16 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
           .then((sup) =>
             Promise.allSettled([
               sup.fetchMonthlyInstallFieldEvents(false, 220),
-              sup.countPendingFieldEventsByType('PHNOM_PENH').then((c) => {
-                if (!c) return;
-                try {
-                  const prev = JSON.parse(sessionStorage.getItem('crm_pos_sidebar_counts_v1') || '{}');
-                  sessionStorage.setItem('crm_pos_sidebar_counts_v1', JSON.stringify({ ...prev, pos: c.pos, sb: c.sb }));
-                } catch { /* ignore */ }
-              }),
+              // (25 Nov 2026) read once here and handed to the app's first count (it used to be read here and again by the
+              // app a moment later, and the Dashboard waited for the second read)
+              Promise.resolve(startEarly('pendgroups', () => sup.fetchPendingFieldEventGroups())),
+              sup.fetchBranchRegions(),                                   // (kept for the session; the count needs it)
             ])
           )
           .catch(() => null),
       ]);
-      await enter(data.user.id, true, warmDashboard);
+      void warmDashboard;
+      await enter(data.user.id, true, appCode);
     } catch {
       setError('No connection to the server. Please check the internet and try again.');
     } finally {

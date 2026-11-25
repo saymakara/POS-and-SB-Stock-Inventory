@@ -180,7 +180,7 @@ async function api(route) {
   }
   if (path === '/rest/v1/rpc/cc_counts') return json(200, { pending: 0, confirmed: 0, rejected: 0, no_review: 0, total: 0 });
   if (path === '/rest/v1/rpc/cc_list') return json(200, []);
-  if (path === '/rest/v1/rpc/kpi_dashboard_summary') return json(200, []);
+  if (path === '/rest/v1/rpc/kpi_dashboard_summary' || path === '/rest/v1/rpc/kpi_dashboard_summary_lite') return json(200, []);
   if (path === '/rest/v1/rpc/kpi_get_settings_fast') return json(200, { rules: [], targets: {} });
   if (path === '/rest/v1/rpc/kpi_team_lead_list') return json(200, []);
   if (path === '/rest/v1/kpi_point_rules') return json(200, []);

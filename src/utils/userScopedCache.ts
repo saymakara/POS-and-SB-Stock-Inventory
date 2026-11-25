@@ -49,3 +49,28 @@ export function shareInflight<T>(key: string, run: () => Promise<T>): Promise<T>
   inflight.set(key, p);
   return p;
 }
+
+/**
+ * (25 Nov 2026, speed) Reads started early - at sign-in, while the account is being checked and the app is still being
+ * opened - and handed to the first screen that asks for the same thing, instead of that screen asking again once it has
+ * opened. Each early answer is used once, only within `maxAgeMs`, and only by the same signed-in person; an early read
+ * that failed is simply asked again. No extra request is ever made: a read that is not taken is the one the app would
+ * have made a moment later anyway.
+ */
+const early = new Map<string, { p: Promise<unknown>; at: number }>();
+clearOnUserChange(() => early.clear());
+export function startEarly<T>(key: string, run: () => Promise<T | null>): void {
+  if (early.has(key)) return;
+  // run() is called before the entry exists, so the read itself never waits for its own early answer
+  const p = run().catch(() => null);
+  early.set(key, { p, at: Date.now() });
+}
+/** The early answer for `key` (once), or null when there is none / it failed / it is too old. */
+export async function takeEarly<T>(key: string, maxAgeMs = 20_000): Promise<T | null> {
+  const e = early.get(key);
+  if (!e) return null;
+  early.delete(key);
+  if (Date.now() - e.at > maxAgeMs) return null;
+  return ((await e.p) as T | null) ?? null;
+}
+export const hasEarly = (key: string): boolean => early.has(key);

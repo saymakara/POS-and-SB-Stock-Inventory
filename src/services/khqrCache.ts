@@ -1,10 +1,10 @@
 import { isSupabaseConfigured } from '../lib/supabase';
-import { clearFresh } from '../utils/freshness';
+import { clearFresh, markFresh } from '../utils/freshness';
 import { registerPortalCacheInvalidator } from '../utils/portalSync';
 import { todayPP } from '../utils/time';
 import {
-  QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary,
-  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary,
+  QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSharedMid, QrSummary,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSharedMids, fetchQrSummary,
 } from './supabaseService';
 import { clearOnUserChange, rememberRecent } from '../utils/userScopedCache';
 
@@ -40,8 +40,9 @@ const entries = new Map<string, EntriesHit>();
 const summaries = new Map<string, QrSummary>();
 const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
+const shared = new Map<string, QrSharedMid[] | null>();          // (25 Nov 2026: was kept in the page itself)
 
-export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
+export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); shared.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
 
 registerPortalCacheInvalidator(['qr'], clearKhqrCache);
 
@@ -63,11 +64,23 @@ export function setCachedAttempts(key: string, hit: { rows: QrAttempt[]; total: 
 }
 export const getCachedSummary = (from: string | null, to: string | null) => summaries.get(periodKey(from, to));
 export const setCachedSummary = (from: string | null, to: string | null, s: QrSummary) => { summaries.set(periodKey(from, to), s); };
+/** Shared MIDs of a period (key `qr:sum:from|to`, as the page uses it). */
+export const hasCachedShared = (k: string) => shared.has(k);
+export const getCachedShared = (k: string) => shared.get(k);
+export const setCachedShared = (k: string, v: QrSharedMid[] | null) => { shared.set(k, v); };
 export const getCachedHistory = () => history;
 export const setCachedHistory = (h: QrMonthTotal[]) => { history = h; };
 
 /** The default view (this month, all activities, page 1, 50 rows), fetched quietly right after sign-in. */
 let inflight: Promise<void> | null = null;
+/** (25 Nov 2026) The parts of the background read still on its way: each part of the page waits only for its own. */
+type KhqrPart = 'entries' | 'stats' | 'hist';
+const parts: Partial<Record<KhqrPart, Promise<unknown>>> = {};
+/** Runs `fn` now, or - when that part of the background read is on its way - once it is here (then from its fresh copy). */
+export function afterKhqrPrefetch(part: KhqrPart, fn: () => unknown): void {
+  const p = parts[part];
+  if (p) void p.then(() => fn(), () => fn()); else void fn();
+}
 let lastRun = 0;
 export function prefetchKhqr(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
@@ -75,11 +88,18 @@ export function prefetchKhqr(): Promise<void> {
   if (Date.now() - lastRun < 300_000 && entries.size > 0) return Promise.resolve();
   const { from, to } = periodRange('ALL');
   const f: QrQuery = { from, to, activity: 'ALL', branchId: undefined, staffId: undefined, search: '' };
+  // (25 Nov 2026) each answer is marked as just fetched, exactly as the page marks its own: the page opened right after
+  // shows it and does not ask again (before, it showed the copy and then fetched the same data a second time)
+  const sumKey = `qr:sum:${from}|${to}`;
+  const done = (part: KhqrPart, p: Promise<unknown>) => { parts[part] = p; return p.finally(() => { if (parts[part] === p) delete parts[part]; }); };
   inflight = Promise.all([
-    fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => setCachedEntries(entriesKey(f, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
+    done('entries', fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => { const k = entriesKey(f, 1, 50); setCachedEntries(k, { rows: r.rows, total: r.total }); markFresh('qr:e:' + k); }).catch(() => {})),
     fetchQrAttemptsPage({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED', page: 1, pageSize: 50 }).then((r) => setCachedAttempts(attemptsKey({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED' }, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
-    fetchQrSummary(from, to).then((s) => { if (s) setCachedSummary(from, to, s); }).catch(() => {}),
-    fetchQrMonthHistory(1).then((h) => { if (h) setCachedHistory(h.slice(0, 1)); }).catch(() => {}),
+    done('stats', Promise.all([fetchQrSummary(from, to), fetchQrSharedMids(from, to, 200)]).then(([s, sm]) => {
+      setCachedShared(sumKey, sm);
+      if (s) { setCachedSummary(from, to, s); markFresh(sumKey); }
+    }).catch(() => {})),
+    done('hist', fetchQrMonthHistory(1).then((h) => { if (h) { setCachedHistory(h.slice(0, 1)); markFresh('qr:hist'); } }).catch(() => {})),
   ]).then(() => { lastRun = Date.now(); }).finally(() => { inflight = null; });
   return inflight;
 }
