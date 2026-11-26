@@ -22,7 +22,7 @@ import {
   deletePhoneRecords, fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrSharedMids, QrSharedMid, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 import {
-  clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory, afterKhqrPrefetch, hasCachedShared, getCachedShared, setCachedShared,
+  clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, totalKey, getKnownTotal, setKnownTotal, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory, afterKhqrPrefetch, hasCachedShared, getCachedShared, setCachedShared,
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
@@ -38,7 +38,7 @@ import {
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
 import { safeHref } from '../utils/safeUrl';
-import { onPortalSync } from '../utils/portalSync';
+import { onPortalSync, createRefreshScheduler } from '../utils/portalSync';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -105,6 +105,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [newCount, setNewCount] = useState(0);
+  const newCountRef = useRef(0);
+  newCountRef.current = newCount;
   const [open, setOpen] = useState<number | null>(null);
   const [editing, setEditing] = useState<QrEntry | null>(null);   // (7 Nov 2026) Edit details
   // (30 Oct 2026) four views side by side: saved entries, failed attempts, wrong scans, same MID by 2+ staff
@@ -202,8 +204,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     if (hit && force !== true && isFresh('qr:e:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
     setLoading((force || !hit) && !silent);
     try {
-      const res = await fetchQrEntriesPage({ ...filters, page, pageSize });
+      // (26 Nov 2026, speed) other pages of the same filters and quiet refreshes reuse the total counted moments ago;
+      // a load the person asked for (↻, "Show", a filter) and any load while new entries are waiting counts afresh
+      const tk = totalKey(filters, pageSize);
+      const known = (silent || page > 1) && newCountRef.current === 0 ? getKnownTotal(tk) : undefined;
+      const res = await fetchQrEntriesPage({ ...filters, page, pageSize }, { knownTotal: known });
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
+      if (known === undefined) setKnownTotal(tk, res.total);
       setCachedEntries(key, { rows: res.rows, total: res.total });
       markFresh('qr:e:' + key);
       setRows(res.rows);
@@ -230,20 +237,22 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       setNewCount((n) => n + 1);
       if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }, STATS_REFRESH_MS);
     });
-    let syncTimer = 0;
-    const unsubSync = onPortalSync(['qr', 'branches'], () => {
-      window.clearTimeout(syncTimer);
-      syncTimer = window.setTimeout(() => {
-        void load(true, true);
-        void loadStats(true);
-        void loadMonthHistory(true);
-        setLogKey((k) => k + 1);
-      }, 450);
-    });
+    // (26 Nov 2026, speed + quota) a change made in this browser is shown as quickly as before; changes made by others
+    // (every failed attempt / wrong scan on the phones is one) refresh the page at most once every 2 minutes, and a page
+    // in a background tab waits until it is shown again (createRefreshScheduler, the rule the KPI pages use). Before,
+    // each of them re-read the list with a full recount, the summary and the month history straight away.
+    const refreshAll = () => {
+      void load(true, true);
+      void loadStats(true);
+      void loadMonthHistory(true);
+      setLogKey((k) => k + 1);
+    };
+    const scheduler = createRefreshScheduler(refreshAll, { delayMs: 450 });
+    const unsubSync = onPortalSync(['qr', 'branches'], (_changed, info) => scheduler.trigger(info));
     return () => {
       unsub();
       unsubSync();
-      window.clearTimeout(syncTimer);
+      scheduler.dispose();
       if (statTimer) clearTimeout(statTimer);
     };
   }, [load, loadStats, loadMonthHistory]);

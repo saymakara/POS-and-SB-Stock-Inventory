@@ -2841,19 +2841,22 @@ function applyQrFilters(q: any, p: QrQuery) {
   return query;
 }
 
-/** One page of KHQR entries, newest first. The total counts the same filters. */
-export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?: number }): Promise<PaginatedResult<QrEntry>> {
+/** One page of KHQR entries, newest first. The total counts the same filters.
+ *  (26 Nov 2026, speed) `knownTotal`: the total of the same filters counted moments ago - the page is then read without
+ *  counting again (counting all ~28,000 entries took ~95% of the time of this read; the 50 rows themselves ~35 ms). */
+export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?: number }, opts: { knownTotal?: number } = {}): Promise<PaginatedResult<QrEntry>> {
   const pageSize = p.pageSize === 1000 ? 1000 : p.pageSize === 100 ? 100 : 50;   // (1,000: CSV export)
   const page = Math.max(1, p.page || 1);
   const offset = (page - 1) * pageSize;
+  const known = typeof opts.knownTotal === 'number' && opts.knownTotal >= 0 ? opts.knownTotal : null;
   try {
-    const q = applyQrFilters(supabase.from('qr_installations').select(QR_COLUMNS, { count: 'exact' }), p)
+    const q = applyQrFilters(supabase.from('qr_installations').select(QR_COLUMNS, known === null ? { count: 'exact' } : undefined), p)
       .order('submitted_at', { ascending: false })
       .order('id', { ascending: false })
       .range(offset, offset + pageSize - 1);
     const { data, count, error } = await q;
     if (error) throw error;
-    return { rows: (data || []).map(mapQrEntry), total: count || 0, page, pageSize };
+    return { rows: (data || []).map(mapQrEntry), total: known ?? (count || 0), page, pageSize };
   } catch (err) {
     await reportCaughtError('fetchQrEntriesPage', err, { showPopup: false });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
