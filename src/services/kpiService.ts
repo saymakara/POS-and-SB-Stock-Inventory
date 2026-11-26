@@ -195,6 +195,9 @@ export interface KpiDashboardData {
   monthlyStaff: KpiMonthlyStaffRaw[];
   dailyBranch?: KpiDailyBranchRaw[];
   dailyStaff?: KpiDailyStaffRaw[];
+  /** (26 Nov 2026) first day held in dailyStaff / dailyBranch (the server keeps about 3 months of day-by-day rows;
+   *  months, quarters and totals stay complete). Empty / missing: every day is held. */
+  dailyFrom?: string | null;
 }
 
 export interface ComputedPoints {
@@ -341,6 +344,7 @@ interface KpiSeriesBundle {
   monthlyStaff: KpiMonthlyStaffRaw[];
   dailyBranch: KpiDailyBranchRaw[];
   dailyStaff: KpiDailyStaffRaw[];
+  dailyFrom?: string | null;
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
@@ -465,6 +469,7 @@ export function getCachedKpiSettings(): KpiSettingsData {
 export function clearKpiCache(): void {
   cachedSettings = null;
   latestSeries = null;
+  olderDaysCache.clear();
   summaryCache.clear();
   kpiBorn.clear();
   pendingSlicesToPersist.clear();
@@ -546,6 +551,7 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
         monthlyStaff: series?.monthlyStaff || [],
         dailyBranch: series?.dailyBranch || [],
         dailyStaff: series?.dailyStaff || [],
+        dailyFrom: series?.dailyFrom ?? null,
       };
       summaryCache.set(key, merged);
       // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 5 min old) is reused at 0ms
@@ -573,6 +579,7 @@ export const setCachedKpiSummary = (from: string | null, to: string | null, d: K
       monthlyStaff: d.monthlyStaff || [],
       dailyBranch: d.dailyBranch || [],
       dailyStaff: d.dailyStaff || [],
+      dailyFrom: d.dailyFrom ?? null,
     };
     pendingSeriesToPersist = true;
   }
@@ -758,6 +765,28 @@ function mapRawCounts(r: any): KpiRawCounts {
 }
 
 const kpiInflight = new Map<string, Promise<KpiDashboardData>>();
+/** Phnom Penh calendar day of an ISO time ("2026-10-31T17:00:00.000Z" -> "2026-11-01"). */
+const ppYmdOf = (iso: string): string => { const t = Date.parse(iso); return Number.isFinite(t) ? todayPP(new Date(t)) : iso.slice(0, 10); };
+
+/**
+ * (26 Nov 2026) Day-by-day rows before `before` (the first day a summary holds), from `fromYmd` on - read only when a
+ * screen shows an older day (the daily table of an older month). One request per start day, then kept in memory.
+ */
+const olderDaysCache = new Map<string, Promise<{ dailyFrom: string; dailyStaff: KpiDailyStaffRaw[]; dailyBranch: KpiDailyBranchRaw[] }>>();
+export function fetchKpiOlderDays(fromYmd: string, before: string): Promise<{ dailyFrom: string; dailyStaff: KpiDailyStaffRaw[]; dailyBranch: KpiDailyBranchRaw[] }> {
+  const key = `${fromYmd}|${before}|${todayPP()}`;
+  let p = olderDaysCache.get(key);
+  if (!p) {
+    p = fetchKpiSummary(new Date(`${fromYmd}T00:00:00+07:00`).toISOString(), null).then((r) => ({
+      dailyFrom: r.dailyFrom || fromYmd,
+      dailyStaff: (r.dailyStaff || []).filter((x) => x.day && x.day < before),
+      dailyBranch: (r.dailyBranch || []).filter((x) => x.day && x.day < before),
+    }));
+    p.catch(() => { if (olderDaysCache.get(key) === p) olderDaysCache.delete(key); });
+    olderDaysCache.set(key, p);
+  }
+  return p;
+}
 const kpiBorn = new Map<string, number>();
 
 export async function fetchKpiSummary(from: string | null, to: string | null, force = false): Promise<KpiDashboardData> {
@@ -786,7 +815,9 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
       Boolean(seriesBundle) &&
       staffSliceRpcSupported !== false &&
       Date.now() - (seriesBundle?.fetchedAt || 0) < 900_000 &&
-      ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0);
+      ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0) &&
+      // (26 Nov 2026) the kept day-by-day rows must reach back to the start of the period asked for
+      (!seriesBundle?.dailyFrom || !from || ppYmdOf(from) >= seriesBundle.dailyFrom);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let d: any = null;
@@ -837,6 +868,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
           monthlyStaff: seriesBundle.monthlyStaff,
           dailyBranch: seriesBundle.dailyBranch,
           dailyStaff: seriesBundle.dailyStaff,
+          dailyFrom: seriesBundle.dailyFrom ?? null,
         }
       : {
           rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : [],
@@ -905,6 +937,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
           })) : [],
+          dailyFrom: typeof d.daily_from === 'string' && d.daily_from ? d.daily_from : null,
         };
     setCachedKpiSummary(from, to, out);
     kpiBorn.set(key, Date.now());
