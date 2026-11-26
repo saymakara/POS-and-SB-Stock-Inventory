@@ -182,7 +182,9 @@ export function patchCachedCcEntry(recordId: string, next: Partial<CcEntry>): vo
   });
 }
 export function clearCcCache(): void { listCache.clear(); countsCache.clear(); born.clear(); lastPrefetch = 0; }
-registerPortalCacheInvalidator(['cc'], clearCcCache);
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+export function markCcStale(): void { born.clear(); lastPrefetch = 0; }
+registerPortalCacheInvalidator(['cc'], markCcStale);
 
 /** Warms the default Credit Card view (all time, all entries, page 1) and counts in the background so opening the tab is 0ms. */
 let inflightPrefetch: Promise<CcCounts | null> | null = null;

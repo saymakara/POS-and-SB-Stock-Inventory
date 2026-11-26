@@ -44,7 +44,10 @@ const shared = new Map<string, QrSharedMid[] | null>();          // (25 Nov 2026
 
 export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); shared.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
 
-registerPortalCacheInvalidator(['qr'], clearKhqrCache);
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+// Every KHQR entry is a 'qr' change, so on a busy day this ran every few seconds.
+export function markKhqrStale(): void { lastRun = 0; clearFresh('qr:'); }
+registerPortalCacheInvalidator(['qr'], markKhqrStale);
 
 clearOnUserChange(clearKhqrCache);
 

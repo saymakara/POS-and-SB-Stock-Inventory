@@ -18,7 +18,9 @@ export const getMvSummary = (k: string) => summaries.get(k);
 export const setMvSummary = (k: string, v: MvVisitSummary) => { if (summaries.size > 20) summaries.clear(); summaries.set(k, v); };
 export function clearMvCache(): void { pages.clear(); summaries.clear(); clearFresh('mv:'); }
 
-registerPortalCacheInvalidator(['mv'], clearMvCache);   // (26 Nov 2026: not on 'kpi' - every KHQR entry is a KPI change; this page shows visits only)
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+export function markMvStale(): void { clearFresh('mv:'); }
+registerPortalCacheInvalidator(['mv'], markMvStale);   // (26 Nov 2026: not on 'kpi' - every KHQR entry is a KPI change; this page shows visits only)
 
 /** The page key of one Merchant Visit list view (as the page uses it). */
 export const mvKey = (r: { from: string | null; to: string | null }, activity: string, region: FieldScope, branchId: string, search: string, page: number, pageSize: number) =>

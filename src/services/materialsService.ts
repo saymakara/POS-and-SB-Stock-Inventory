@@ -109,7 +109,16 @@ export function clearMaterialsCache(): void {
   clearFresh('mat:');
 }
 
-registerPortalCacheInvalidator(['materials', 'devices', 'requisitions'], clearMaterialsCache);
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+// Requests already on their way may hold the earlier figures, so they are not shared any more.
+export function markMaterialsStale(): void {
+  inflightSerialPages.clear();
+  inflightStatusCounts.clear();
+  inflightBalances = null;
+  inflightLost.clear();
+  clearFresh('mat:');
+}
+registerPortalCacheInvalidator(['materials', 'devices', 'requisitions'], markMaterialsStale);
 
 clearOnUserChange(clearMaterialsCache);
 
