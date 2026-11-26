@@ -126,7 +126,22 @@ async function api(route) {
     });
     if (method === 'HEAD') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range', 'content-range': '0-' + Math.max(0, list.length - 1) + '/' + list.length } });
     const off = Number(url.searchParams.get('offset') || 0), lim = Number(url.searchParams.get('limit') || 100000);
-    return json(200, list.slice(off, off + lim));
+    // (26 Nov 2026) like PostgREST: a select without "payload" gets no payload; "alias:payload->a->>b" paths are read
+    const sel = String(url.searchParams.get('select') || '*');
+    const shape = (e) => {
+      if (sel === '*' || /(^|,)payload(,|$)/.test(sel)) return e;
+      const o = { ...e }; delete o.payload;
+      sel.split(',').forEach((part) => {
+        const m = part.match(/^(\w+):payload((?:->>?\w+)+)$/); if (!m) return;
+        let v = e.payload; const steps = m[2].match(/->>?\w+/g);
+        steps.forEach((st, i) => { const key = st.replace(/^->>?/, ''); v = v == null ? null : v[key]; if (i === steps.length - 1 && st.startsWith('->>') && v != null && typeof v !== 'string') v = JSON.stringify(v); });
+        o[m[1]] = v === undefined ? null : v;
+      });
+      return o;
+    };
+    const rows = list.slice(off, off + lim).map(shape);
+    if (String(req.headers()['accept'] || '').includes('vnd.pgrst.object')) return json(200, rows[0] || null);
+    return json(200, rows);
   }
   if (path === '/rest/v1/rpc/admin_dispatch_requisition') {
     state.dispatch = body; const r = state.reqs.find(x => x.req_id === body.p_req_id);

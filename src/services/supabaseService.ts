@@ -1813,7 +1813,8 @@ function mapFieldEvent(r: any): FieldEvent {
     latitude: r.latitude,
     longitude: r.longitude,
     remarks: r.remarks,
-    payload: r.payload || {},
+    payload: r.payload !== undefined ? (r.payload || {})
+      : { __slim: true, entry: r.p_rt != null ? { request_type: r.p_rt } : {}, ...(r.p_unit != null ? { unit: r.p_unit } : {}), ...(r.p_top_rt != null ? { request_type: r.p_top_rt } : {}) },
     issues: Array.isArray(r.issues) ? r.issues : [],
     status: r.status,
     reviewedByName: r.reviewed_by_name,
@@ -1848,8 +1849,30 @@ async function readBranchRegions(): Promise<Record<string, string>> {
   }
 }
 
-const FIELD_EVENT_COLUMNS =
+const FIELD_EVENT_FULL_COLUMNS =
   'id,source_record_id,unit_no,revision,kind,device_type,serial,old_serial,old_battery,new_battery,mid,tid,terminal_name,outlet_name,branch_text,branch_id,staff_id,staff_name,recorded_at,latitude,longitude,remarks,payload,issues,status,reviewed_by_name,reviewed_at,review_note,applied,received_at';
+/**
+ * (26 Nov 2026, less data) The review lists read each record WITHOUT its full app entry (payload): ~60% of the bytes, and
+ * most of it repeats the columns. Only what the list itself uses is read from it - the request type (New Installation /
+ * Integrated, inspection type) and the device part (how each number was entered: scanned / typed). The full entry
+ * (details, checks, feedback) is read for one record when it is opened or edited (fetchFieldEventFull).
+ */
+const FIELD_EVENT_COLUMNS =
+  'id,source_record_id,unit_no,revision,kind,device_type,serial,old_serial,old_battery,new_battery,mid,tid,terminal_name,outlet_name,branch_text,branch_id,staff_id,staff_name,recorded_at,latitude,longitude,remarks,issues,status,reviewed_by_name,reviewed_at,review_note,applied,received_at,' +
+  'p_rt:payload->entry->>request_type,p_unit:payload->unit,p_top_rt:payload->>request_type';
+/** The whole record (its full app entry included), or null. */
+export async function fetchFieldEventFull(id: number): Promise<FieldEvent | null> {
+  try {
+    const { data, error } = await supabase.from('field_events').select(FIELD_EVENT_FULL_COLUMNS).eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? mapFieldEvent(data) : null;
+  } catch (err) {
+    await reportCaughtError('fetchFieldEventFull', err, { target: String(id), showPopup: false });
+    return null;
+  }
+}
+/** True when the record was read for a list (its full entry not here yet). */
+export const isSlimFieldEvent = (e: FieldEvent | null | undefined): boolean => Boolean(e && e.payload && e.payload.__slim);
 
 /** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
 export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
@@ -2067,6 +2090,16 @@ export async function fetchPendingFieldEventGroups(): Promise<Array<Record<strin
   if (!isSupabaseConfigured || pendingGroupsRpcSupported === false) return null;
   const { data, error } = await supabase.rpc('pending_field_event_groups');
   return !error && Array.isArray(data) ? (data as Array<Record<string, any>>) : null;
+}
+
+/** (26 Nov 2026) The number of waiting records on the server (all of them, any area) - a cheap check that the list on the
+ *  screen is complete. null when it could not be read. */
+export async function countAllPendingFieldEvents(): Promise<number | null> {
+  try {
+    const { count, error } = await supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING');
+    if (error) throw error;
+    return typeof count === 'number' ? count : null;
+  } catch { return null; }
 }
 
 export async function countPendingFieldEventsByType(
@@ -2484,14 +2517,22 @@ export async function fetchMonthlyInstallFieldEvents(
   return task;
 }
 
-export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
+export function subscribeToFieldEvents(
+  onChange: (e: FieldEvent) => void,
+  opts: { onDelete?: (id: number) => void; onStatus?: (live: boolean) => void } = {}
+): () => void {
   if (!isSupabaseConfigured) return () => {};
   const channel = supabase
     .channel(channelName('field_events_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
+      if (payload.eventType === 'DELETE') {                              // (26 Nov 2026) a deleted record leaves the list at once
+        const id = Number((payload.old as any)?.id);
+        if (id && opts.onDelete) opts.onDelete(id);
+        return;
+      }
       if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
     })
-    .subscribe();
+    .subscribe((status) => { if (opts.onStatus) opts.onStatus(status === 'SUBSCRIBED'); });
   return () => {
     supabase.removeChannel(channel);
   };
