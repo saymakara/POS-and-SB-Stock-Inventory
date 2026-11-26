@@ -167,6 +167,7 @@ async function api2(route) {
   }
   if (path === '/rest/v1/qr_installations') {
     state.calls.push(method + ' ' + path + url.search);
+    (state.qrPrefer = state.qrPrefer || []).push({ offset: Number(url.searchParams.get('offset') || 0), counted: /count=exact/.test(req.headers()['prefer'] || '') });
     if (state.qrMissing) return json(404, { code: 'PGRST205', message: "Could not find the table 'public.qr_installations' in the schema cache" });
     const rows = qrList(url);
     if (method === 'HEAD') return route.fulfill({ status: 200, headers: Object.assign({}, H, { 'content-range': '*/' + rows.length }) });
@@ -253,6 +254,16 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   await p.screenshot({ path: '/tmp/claude-0/t/d2_khqr.png' });
   await p.getByRole('button', { name: 'Next page' }).click(); await sleep(1200);
   ok(/Showing 51–100 of 120/.test(await p.textContent('main')) && state.calls.some(c => /qr_installations.*offset=50/.test(c)), 'next page read from the server (offset 50)');
+  // (26 Nov 2026) page 2 reuses the total counted for page 1 (counting every entry was ~95% of a list read)
+  const p2reads = (state.qrPrefer || []).filter(x => x.offset === 50);
+  ok(p2reads.length >= 1 && p2reads.every(x => !x.counted), 'page 2 is read without counting all entries again (total kept: 120)');
+  // (26 Nov 2026) changes made by others (failed attempts / wrong scans on the phones): at most one quiet refresh per 2 minutes
+  const n0 = state.calls.length;
+  for (let i = 0; i < 3; i++) { await p.evaluate(() => { const bc = new BroadcastChannel('pos_portal_live_sync_v1'); bc.postMessage({ sender: 'phone-feed', domains: ['qr'] }); bc.close(); }); await sleep(700); }
+  await sleep(1500);
+  const after = state.calls.slice(n0);
+  const listReads = after.filter(c => /^GET \/rest\/v1\/qr_installations\?select=/.test(c)).length, sums = after.filter(c => /qr_summary/.test(c)).length;
+  ok(listReads <= 1 && sums <= 1, 'three changes by others in 3 s: at most one quiet refresh (' + listReads + ' list read, ' + sums + ' summary)');
   // Last month: a closed date range for every request
   await p.selectOption('select[aria-label="Period"]', 'LAST'); await sleep(1500);
   ok(state.calls.some(c => /qr_installations\?select=.*submitted_at=gte\..*submitted_at=lt\./.test(c)) && state.calls.some(c => /qr_summary .*"p_to":"20/.test(c)), 'Last month: from the 1st of last month to the 1st of this month');

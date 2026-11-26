@@ -2,7 +2,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { unpackKpiLists } from '../utils/kpiPack';
 import { todayPP } from '../utils/time';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
-import { clearOnUserChange } from '../utils/userScopedCache';
+import { clearOnUserChange, cacheOwner } from '../utils/userScopedCache';
+import { persistGet, persistPut } from '../utils/persistCache';
 
 export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Merchant Visit' | 'Other';
 
@@ -195,6 +196,9 @@ export interface KpiDashboardData {
   monthlyStaff: KpiMonthlyStaffRaw[];
   dailyBranch?: KpiDailyBranchRaw[];
   dailyStaff?: KpiDailyStaffRaw[];
+  /** (26 Nov 2026) first day held in dailyStaff / dailyBranch (the server keeps about 3 months of day-by-day rows;
+   *  months, quarters and totals stay complete). Empty / missing: every day is held. */
+  dailyFrom?: string | null;
 }
 
 export interface ComputedPoints {
@@ -341,6 +345,7 @@ interface KpiSeriesBundle {
   monthlyStaff: KpiMonthlyStaffRaw[];
   dailyBranch: KpiDailyBranchRaw[];
   dailyStaff: KpiDailyStaffRaw[];
+  dailyFrom?: string | null;
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
@@ -465,10 +470,14 @@ export function getCachedKpiSettings(): KpiSettingsData {
 export function clearKpiCache(): void {
   cachedSettings = null;
   latestSeries = null;
+  olderDaysCache.clear();
   summaryCache.clear();
   kpiBorn.clear();
   pendingSlicesToPersist.clear();
   pendingSeriesToPersist = false;
+  diskSlices.clear();
+  hydrated = null;
+  staleAt = 0;
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const key = sessionStorage.key(i);
@@ -479,8 +488,28 @@ export function clearKpiCache(): void {
   } catch { /* ignore */ }
 }
 
-// Routine device stock moves do not alter KPI points; only KPI-producing domains invalidate cached summaries.
-registerPortalCacheInvalidator(['kpi', 'field', 'qr', 'cc', 'mv', 'staff'], clearKpiCache);
+/**
+ * (26 Nov 2026, speed) A change to KPI data (a KHQR entry, a review, a rule...) no longer throws the kept figures away:
+ * they stay on screen and are marked out of date, so the next screen that asks shows them at once and reads the new
+ * figures in the background (stale while revalidate). Before, every change anywhere - every few seconds on a busy day -
+ * emptied the copy, so opening Dashboard or KPI Performance showed a loading state and read everything again.
+ * Only another person signing in empties the copy (clearKpiCache).
+ */
+let staleAt = 0;
+function readStaleAt(): number {
+  if (staleAt) return staleAt;
+  try { staleAt = Number(sessionStorage.getItem('kpi_stale_at') || 0) || 0; } catch { /* */ }
+  return staleAt;
+}
+export function markKpiStale(): void {
+  cachedSettings = null;
+  kpiBorn.clear();
+  olderDaysCache.clear();
+  staleAt = Date.now();
+  try { sessionStorage.setItem('kpi_stale_at', String(staleAt)); } catch { /* */ }
+}
+// Routine device stock moves do not alter KPI points; only KPI-producing domains mark the kept summaries out of date.
+registerPortalCacheInvalidator(['kpi', 'field', 'qr', 'cc', 'mv', 'staff'], markKpiStale);
 
 clearOnUserChange(clearKpiCache);
 
@@ -500,8 +529,18 @@ function getSeriesBundle(): KpiSeriesBundle | null {
   return null;
 }
 
+/** (26 Nov 2026) the summaries of today kept on disk for this person (persistCache): at most the 6 latest periods */
+const diskSlices = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
+const KPI_DISK_KEY = 'kpi_summary';
+interface KpiDiskCopy { day: string; series: KpiSeriesBundle | null; slices: [string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }][] }
+
 function flushKpiStorageWrites(): void {
   pendingStorageTimer = null;
+  const owner = cacheOwner();
+  if (owner && (pendingSeriesToPersist || pendingSlicesToPersist.size) && latestSeries && latestSeries.dateKey === todayPP()) {
+    pendingSlicesToPersist.forEach((slice, key) => rememberSlice(key, slice));
+    persistPut<KpiDiskCopy>(owner, KPI_DISK_KEY, { day: latestSeries.dateKey, series: latestSeries, slices: Array.from(diskSlices.entries()) });
+  }
   try {
     if (pendingSeriesToPersist && latestSeries) {
       pendingSeriesToPersist = false;
@@ -522,6 +561,43 @@ function scheduleKpiStorageFlush(): void {
   } else {
     pendingStorageTimer = window.setTimeout(flushKpiStorageWrites, 600);
   }
+}
+
+function rememberSlice(key: string, slice: { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }): void {
+  diskSlices.delete(key);
+  diskSlices.set(key, slice);
+  while (diskSlices.size > 6) diskSlices.delete(diskSlices.keys().next().value as string);
+}
+
+/**
+ * (26 Nov 2026, speed) Opening the portal again the same day: today's KPI figures saved on disk for this person are
+ * put back in memory, so Dashboard and KPI Performance show them at once. They count as out of date: the screens read
+ * the current figures straight away, as before, and replace them. Figures of an earlier day are never shown.
+ */
+let hydrated: Promise<boolean> | null = null;
+export function hydrateKpiFromDisk(owner: string): Promise<boolean> {
+  if (hydrated) return hydrated;
+  hydrated = (async () => {
+    const today = todayPP();
+    if (latestSeries && latestSeries.dateKey === today) return false;
+    const copy = await persistGet<KpiDiskCopy>(owner, KPI_DISK_KEY, 18 * 3600_000);
+    if (!copy || copy.day !== today || !copy.series || copy.series.dateKey !== today) return false;
+    if (latestSeries && latestSeries.dateKey === today) return false;      // the database answered first
+    latestSeries = copy.series;
+    for (const [key, slice] of copy.slices || []) {
+      rememberSlice(key, slice);
+      if (summaryCache.has(key)) continue;
+      summaryCache.set(key, {
+        rules: slice.rules || [], targets: slice.targets || mapTargets(null), staff: slice.staff || [],
+        daily: copy.series.daily || [], weekly: copy.series.weekly || [], monthly: copy.series.monthly || [],
+        quarterly: copy.series.quarterly || [], monthlyStaff: copy.series.monthlyStaff || [],
+        dailyBranch: copy.series.dailyBranch || [], dailyStaff: copy.series.dailyStaff || [], dailyFrom: copy.series.dailyFrom ?? null,
+      });
+    }
+    try { window.dispatchEvent(new Event('portal:kpi-restored')); } catch { /* */ }
+    return true;
+  })().catch(() => false);
+  return hydrated;
 }
 
 export const kpiCacheKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
@@ -546,10 +622,11 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
         monthlyStaff: series?.monthlyStaff || [],
         dailyBranch: series?.dailyBranch || [],
         dailyStaff: series?.dailyStaff || [],
+        dailyFrom: series?.dailyFrom ?? null,
       };
       summaryCache.set(key, merged);
       // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 5 min old) is reused at 0ms
-      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 300_000) {
+      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 300_000 && slice.fetchedAt > readStaleAt()) {
         kpiBorn.set(key, slice.fetchedAt);
       }
       return merged;
@@ -573,6 +650,7 @@ export const setCachedKpiSummary = (from: string | null, to: string | null, d: K
       monthlyStaff: d.monthlyStaff || [],
       dailyBranch: d.dailyBranch || [],
       dailyStaff: d.dailyStaff || [],
+      dailyFrom: d.dailyFrom ?? null,
     };
     pendingSeriesToPersist = true;
   }
@@ -758,6 +836,28 @@ function mapRawCounts(r: any): KpiRawCounts {
 }
 
 const kpiInflight = new Map<string, Promise<KpiDashboardData>>();
+/** Phnom Penh calendar day of an ISO time ("2026-10-31T17:00:00.000Z" -> "2026-11-01"). */
+const ppYmdOf = (iso: string): string => { const t = Date.parse(iso); return Number.isFinite(t) ? todayPP(new Date(t)) : iso.slice(0, 10); };
+
+/**
+ * (26 Nov 2026) Day-by-day rows before `before` (the first day a summary holds), from `fromYmd` on - read only when a
+ * screen shows an older day (the daily table of an older month). One request per start day, then kept in memory.
+ */
+const olderDaysCache = new Map<string, Promise<{ dailyFrom: string; dailyStaff: KpiDailyStaffRaw[]; dailyBranch: KpiDailyBranchRaw[] }>>();
+export function fetchKpiOlderDays(fromYmd: string, before: string): Promise<{ dailyFrom: string; dailyStaff: KpiDailyStaffRaw[]; dailyBranch: KpiDailyBranchRaw[] }> {
+  const key = `${fromYmd}|${before}|${todayPP()}`;
+  let p = olderDaysCache.get(key);
+  if (!p) {
+    p = fetchKpiSummary(new Date(`${fromYmd}T00:00:00+07:00`).toISOString(), null).then((r) => ({
+      dailyFrom: r.dailyFrom || fromYmd,
+      dailyStaff: (r.dailyStaff || []).filter((x) => x.day && x.day < before),
+      dailyBranch: (r.dailyBranch || []).filter((x) => x.day && x.day < before),
+    }));
+    p.catch(() => { if (olderDaysCache.get(key) === p) olderDaysCache.delete(key); });
+    olderDaysCache.set(key, p);
+  }
+  return p;
+}
 const kpiBorn = new Map<string, number>();
 
 export async function fetchKpiSummary(from: string | null, to: string | null, force = false): Promise<KpiDashboardData> {
@@ -786,7 +886,9 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
       Boolean(seriesBundle) &&
       staffSliceRpcSupported !== false &&
       Date.now() - (seriesBundle?.fetchedAt || 0) < 900_000 &&
-      ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0);
+      ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0) &&
+      // (26 Nov 2026) the kept day-by-day rows must reach back to the start of the period asked for
+      (!seriesBundle?.dailyFrom || !from || ppYmdOf(from) >= seriesBundle.dailyFrom);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let d: any = null;
@@ -837,6 +939,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
           monthlyStaff: seriesBundle.monthlyStaff,
           dailyBranch: seriesBundle.dailyBranch,
           dailyStaff: seriesBundle.dailyStaff,
+          dailyFrom: seriesBundle.dailyFrom ?? null,
         }
       : {
           rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : [],
@@ -905,6 +1008,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
           })) : [],
+          dailyFrom: typeof d.daily_from === 'string' && d.daily_from ? d.daily_from : null,
         };
     setCachedKpiSummary(from, to, out);
     kpiBorn.set(key, Date.now());

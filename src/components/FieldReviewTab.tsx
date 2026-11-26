@@ -28,7 +28,7 @@ import {
   approveFieldEvent,
   rejectFieldEvent,
 } from '../services/supabaseService';
-import { deletePhoneRecords } from '../services/supabaseService';
+import { deletePhoneRecords, fetchFieldEventFull, isSlimFieldEvent, countAllPendingFieldEvents } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
 import { fieldPrefetchRunning, onFieldFirstPage, getCachedFieldEvents, isFieldCacheComplete, isFieldReviewedReady, setCachedFieldEvents } from '../services/fieldCache';
 import { onPortalSync } from '../utils/portalSync';
@@ -549,22 +549,48 @@ export const FieldReviewTab: React.FC<Props> = ({
         return added.length ? [...added.reverse(), ...next] : next;
       });
     };
+    // (26 Nov 2026, less data) While the record feed is live, every new / changed / deleted record arrives here one by one
+    // and is applied to the list - the whole list (thousands of records, several MB) is no longer read again after every
+    // change. It is read again only when the feed was down (changes may have been missed), and a cheap check every
+    // 5 minutes (the number of waiting records on the server) catches anything the feed missed.
+    let feedLive = false, feedWasLive = false;
     const unsub = subscribeToFieldEvents((e) => {
       setLive(true);
       queued.set(e.id, e);
       if (frame === null) frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flushQueued) : (window.setTimeout(flushQueued, 16) as unknown as number);
+    }, {
+      onDelete: (id) => {
+        queued.delete(id);
+        startTransition(() => { setEvents((prev) => (prev && prev.some((x) => x.id === id) ? prev.filter((x) => x.id !== id) : prev)); });
+      },
+      onStatus: (on) => {
+        if (on && !feedLive && feedWasLive) void load();                 // back after a break: catch up once
+        feedLive = on;
+        if (on) feedWasLive = true;
+      },
     });
     let syncTimer = 0;
     const unsubSync = onPortalSync(['field'], () => {
+      if (feedLive) return;                                             // the feed brings the change itself
       window.clearTimeout(syncTimer);
       syncTimer = window.setTimeout(() => {
         void load();
       }, 650);
     });
+    const check = window.setInterval(() => {
+      if (document.hidden || !feedLive) return;
+      void countAllPendingFieldEvents().then((n) => {
+        const list = eventsRef.current;
+        if (n === null || !alive || !list || !isFieldCacheComplete()) return;
+        const mine = list.reduce((a, x) => a + (x.status === 'PENDING' ? 1 : 0), 0);
+        if (mine !== n) void load();                                    // something was missed: read the list again
+      });
+    }, 300_000);
   return () => {
       alive = false;
       unsub();
       unsubSync();
+      window.clearInterval(check);
       window.clearTimeout(syncTimer);
       if (frame !== null) { try { cancelAnimationFrame(frame); } catch { /* not a frame */ } }
       queued.clear();
@@ -983,7 +1009,25 @@ export const FieldReviewTab: React.FC<Props> = ({
     },
     [triggerToast]
   );
-  const toggleOpen = useCallback((id: number) => setOpen((p) => (p === id ? null : id)), []);
+  // (26 Nov 2026) the list holds records without their full app entry: opening or editing one reads it (one small read)
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const loadFull = useCallback(async (id: number): Promise<FieldEvent | null> => {
+    const cur = (eventsRef.current || []).find((x) => x.id === id) || null;
+    if (cur && !isSlimFieldEvent(cur)) return cur;
+    const full = await fetchFieldEventFull(id);
+    if (full) setEvents((prev) => (prev ? prev.map((x) => (x.id === id && isSlimFieldEvent(x) ? { ...x, payload: full.payload } : x)) : prev));
+    return full ? { ...(cur || full), payload: full.payload } : cur;
+  }, []);
+  const toggleOpen = useCallback((id: number) => setOpen((p) => {
+    if (p === id) return null;
+    void loadFull(id);
+    return id;
+  }), [loadFull]);
+  const openEdit = useCallback((e: FieldEvent) => {
+    if (!isSlimFieldEvent(e)) { setEditing(e); return; }
+    void loadFull(e.id).then((full) => setEditing(full || e));
+  }, [loadFull]);
 
   const runBulk = async (mode: 'approve' | 'reject') => {
     const list = selectedShown.slice();
@@ -1727,7 +1771,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   onApprove={approveRow}
                   onReject={rejectRow}
                   onOpenWorkflow={onOpenWorkflow}
-                  onEdit={isAdmin ? setEditing : undefined}
+                  onEdit={isAdmin ? openEdit : undefined}
                 />
               ))}
           </div>
@@ -1744,7 +1788,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           fields={fieldEditFields(editing)}
           note="Saved in the portal at once, and written to the same row of the Merchant Visit Google Sheet within a few minutes."
           onClose={() => setEditing(null)}
-          onSaved={() => { load(); }}
+          onSaved={() => { const id = editing.id; void fetchFieldEventFull(id).then((full) => { if (full) setEvents((prev) => (prev ? prev.map((x) => (x.id === id ? full : x)) : prev)); }); }}
           triggerToast={triggerToast}
         />
       )}

@@ -8,6 +8,7 @@ import { clearMvCache } from '../services/mvCache';
 import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 import { forgetSavedCopies } from '../utils/idbStorage';
+import { persistClearAll } from '../utils/persistCache';
 import { markNavigationTransition } from '../utils/perfMonitor';
 import { startEarly } from '../utils/userScopedCache';
 
@@ -55,6 +56,7 @@ export function clearLocalCaches(): void {
   } catch {
     /* not available */
   }
+  persistClearAll();                                                          // (26 Nov 2026) figures kept on disk
   clearKeptMemos();
   clearCcCache();
   clearMvCache();

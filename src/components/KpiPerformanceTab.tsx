@@ -23,7 +23,7 @@ import { normalizeStaffName } from '../utils/staffUtils';
 import { isPhnomPenhBranch } from '../utils/fieldScope';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
-  KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, getCachedKpiSummary,
+  KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, fetchKpiOlderDays, getCachedKpiSummary,
   KpiDailyBranchRaw, KpiDailyStaffRaw, KpiTimeBucketRaw,
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary, isWeekendDay } from '../utils/cambodiaHolidays';
@@ -1026,9 +1026,50 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   }, []);
 
   const range = useMemo(() => kpiPeriodRange(period), [period]);
-  const [data, setData] = useState<KpiDashboardData | null>(() => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null);
+  const [baseData, setData] = useState<KpiDashboardData | null>(() => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null);
+  // (26 Nov 2026) the KPI answer holds about 3 months of day-by-day rows (months and totals stay complete). The daily
+  // table of an older month reads that month's days once, on demand, and they are added here.
+  const dailyTableOpen = (tableMode === 'branch' && branchSubView === 'daily') || (tableMode === 'staff' && staffSubView === 'daily');
+  const needDayFrom = dailyTableOpen ? `${dailyMatrixMonth}-01` : '';
+  const haveDayFrom = baseData?.dailyFrom || '';
+  const needsOlderDays = Boolean(needDayFrom && haveDayFrom && needDayFrom < haveDayFrom);
+  const [olderDays, setOlderDays] = useState<{ from: string; before: string; staff: KpiDailyStaffRaw[]; branch: KpiDailyBranchRaw[] } | null>(null);
+  const [olderDaysError, setOlderDaysError] = useState('');
+  const olderCovered = Boolean(olderDays && olderDays.before === haveDayFrom && olderDays.from <= needDayFrom);
+  useEffect(() => {
+    if (!needsOlderDays || olderCovered) return;
+    let alive = true;
+    setOlderDaysError('');
+    // read from the earliest month already asked for, so going back and forth costs one read
+    const from = olderDays && olderDays.before === haveDayFrom && olderDays.from < needDayFrom ? olderDays.from : needDayFrom;
+    fetchKpiOlderDays(from, haveDayFrom)
+      .then((r) => { if (alive) setOlderDays({ from: r.dailyFrom, before: haveDayFrom, staff: r.dailyStaff, branch: r.dailyBranch }); })
+      .catch((e) => { if (alive) setOlderDaysError(e instanceof Error ? e.message : String(e)); });
+    return () => { alive = false; };
+  }, [needsOlderDays, olderCovered, needDayFrom, haveDayFrom, olderDays]);
+  const loadingOlderDays = needsOlderDays && !olderCovered && !olderDaysError;
+  const data = useMemo<KpiDashboardData | null>(() => {
+    if (!baseData || !olderDays || olderDays.before !== haveDayFrom) return baseData;
+    return {
+      ...baseData,
+      dailyStaff: [...olderDays.staff, ...(baseData.dailyStaff || [])],
+      dailyBranch: [...olderDays.branch, ...(baseData.dailyBranch || [])],
+      dailyFrom: olderDays.from,
+    };
+  }, [baseData, olderDays, haveDayFrom]);
   const [loading, setLoading] = useState(!data);
   const [loadError, setLoadError] = useState('');
+  // (26 Nov 2026, speed) today's figures restored from disk while the app opened: shown at once if nothing came yet
+  useEffect(() => {
+    const onRestored = () => {
+      const hit = getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null);
+      if (!hit) return;
+      setData((prev) => prev || hit);
+      setLoading(false);
+    };
+    window.addEventListener('portal:kpi-restored', onRestored);
+    return () => window.removeEventListener('portal:kpi-restored', onRestored);
+  }, [range.from, range.to]);
 
   const seqRef = useRef(0);
   const loadImpl = useCallback(async (quiet: boolean, force = false) => {
@@ -5465,7 +5506,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Change" sortKey="growthPct" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
             </div>
-            <div className={`divide-y divide-slate-200/80 silk-rows table-quiet-body ${isMatrixPending || (loading && data) || query !== deferredQuery ? 'is-loading' : ''}`}>
+            <div className={`divide-y divide-slate-200/80 silk-rows table-quiet-body ${isMatrixPending || loadingOlderDays || (loading && data) || query !== deferredQuery ? 'is-loading' : ''}`}>
               {timeSeries.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400">No historical records found.</div>
               ) : (
@@ -5768,6 +5809,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span>Month Tasks: <strong className="text-slate-800 font-semibold">{fmtInt(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} tasks</strong></span>
                   <span className="text-slate-300">·</span>
                   <span>Daily Avg: <strong className="text-slate-800 font-semibold">{tableMode === 'staff' ? matrixStaffDayTotals.avgDailyTotal : matrixDayTotals.avgDailyTotal} tasks/day</strong></span>
+                  {loadingOlderDays && (
+                    <span className="inline-flex items-center gap-1 text-slate-500" role="status" data-testid="older-days-loading">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Loading this month's days…
+                    </span>
+                  )}
+                  {olderDaysError && needsOlderDays && !olderCovered && (
+                    <span className="text-rose-600" role="alert">This month's days could not be loaded. {olderDaysError}</span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -5978,7 +6027,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <KpiTableSkeleton rows={8} />
             </div>
           ) : (
-            <div className={`table-quiet-body ${isMatrixPending || (loading && data) || query !== deferredQuery ? 'is-loading' : ''}`}>
+            <div className={`table-quiet-body ${isMatrixPending || loadingOlderDays || (loading && data) || query !== deferredQuery ? 'is-loading' : ''}`}>
                 {((tableMode === 'branch' && branchSubView === 'monthly') || (tableMode === 'staff' && staffSubView === 'monthly')) ? (
                   <>
                     <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">

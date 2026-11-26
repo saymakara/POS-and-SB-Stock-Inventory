@@ -42,9 +42,25 @@ const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
 const shared = new Map<string, QrSharedMid[] | null>();          // (25 Nov 2026: was kept in the page itself)
 
-export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); shared.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
+/**
+ * (26 Nov 2026, speed) The total of a filter set (all its pages), counted moments ago. Counting every KHQR entry is ~95%
+ * of the time of a list read, so going to page 2, 3... and the quiet refreshes reuse it for up to 2 minutes instead of
+ * counting again. "Show" (new entries), ↻ and any filter change count afresh.
+ */
+const totals = new Map<string, { total: number; at: number }>();
+export const totalKey = (f: QrQuery, pageSize: number) => entriesKey(f, 0, pageSize);
+export function getKnownTotal(k: string, maxAgeMs = 120_000): number | undefined {
+  const t = totals.get(k);
+  return t && Date.now() - t.at < maxAgeMs ? t.total : undefined;
+}
+export function setKnownTotal(k: string, total: number): void { rememberRecent(totals, k, { total, at: Date.now() }, MAX_KEYS); }
 
-registerPortalCacheInvalidator(['qr'], clearKhqrCache);
+export function clearKhqrCache(): void { totals.clear(); entries.clear(); summaries.clear(); attempts.clear(); shared.clear(); history = null; lastRun = 0; clearFresh('qr:'); }
+
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+// Every KHQR entry is a 'qr' change, so on a busy day this ran every few seconds.
+export function markKhqrStale(): void { lastRun = 0; clearFresh('qr:'); }
+registerPortalCacheInvalidator(['qr'], markKhqrStale);
 
 clearOnUserChange(clearKhqrCache);
 
@@ -93,7 +109,7 @@ export function prefetchKhqr(): Promise<void> {
   const sumKey = `qr:sum:${from}|${to}`;
   const done = (part: KhqrPart, p: Promise<unknown>) => { parts[part] = p; return p.finally(() => { if (parts[part] === p) delete parts[part]; }); };
   inflight = Promise.all([
-    done('entries', fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => { const k = entriesKey(f, 1, 50); setCachedEntries(k, { rows: r.rows, total: r.total }); markFresh('qr:e:' + k); }).catch(() => {})),
+    done('entries', fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => { const k = entriesKey(f, 1, 50); setCachedEntries(k, { rows: r.rows, total: r.total }); setKnownTotal(totalKey(f, 50), r.total); markFresh('qr:e:' + k); }).catch(() => {})),
     fetchQrAttemptsPage({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED', page: 1, pageSize: 50 }).then((r) => setCachedAttempts(attemptsKey({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED' }, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
     done('stats', Promise.all([fetchQrSummary(from, to), fetchQrSharedMids(from, to, 200)]).then(([s, sm]) => {
       setCachedShared(sumKey, sm);

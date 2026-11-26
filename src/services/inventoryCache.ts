@@ -48,6 +48,8 @@ export function clearInventoryCache(): void {
   clearFresh('inv:');
 }
 
-registerPortalCacheInvalidator(['devices'], clearInventoryCache);
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+export function markInventoryStale(): void { clearFresh('inv:'); }
+registerPortalCacheInvalidator(['devices'], markInventoryStale);
 
 clearOnUserChange(clearInventoryCache);

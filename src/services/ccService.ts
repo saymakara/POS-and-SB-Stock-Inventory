@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { FieldScope } from '../utils/fieldScope';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
+import { liveMaxAge } from '../utils/freshness';
 
 /**
  * (31 Oct 2026) Phone App Review → Credit Card: entries sent by the Merchant Visit phone app (Apps Script), reviewed by
@@ -89,7 +90,7 @@ const inflight = new Map<string, Promise<unknown>>();
 const born = new Map<string, number>();
 function shared<T>(key: string, maxAgeMs: number, cached: () => T | undefined, run: () => Promise<T>): Promise<T> {
   const hit = cached();
-  if (hit !== undefined && maxAgeMs > 0 && Date.now() - (born.get(key) || 0) < maxAgeMs) return Promise.resolve(hit);
+  if (hit !== undefined && maxAgeMs > 0 && Date.now() - (born.get(key) || 0) < liveMaxAge(maxAgeMs)) return Promise.resolve(hit);   // (26 Nov 2026) longer while the live feed is connected (cc changes empty this copy)
   const running = inflight.get(key) as Promise<T> | undefined;
   if (running && maxAgeMs > 0) return running;
   const p = run().then((v) => { born.set(key, Date.now()); return v; }).finally(() => { if (inflight.get(key) === p) inflight.delete(key); });
@@ -181,7 +182,9 @@ export function patchCachedCcEntry(recordId: string, next: Partial<CcEntry>): vo
   });
 }
 export function clearCcCache(): void { listCache.clear(); countsCache.clear(); born.clear(); lastPrefetch = 0; }
-registerPortalCacheInvalidator(['cc'], clearCcCache);
+// (26 Nov 2026, enterprise data) a change by anyone marks the kept answers out of date instead of throwing them away: the page shows them at once and reads the new ones quietly behind them (stale while revalidate). Before, every change emptied the copy and the next visit showed a loading state.
+export function markCcStale(): void { born.clear(); lastPrefetch = 0; }
+registerPortalCacheInvalidator(['cc'], markCcStale);
 
 /** Warms the default Credit Card view (all time, all entries, page 1) and counts in the background so opening the tab is 0ms. */
 let inflightPrefetch: Promise<CcCounts | null> | null = null;
