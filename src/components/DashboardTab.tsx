@@ -1520,6 +1520,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [kpiData, setKpiData] = useState<KpiDashboardData | null>(
     () => getCachedKpiSummary(kpiPeriodRange('MONTH').from, null) || getCachedKpiSummary(null, null) || null
   );
+  // (26 Nov 2026, speed) today's figures restored from disk while the app opened: shown at once if nothing came yet
+  useEffect(() => {
+    const onRestored = () => setKpiData((prev) => prev || getCachedKpiSummary(kpiPeriodRange('MONTH').from, null) || getCachedKpiSummary(null, null) || null);
+    window.addEventListener('portal:kpi-restored', onRestored);
+    return () => window.removeEventListener('portal:kpi-restored', onRestored);
+  }, []);
 
   // Rule lookup map for KPI point valuation
   const ruleMap = useMemo(() => {

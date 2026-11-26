@@ -2,7 +2,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { unpackKpiLists } from '../utils/kpiPack';
 import { todayPP } from '../utils/time';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
-import { clearOnUserChange } from '../utils/userScopedCache';
+import { clearOnUserChange, cacheOwner } from '../utils/userScopedCache';
+import { persistGet, persistPut } from '../utils/persistCache';
 
 export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Merchant Visit' | 'Other';
 
@@ -474,6 +475,9 @@ export function clearKpiCache(): void {
   kpiBorn.clear();
   pendingSlicesToPersist.clear();
   pendingSeriesToPersist = false;
+  diskSlices.clear();
+  hydrated = null;
+  staleAt = 0;
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const key = sessionStorage.key(i);
@@ -484,8 +488,28 @@ export function clearKpiCache(): void {
   } catch { /* ignore */ }
 }
 
-// Routine device stock moves do not alter KPI points; only KPI-producing domains invalidate cached summaries.
-registerPortalCacheInvalidator(['kpi', 'field', 'qr', 'cc', 'mv', 'staff'], clearKpiCache);
+/**
+ * (26 Nov 2026, speed) A change to KPI data (a KHQR entry, a review, a rule...) no longer throws the kept figures away:
+ * they stay on screen and are marked out of date, so the next screen that asks shows them at once and reads the new
+ * figures in the background (stale while revalidate). Before, every change anywhere - every few seconds on a busy day -
+ * emptied the copy, so opening Dashboard or KPI Performance showed a loading state and read everything again.
+ * Only another person signing in empties the copy (clearKpiCache).
+ */
+let staleAt = 0;
+function readStaleAt(): number {
+  if (staleAt) return staleAt;
+  try { staleAt = Number(sessionStorage.getItem('kpi_stale_at') || 0) || 0; } catch { /* */ }
+  return staleAt;
+}
+export function markKpiStale(): void {
+  cachedSettings = null;
+  kpiBorn.clear();
+  olderDaysCache.clear();
+  staleAt = Date.now();
+  try { sessionStorage.setItem('kpi_stale_at', String(staleAt)); } catch { /* */ }
+}
+// Routine device stock moves do not alter KPI points; only KPI-producing domains mark the kept summaries out of date.
+registerPortalCacheInvalidator(['kpi', 'field', 'qr', 'cc', 'mv', 'staff'], markKpiStale);
 
 clearOnUserChange(clearKpiCache);
 
@@ -505,8 +529,18 @@ function getSeriesBundle(): KpiSeriesBundle | null {
   return null;
 }
 
+/** (26 Nov 2026) the summaries of today kept on disk for this person (persistCache): at most the 6 latest periods */
+const diskSlices = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
+const KPI_DISK_KEY = 'kpi_summary';
+interface KpiDiskCopy { day: string; series: KpiSeriesBundle | null; slices: [string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }][] }
+
 function flushKpiStorageWrites(): void {
   pendingStorageTimer = null;
+  const owner = cacheOwner();
+  if (owner && (pendingSeriesToPersist || pendingSlicesToPersist.size) && latestSeries && latestSeries.dateKey === todayPP()) {
+    pendingSlicesToPersist.forEach((slice, key) => rememberSlice(key, slice));
+    persistPut<KpiDiskCopy>(owner, KPI_DISK_KEY, { day: latestSeries.dateKey, series: latestSeries, slices: Array.from(diskSlices.entries()) });
+  }
   try {
     if (pendingSeriesToPersist && latestSeries) {
       pendingSeriesToPersist = false;
@@ -527,6 +561,43 @@ function scheduleKpiStorageFlush(): void {
   } else {
     pendingStorageTimer = window.setTimeout(flushKpiStorageWrites, 600);
   }
+}
+
+function rememberSlice(key: string, slice: { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }): void {
+  diskSlices.delete(key);
+  diskSlices.set(key, slice);
+  while (diskSlices.size > 6) diskSlices.delete(diskSlices.keys().next().value as string);
+}
+
+/**
+ * (26 Nov 2026, speed) Opening the portal again the same day: today's KPI figures saved on disk for this person are
+ * put back in memory, so Dashboard and KPI Performance show them at once. They count as out of date: the screens read
+ * the current figures straight away, as before, and replace them. Figures of an earlier day are never shown.
+ */
+let hydrated: Promise<boolean> | null = null;
+export function hydrateKpiFromDisk(owner: string): Promise<boolean> {
+  if (hydrated) return hydrated;
+  hydrated = (async () => {
+    const today = todayPP();
+    if (latestSeries && latestSeries.dateKey === today) return false;
+    const copy = await persistGet<KpiDiskCopy>(owner, KPI_DISK_KEY, 18 * 3600_000);
+    if (!copy || copy.day !== today || !copy.series || copy.series.dateKey !== today) return false;
+    if (latestSeries && latestSeries.dateKey === today) return false;      // the database answered first
+    latestSeries = copy.series;
+    for (const [key, slice] of copy.slices || []) {
+      rememberSlice(key, slice);
+      if (summaryCache.has(key)) continue;
+      summaryCache.set(key, {
+        rules: slice.rules || [], targets: slice.targets || mapTargets(null), staff: slice.staff || [],
+        daily: copy.series.daily || [], weekly: copy.series.weekly || [], monthly: copy.series.monthly || [],
+        quarterly: copy.series.quarterly || [], monthlyStaff: copy.series.monthlyStaff || [],
+        dailyBranch: copy.series.dailyBranch || [], dailyStaff: copy.series.dailyStaff || [], dailyFrom: copy.series.dailyFrom ?? null,
+      });
+    }
+    try { window.dispatchEvent(new Event('portal:kpi-restored')); } catch { /* */ }
+    return true;
+  })().catch(() => false);
+  return hydrated;
 }
 
 export const kpiCacheKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
@@ -555,7 +626,7 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
       };
       summaryCache.set(key, merged);
       // Restore freshness timestamp across F5 refresh so a recently fetched KPI payload (< 5 min old) is reused at 0ms
-      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 300_000) {
+      if (slice.fetchedAt && !kpiBorn.has(key) && Date.now() - slice.fetchedAt < 300_000 && slice.fetchedAt > readStaleAt()) {
         kpiBorn.set(key, slice.fetchedAt);
       }
       return merged;

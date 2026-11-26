@@ -1059,6 +1059,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   }, [baseData, olderDays, haveDayFrom]);
   const [loading, setLoading] = useState(!data);
   const [loadError, setLoadError] = useState('');
+  // (26 Nov 2026, speed) today's figures restored from disk while the app opened: shown at once if nothing came yet
+  useEffect(() => {
+    const onRestored = () => {
+      const hit = getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null);
+      if (!hit) return;
+      setData((prev) => prev || hit);
+      setLoading(false);
+    };
+    window.addEventListener('portal:kpi-restored', onRestored);
+    return () => window.removeEventListener('portal:kpi-restored', onRestored);
+  }, [range.from, range.to]);
 
   const seqRef = useRef(0);
   const loadImpl = useCallback(async (quiet: boolean, force = false) => {

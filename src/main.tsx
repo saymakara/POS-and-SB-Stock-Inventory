@@ -20,8 +20,13 @@ startFilterMarks();
 const warmApp = () => { loadApp().catch(() => {}); };
 // Preload App immediately at t=0 if the user already has an active cached staff profile
 try {
-  if (sessionStorage.getItem('crm_pos_staff_profile_v1') || localStorage.getItem('crm_pos_staff_profile_v1')) {
+  const savedProfile = sessionStorage.getItem('crm_pos_staff_profile_v1') || localStorage.getItem('crm_pos_staff_profile_v1');
+  if (savedProfile) {
     warmApp();
+    // (26 Nov 2026, speed) today's KPI figures saved on disk for this person are put back while the app loads, so the
+    // Dashboard shows them at once and refreshes them (see hydrateKpiFromDisk)
+    const uid = String((JSON.parse(savedProfile) as { user_id?: string })?.user_id || '');
+    if (uid) void import('./services/kpiService').then((k) => k.hydrateKpiFromDisk(uid)).catch(() => {});
   }
 } catch { /* ignore */ }
 // (07 Nov 2026) the background download starts only once the sign-in field is on screen (it used to race the sign-in
