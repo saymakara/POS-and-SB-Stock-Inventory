@@ -11,7 +11,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "check": "tsc --noEmit && node tests/static_guards.cjs && tsx tests/unit/kpi_pack.test.ts"
+    "check": "tsc --noEmit && node tests/static_guards.cjs && tsx tests/unit/kpi_pack.test.ts && tsx tests/unit/freshness.test.ts"
   },
   "dependencies": {
     "@fontsource/battambang": "^5.3.0",

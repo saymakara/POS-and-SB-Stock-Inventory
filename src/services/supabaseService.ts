@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem, Branch } from '../types';
 import { normalizeMid } from '../utils/display';
 import { reportCaughtError } from '../utils/errorLogger';
-import { isFresh, markFresh, clearFresh } from '../utils/freshness';
+import { isFresh, markFresh, clearFresh, setLiveSync } from '../utils/freshness';
 import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey, clearInventoryCache } from './inventoryCache';
 import { FieldScope, PHNOM_PENH_BRANCH_CODE_LIST, countPendingFieldEventsScoped } from '../utils/fieldScope';
 import {
@@ -3448,9 +3448,10 @@ export function subscribeToAllPortalChanges(): () => void {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => emitRemote(['audit']))
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_record_edits' }, () => emitRemote(['field', 'mv', 'cc', 'qr']))
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'deleted_phone_records' }, () => emitRemote(['field', 'mv', 'cc', 'qr', 'kpi']))
-    .subscribe();
+    .subscribe((status) => { setLiveSync(status === 'SUBSCRIBED'); });   // (26 Nov 2026) copies stay valid while this feed is live
 
   return () => {
+    setLiveSync(false);
     broadcastReady = false;
     registerPortalBroadcastSender(null);
     supabase.removeChannel(broadcastCh);
