@@ -97,6 +97,7 @@ begin
   end loop;
   delete from app.kpi_demand d where d.last_at < now() - interval '2 days';
 end $function$;
+revoke all on function app.kpi_mv_prewarm() from public, anon, authenticated;   -- the 2-minute job only (as before)
 
 -- 4. The portal's KPI summary: a copy under 6 minutes old is used as it is (was 3); otherwise unchanged
 create or replace function public.kpi_dashboard_summary(p_since date default null::date, p_until date default null::date)
@@ -158,3 +159,5 @@ begin
 
   return v_res;
 end $function$;
+revoke all on function public.kpi_dashboard_summary(date, date) from public, anon;   -- signed-in users only (as before)
+grant execute on function public.kpi_dashboard_summary(date, date) to authenticated, service_role;
