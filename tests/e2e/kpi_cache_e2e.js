@@ -30,7 +30,7 @@ const route = async (r) => {
 const idbHas = (p) => p.evaluate(async () => {
   const dbs = indexedDB.databases ? await indexedDB.databases() : [];
   if (!dbs.some((d) => d.name === 'portal_figures_v1')) return false;
-  return new Promise((res) => { const q = indexedDB.open('portal_figures_v1'); q.onsuccess = () => { try { const g = q.result.transaction('kv').objectStore('kv').get('kpi_summary_v3'); g.onsuccess = () => { res(Boolean(g.result)); q.result.close(); }; g.onerror = () => res(false); } catch { res(false); } }; q.onerror = () => res(false); });
+  return new Promise((res) => { const q = indexedDB.open('portal_figures_v1'); q.onsuccess = () => { try { const g = q.result.transaction('kv').objectStore('kv').get('kpi_summary_v4'); g.onsuccess = () => { res(Boolean(g.result)); q.result.close(); }; g.onerror = () => res(false); } catch { res(false); } }; q.onerror = () => res(false); });
 });
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium' });

@@ -176,6 +176,8 @@ export interface KpiDailyBranchRaw {
   mvTasks?: number;
   /** (27 Nov 2026) Booth Event days, a part of mvTasks */
   boothTasks?: number;
+  /** (27 Nov 2026) KPI points of the day (sharing of Booth Event / Standby VIP included) */
+  totalPts?: number;
 }
 
 export interface KpiDailyStaffRaw {
@@ -192,6 +194,8 @@ export interface KpiDailyStaffRaw {
   mvTasks?: number;
   /** (27 Nov 2026) Booth Event days, a part of mvTasks */
   boothTasks?: number;
+  /** (27 Nov 2026) KPI points of the day (sharing of Booth Event / Standby VIP included) */
+  totalPts?: number;
 }
 
 export interface KpiDashboardData {
@@ -228,8 +232,8 @@ interface KpiSeriesBundle {
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v7_';   // (27 Nov 2026) v7: adj_booth, booth_tasks, bo_*
-const SESSION_SERIES_PREFIX = 'kpi_series_cache_v7_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v8_';   // (27 Nov 2026) v8: adj_booth, booth_tasks, bo_*, total_pts
+const SESSION_SERIES_PREFIX = 'kpi_series_cache_v8_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
 
@@ -410,7 +414,7 @@ function getSeriesBundle(): KpiSeriesBundle | null {
 
 /** (26 Nov 2026) the summaries of today kept on disk for this person (persistCache): at most the 6 latest periods */
 const diskSlices = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
-const KPI_DISK_KEY = 'kpi_summary_v3';   // (27 Nov 2026) v3: adj_booth, booth_tasks, bo_*
+const KPI_DISK_KEY = 'kpi_summary_v4';   // (27 Nov 2026) v4: adj_booth, booth_tasks, bo_*, total_pts
 interface KpiDiskCopy { day: string; series: KpiSeriesBundle | null; slices: [string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }][] }
 
 function flushKpiStorageWrites(): void {
@@ -875,6 +879,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
             boothTasks: Number(r.booth_tasks) || 0,
+            totalPts: Number(r.total_pts) || 0,
           })) : [],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
@@ -890,6 +895,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
             boothTasks: Number(r.booth_tasks) || 0,
+            totalPts: Number(r.total_pts) || 0,
           })) : [],
           dailyFrom: typeof d.daily_from === 'string' && d.daily_from ? d.daily_from : null,
         };

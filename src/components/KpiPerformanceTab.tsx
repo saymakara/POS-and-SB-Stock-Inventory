@@ -913,6 +913,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [period, setPeriod] = useState<KpiPeriod>('ALL');
   const [metricMode, setMetricMode] = useState<KpiMetricMode>('points');
   const isTaskMode = metricMode === 'tasks';
+  // (27 Nov 2026) Staff / Branch Daily views follow the By Points / Task Count switch
+  const fmtDay = (n: number) => (isTaskMode ? fmtInt(n) : fmtPts(n));
+  const dayUnit = isTaskMode ? 'tasks' : 'pts';
   const [view, setView] = useState<KpiView>('all');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [branchFilter, setBranchFilter] = useState('');
@@ -2438,7 +2441,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       const days = matrixDays.map((d) => {
         const item = dailyBranchMap.get(`${b.branchId}__${d.isoDay}`);
-        const count = item?.totalTasks ?? 0;
+        const count = isTaskMode ? (item?.totalTasks ?? 0) : Math.round((Number(item?.totalPts) || 0) * 100) / 100;
         allDaysTotal += count;
         if (d.isWorkDay) {
           monthTotal += count;
@@ -2487,7 +2490,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         rating,
       };
     });
-  }, [tableMode, branchSubView, filteredBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary, pacingInfo]);
+  }, [tableMode, branchSubView, filteredBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
 
   const matrixDayTotals = useMemo(() => {
     if (dailyBranchRows.length === 0) {
@@ -2561,7 +2564,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ? `${d.dayNum} (${d.dayOfWeek} · Weekend)`
           : `${d.dayNum} (${d.dayOfWeek})`
       ),
-      'Month KPI Tasks (Work Days)',
+      isTaskMode ? 'Month KPI Tasks (Work Days)' : 'Month KPI Points (Work Days)',
       'Daily Average (per work day)',
       'Monthly Target',
       'Achievement %',
@@ -2620,7 +2623,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       const days = matrixDays.map((d) => {
         const item = dailyStaffMap.get(`${s.staffId}__${d.isoDay}`);
-        const count = item?.totalTasks ?? 0;
+        const count = isTaskMode ? (item?.totalTasks ?? 0) : Math.round((Number(item?.totalPts) || 0) * 100) / 100;
         allDaysTotal += count;
         if (d.isWorkDay) {
           monthTotal += count;
@@ -2668,7 +2671,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         rating,
       };
     });
-  }, [tableMode, staffSubView, filteredStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary, pacingInfo]);
+  }, [tableMode, staffSubView, filteredStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
 
   const matrixStaffDayTotals = useMemo(() => {
     if (dailyStaffRows.length === 0) {
@@ -2739,7 +2742,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ? `${d.dayNum} (${d.dayOfWeek} · Weekend)`
           : `${d.dayNum} (${d.dayOfWeek})`
       ),
-      'Month KPI Tasks (Work Days)',
+      isTaskMode ? 'Month KPI Tasks (Work Days)' : 'Month KPI Points (Work Days)',
       'Daily Average (per work day)',
       'Monthly Target',
       'Achievement %',
@@ -5806,7 +5809,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     />
                   )}
                   <Calendar className="w-3.5 h-3.5 relative z-10 text-amber-500" aria-hidden />
-                  <span className="relative z-10">Staff Daily Tasks</span>
+                  <span className="relative z-10">{isTaskMode ? 'Staff Daily Tasks' : 'Staff Daily Points'}</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
@@ -5829,7 +5832,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     />
                   )}
                   <Calendar className="w-3.5 h-3.5 relative z-10 text-indigo-600" aria-hidden />
-                  <span className="relative z-10">Branch Daily Tasks</span>
+                  <span className="relative z-10">{isTaskMode ? 'Branch Daily Tasks' : 'Branch Daily Points'}</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? CAPSULE_COUNT_ACTIVE_CLS : CAPSULE_COUNT_INACTIVE_CLS}`}>
                     1–{matrixDays.length}d
                   </span>
@@ -5907,9 +5910,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <div className="text-xs font-medium text-slate-600 flex flex-wrap items-center gap-2">
                   <span>Work Days: <strong className="text-slate-800 font-semibold">{monthWorkDaysSummary.workDays} days</strong> ({monthWorkDaysSummary.daysInMonth}d total − {monthWorkDaysSummary.weekendDays} weekend − {monthWorkDaysSummary.weekdayHolidays} Cambodian hol.)</span>
                   <span className="text-slate-300">·</span>
-                  <span>Month Tasks: <strong className="text-slate-800 font-semibold">{fmtInt(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} tasks</strong></span>
+                  <span>{isTaskMode ? 'Month Tasks' : 'Month Points'}: <strong className="text-slate-800 font-semibold">{fmtDay(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} {dayUnit}</strong></span>
                   <span className="text-slate-300">·</span>
-                  <span>Daily Avg: <strong className="text-slate-800 font-semibold">{tableMode === 'staff' ? matrixStaffDayTotals.avgDailyTotal : matrixDayTotals.avgDailyTotal} tasks/day</strong></span>
+                  <span>Daily Avg: <strong className="text-slate-800 font-semibold">{tableMode === 'staff' ? matrixStaffDayTotals.avgDailyTotal : matrixDayTotals.avgDailyTotal} {dayUnit}/day</strong></span>
                   {loadingOlderDays && (
                     <span className="inline-flex items-center gap-1 text-slate-500" role="status" data-testid="older-days-loading">
                       <Loader2 className="w-3 h-3 animate-spin" /> Loading this month's days…
@@ -6531,7 +6534,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 }}
                               >
                                 <div className="flex items-center justify-center gap-1 font-medium text-xs text-white">
-                                  <span>Month Tasks</span>
+                                  <span>{isTaskMode ? 'Month Tasks' : 'Month Points'}</span>
                                   <SortIcon active={dailySortKey === 'monthTotalTasks'} dir={dailySortDir} />
                                 </div>
                               </th>
@@ -6605,15 +6608,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       let tooltip = '';
                                       if (isHol) {
                                         tooltip = hasTasks
-                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
+                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit} completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                           : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                                       } else if (isWk) {
                                         tooltip = hasTasks
-                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
+                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit} completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                           : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                                       } else {
                                         tooltip = d.raw
-                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}\nActive Staff: ${d.raw.activeStaff}`
+                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit}\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}\nActive Staff: ${d.raw.activeStaff}`
                                           : `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                                       }
 
@@ -6639,7 +6642,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                                   : 'text-slate-400 font-normal'
                                               }`}
                                             >
-                                              {d.count}
+                                              {fmtDay(d.count)}
                                             </span>
                                           ) : (
                                             <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
@@ -6650,7 +6653,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                     {/* Summary Columns */}
                                     <td className="px-3 py-2 text-center tabular-nums font-normal text-slate-900 border-l border-slate-200/60">
-                                      {fmtInt(row.monthTotalTasks)}
+                                      {fmtDay(row.monthTotalTasks)}
                                     </td>
                                     <td className="px-2 py-2 text-center tabular-nums font-normal text-slate-700">
                                       {row.dailyAvg}
@@ -6662,7 +6665,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       {row.targetPct}%
                                     </td>
                                     <td className="px-3 py-2 text-center whitespace-nowrap">
-                                      <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={`Pacing: ${row.pacingPct}% (${row.monthTotalTasks} / ${row.pacingTarget} tasks pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
+                                      <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={`Pacing: ${row.pacingPct}% (${fmtDay(row.monthTotalTasks)} / ${row.pacingTarget} ${dayUnit} pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
                                     </td>
                                   </tr>
                                 );
@@ -6690,15 +6693,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
                                           : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                                       }`}
-                                      title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
+                                      title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtDay(count)} ${dayUnit}`}
                                     >
-                                      {count > 0 ? count : '·'}
+                                      {count > 0 ? fmtDay(count) : '·'}
                                     </td>
                                   );
                                 })}
 
                                 <td className="px-3 py-2.5 text-center tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
-                                  {fmtInt(matrixDayTotals.allGrandTotal)}
+                                  {fmtDay(matrixDayTotals.allGrandTotal)}
                                 </td>
                                 <td className="px-2 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                                   {matrixDayTotals.avgDailyTotal}
@@ -6923,7 +6926,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       }}
                     >
                       <div className="flex items-center justify-center gap-1 font-medium text-xs text-white">
-                        <span>Month Tasks</span>
+                        <span>{isTaskMode ? 'Month Tasks' : 'Month Points'}</span>
                         <SortIcon active={dailyStaffSortKey === 'monthTotalTasks'} dir={dailyStaffSortDir} />
                       </div>
                     </th>
@@ -7009,15 +7012,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             let tooltip = '';
                             if (isHol) {
                               tooltip = hasTasks
-                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
+                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit} completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                 : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                             } else if (isWk) {
                               tooltip = hasTasks
-                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
+                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit} completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                 : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                             } else {
                               tooltip = d.raw
-                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}`
+                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${fmtDay(d.count)} ${dayUnit}\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}`
                                 : `${row.staffName} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                             }
 
@@ -7043,7 +7046,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         : 'text-slate-400 font-normal'
                                     }`}
                                   >
-                                    {d.count}
+                                    {fmtDay(d.count)}
                                   </span>
                                 ) : (
                                   <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
@@ -7054,7 +7057,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                           {/* Summary Columns */}
                           <td className="px-3 py-2 text-center tabular-nums font-normal text-slate-900 border-l border-slate-200/60">
-                            {fmtInt(row.monthTotalTasks)}
+                            {fmtDay(row.monthTotalTasks)}
                           </td>
                           <td className="px-2 py-2 text-center tabular-nums font-normal text-slate-700">
                             {row.dailyAvg}
@@ -7075,7 +7078,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             )}
                           </td>
                           <td className="px-3 py-2 text-center whitespace-nowrap">
-                            <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={row.isManagement ? 'Management level staff are exempt from individual field KPIs' : `Pacing: ${row.pacingPct}% (${row.monthTotalTasks} / ${row.pacingTarget} tasks pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
+                            <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={row.isManagement ? 'Management level staff are exempt from individual field KPIs' : `Pacing: ${row.pacingPct}% (${fmtDay(row.monthTotalTasks)} / ${row.pacingTarget} ${dayUnit} pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
                           </td>
                         </tr>
                       );
@@ -7103,7 +7106,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
                                           : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                             }`}
-                            title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
+                            title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtDay(count)} ${dayUnit}`}
                           >
                             {count > 0 ? count : '·' }
                           </td>
@@ -7111,7 +7114,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       })}
 
                       <td className="px-3 py-2.5 text-center tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
-                        {fmtInt(matrixStaffDayTotals.allGrandTotal)}
+                        {fmtDay(matrixStaffDayTotals.allGrandTotal)}
                       </td>
                       <td className="px-2 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                         {matrixStaffDayTotals.avgDailyTotal}
