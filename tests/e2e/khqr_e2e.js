@@ -283,7 +283,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(!(await p.getByRole('button', { name: /^Completed/ }).count()) && !/Completed \(/.test(et) && !(await p.locator('[aria-label="KHQR entries"] >> text=Failed Attempt (').count()), 'KHQR entries: no Completed / Failed Attempt split (every entry is a request)');
   await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button, [aria-label="KHQR entries"] [data-page-content] > div > [role="button"]').first().click(); await sleep(800);
   const det = await p.textContent('[aria-label="KHQR entries"]');
-  ok(/on Telegram/.test(det) && /Phnom Penh · Tuol Kouk/.test(det) && !/Failed attempts \(/.test(det), 'details: location, Telegram post (no failed-attempt box)');
+  ok(/Sent to Telegram/.test(det) && /Phnom Penh · Tuol Kouk/.test(det) && !/Failed attempts \(/.test(det), 'details: location, Telegram status Sent (no link, no failed-attempt box)');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/d2_open.png' });
   ok(/Showing 1–50 of 120/.test(await p.textContent('main')), 'Clear filters → back to all 120 entries');
   await p.fill('input[aria-label="Search KHQR entries"]', '200100000000077'); await sleep(1500);

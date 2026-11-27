@@ -37,7 +37,6 @@ import {
 } from './PillMotion';
 import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { FieldScope, isBranchInRegionScope, PHNOM_PENH_BRANCH_CODES, PHNOM_PENH_NAME_REGEX, REGIONAL_KEYWORD_REGEX } from '../utils/fieldScope';
-import { safeHref } from '../utils/safeUrl';
 import { onPortalSync, createRefreshScheduler } from '../utils/portalSync';
 
 /**
@@ -143,7 +142,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       downloadCsv(`KHQR_Entries_${tag}`, ['Record ID', 'Date Sent', 'Activity', 'Merchant Name', 'Merchant Name (Khmer)', 'MID', 'QR Expected', 'QR Scanned',
         'Failed Attempts', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Location', 'Khan', 'Latitude', 'Longitude', 'Photos', 'Remark', 'Telegram'],
         rows.map((e) => [e.recordId, csvTime(e.submittedAt), QR_ACTIVITY_LABEL[e.activity] || e.activity, e.merchantName, e.merchantNameKh, e.mid, e.qrExpected,
-          e.qrCount, e.failedAttempts, e.staffId, e.staffName, e.branchText, e.branchId, e.location, e.khan, e.latitude, e.longitude, e.photoCount, e.remark, e.telegramLink]));
+          e.qrCount, e.failedAttempts, e.staffId, e.staffName, e.branchText, e.branchId, e.location, e.khan, e.latitude, e.longitude, e.photoCount, e.remark, e.telegramLink ? 'Sent' : 'Waiting for confirmation']));
       return rows.length;
     }
     if (view === 'failed' || view === 'wrong') {
@@ -1065,13 +1064,20 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
                     </a>
                   ) : '—'}
                 />
+                <Detail k="Photos" v={String(e.photoCount)} />
+                {/* (27 Nov 2026) the status only: posted to the Telegram group or not (no link) */}
                 <Detail
-                  k="Photos"
-                  v={safeHref(e.telegramLink) ? (
-                    <a href={safeHref(e.telegramLink)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:underline">
-                      <Send className="w-3 h-3" /> {e.photoCount} on Telegram
-                    </a>
-                  ) : `${e.photoCount} (Telegram post not linked)`}
+                  k="Telegram"
+                  v={e.telegramLink ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-700 font-medium" data-tg-status="sent">
+                      <Send className="w-3 h-3" /> Sent to Telegram
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-amber-700" data-tg-status="waiting"
+                      title="The app has not confirmed the Telegram post yet (it confirms in batches, usually within a few minutes)">
+                      Waiting for confirmation
+                    </span>
+                  )}
                 />
                 <Detail k="App version" v={e.appVersion || '—'} />
               </div>
