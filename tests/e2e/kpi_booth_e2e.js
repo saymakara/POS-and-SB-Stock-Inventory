@@ -26,8 +26,8 @@ const summary = () => ({
   rules, targets: {}, staff, daily: [{ period: today, khqr_install: 24, khqr_replace: 76, active_staff: 5, active_branches: 1, extra: { MV_BOOTH_EVENT_FULL_DAY: 4, MV_STANDBY_VIP_HALF_DAY: 1 }, adj_pts: -120, adj_booth: -120 }],
   weekly: [], quarterly: [], monthly: [{ period: today.slice(0, 7), khqr_install: 24, khqr_replace: 76, active_staff: 5, active_branches: 1, extra: { MV_BOOTH_EVENT_FULL_DAY: 4, MV_STANDBY_VIP_HALF_DAY: 1 }, adj_pts: -120, adj_booth: -120 }],
   monthly_staff: staff.map((s) => Object.assign({ month: today.slice(0, 7) }, s)),
-  daily_staff: staff.map((s) => ({ day: today, staff_id: s.staff_id, staff_name: s.staff_name, branch_id: '101', branch_name: 'Branch 101', total_tasks: s.khqr_install + s.khqr_replace + 1, khqr_tasks: s.khqr_install + s.khqr_replace, mv_tasks: 1, booth_tasks: s.extra.MV_BOOTH_EVENT_FULL_DAY ? 1 : 0 })),
-  daily_branch: [{ day: today, branch_id: '101', total_tasks: 105, khqr_tasks: 100, mv_tasks: 5, booth_tasks: 4, active_staff: 5 }],
+  daily_staff: staff.map((s) => ({ day: today, staff_id: s.staff_id, staff_name: s.staff_name, branch_id: '101', branch_name: 'Branch 101', total_tasks: s.khqr_install + s.khqr_replace + 1, khqr_tasks: s.khqr_install + s.khqr_replace, mv_tasks: 1, booth_tasks: s.extra.MV_BOOTH_EVENT_FULL_DAY ? 1 : 0, total_pts: s.extra.MV_BOOTH_EVENT_FULL_DAY ? 30 : 15 })),
+  daily_branch: [{ day: today, branch_id: '101', total_tasks: 105, khqr_tasks: 100, mv_tasks: 5, booth_tasks: 4, active_staff: 5, total_pts: 135 }],
   daily_from: today.slice(0, 8) + '01',
 });
 const route = async (r) => {
@@ -88,6 +88,21 @@ const route = async (r) => {
     ok(/STAFF Number10\b/.test(t) && !/STAFF Number14\b/.test(t.split('Booth Event').slice(1).join('')) , 'Booth Event filter: booth staff only (the standby staff member is not listed)');
     if (process.env.SHOT2) await p.screenshot({ path: process.env.SHOT2, fullPage: false });
   }
+  // (27 Nov 2026) Staff Daily view follows the By Points / Task Count switch
+  const dailyTab = p.locator('main button', { hasText: /Staff Daily (Points|Tasks)/ }).first();
+  if (await dailyTab.count()) {
+    const mode = async (label) => { const b = p.locator('main button', { hasText: label }).first(); if (await b.count()) { await b.click(); await sleep(900); } };
+    await mode('By Points');
+    await dailyTab.click(); await sleep(1500);
+    const dailyRow = () => p.locator('main table', { hasText: /Month (Points|Tasks)/ }).locator('tr', { hasText: 'STAFF Number10' }).first().innerText().catch(() => '');
+    const rowPts = await dailyRow();
+    ok(/Staff Daily Points/.test(await p.textContent('main')) && /Month Points/.test(await p.textContent('main')), 'By Points: the view is "Staff Daily Points" with "Month Points"');
+    ok(/\b30\b/.test(rowPts) && !/\b42\b/.test(rowPts), 'By Points: the booth staff member shows 30 points that day (not 42 tasks)', rowPts);
+    await mode('Task Count');
+    const rowTasks = await dailyRow();
+    ok(/Staff Daily Tasks/.test(await p.textContent('main')) && /\b42\b/.test(rowTasks), 'Task Count: back to "Staff Daily Tasks" with 42 tasks', rowTasks);
+    if (process.env.SHOT4) { await mode('By Points'); await p.screenshot({ path: process.env.SHOT4 }); }
+  } else ok(false, 'Staff Daily tab found');
   ok(errs.length === 0, 'no page errors ' + errs.join(' | '));
   await b.close(); console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
