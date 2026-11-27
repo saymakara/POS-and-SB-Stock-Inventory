@@ -5,7 +5,7 @@ import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
   Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck,
-  ClipboardList, List, MapPin,
+  ClipboardList, List, MapPin, Tent,
 } from 'lucide-react';
 import {
   Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, ReferenceArea,
@@ -23,7 +23,7 @@ import { normalizeStaffName } from '../utils/staffUtils';
 import { isPhnomPenhBranch } from '../utils/fieldScope';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
-  KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, fetchKpiOlderDays, getCachedKpiSummary,
+  KpiRawCounts, computeKpiPoints, isBoothEventCode, addExtraCounts, rulePts, fetchKpiSummary, fetchKpiOlderDays, getCachedKpiSummary,
   KpiDailyBranchRaw, KpiDailyStaffRaw, KpiTimeBucketRaw,
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary, isWeekendDay } from '../utils/cambodiaHolidays';
@@ -59,30 +59,35 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
 }
 
 const KPI_BRANCH_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(40px,0.32fr)_minmax(88px,0.74fr)_minmax(84px,0.70fr)_minmax(80px,0.68fr)_minmax(88px,0.74fr)_minmax(96px,0.80fr)_minmax(72px,0.62fr)_minmax(48px,0.38fr)_minmax(92px,0.72fr)_minmax(84px,0.74fr)_minmax(114px,0.78fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(40px,0.32fr)_minmax(88px,0.74fr)_minmax(84px,0.70fr)_minmax(80px,0.68fr)_minmax(88px,0.74fr)_minmax(96px,0.80fr)_minmax(84px,0.70fr)_minmax(72px,0.62fr)_minmax(48px,0.38fr)_minmax(92px,0.72fr)_minmax(84px,0.74fr)_minmax(114px,0.78fr)_14px]';
 
 const KPI_STAFF_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(122px,1.0fr)_minmax(90px,0.76fr)_minmax(86px,0.72fr)_minmax(82px,0.70fr)_minmax(90px,0.76fr)_minmax(98px,0.82fr)_minmax(48px,0.38fr)_minmax(92px,0.74fr)_minmax(86px,0.74fr)_minmax(114px,0.78fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(122px,1.0fr)_minmax(90px,0.76fr)_minmax(86px,0.72fr)_minmax(82px,0.70fr)_minmax(90px,0.76fr)_minmax(98px,0.82fr)_minmax(86px,0.72fr)_minmax(48px,0.38fr)_minmax(92px,0.74fr)_minmax(86px,0.74fr)_minmax(114px,0.78fr)_14px]';
 
 // Balanced proportional column widths for Top 10 Leaderboard tables (100% total prevents oversized text-column voids)
 const TOP10_STAFF_COL_WIDTHS = [
-  '2.5%', '10.5%', '4.8%', '12.8%', '6.4%',
-  '8.6%', '8.0%', '7.6%', '8.4%', '8.9%',
-  '7.2%', '7.0%', '7.3%',
+  '2.5%', '10%', '4.5%', '12%', '6%',
+  '8%', '7.6%', '7.2%', '7.8%', '8%', '7.4%',
+  '6.6%', '6.2%', '6.2%',
 ] as const;
 
 const TOP10_BRANCH_COL_WIDTHS = [
-  '2.5%', '12.8%', '6.6%', '6.4%',
-  '8.6%', '8.0%', '7.6%', '8.4%', '8.9%',
-  '7.6%', '8.2%', '7.0%', '7.4%',
+  '2.5%', '12%', '6%', '6%',
+  '8%', '7.6%', '7.2%', '7.8%', '8%', '7.4%',
+  '7.5%', '7%', '6.5%', '6.5%',
 ] as const;
 
-const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
+/** (27 Nov 2026) Booth Event is shown as its own category on this page (on the server it is a Merchant Visit task). */
+type KpiViewCategory = KpiCategory | 'Booth Event';
+const SPLIT_BOOTH = { splitBooth: true } as const;
+
+const CAT_COLORS: Record<KpiViewCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#184e77', badge: 'bg-[#184e77]/10 text-[#184e77] border-[#184e77]/20 font-semibold', bar: 'bg-[#184e77]', dot: 'bg-[#184e77]', Icon: Cpu },
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#1e6091', badge: 'bg-[#1e6091]/10 text-[#1e6091] border-[#1e6091]/20', bar: 'bg-[#1e6091]', dot: 'bg-[#1e6091]', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-[#f59e0b]', dot: 'bg-[#f59e0b]', Icon: CreditCard },
   'Merchant Visit': { hex: '#2d6a4f', badge: 'bg-[#2d6a4f]/10 text-[#2d6a4f] border-[#2d6a4f]/20 font-semibold', bar: 'bg-[#2d6a4f]', dot: 'bg-[#2d6a4f]', Icon: ClipboardList },
+  'Booth Event': { hex: '#b5446e', badge: 'bg-[#b5446e]/10 text-[#b5446e] border-[#b5446e]/20 font-semibold', bar: 'bg-[#b5446e]', dot: 'bg-[#b5446e]', Icon: Tent },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
@@ -133,6 +138,7 @@ function emptyRawCounts(): KpiRawCounts {
     khqrInstall: 0, khqrReplace: 0, khqrMaterials: 0,
     ccPrimary: 0, ccSupp: 0,
     adjPts: 0,
+    adjBooth: 0,
   };
 }
 function accumulateRawCounts(acc: KpiRawCounts, src: KpiRawCounts): void {
@@ -149,11 +155,12 @@ function accumulateRawCounts(acc: KpiRawCounts, src: KpiRawCounts): void {
   acc.ccPrimary += src.ccPrimary || 0;
   acc.ccSupp += src.ccSupp || 0;
   acc.adjPts = (acc.adjPts || 0) + (src.adjPts || 0);
+  acc.adjBooth = (acc.adjBooth || 0) + (src.adjBooth || 0);
   addExtraCounts(acc, src);
 }
 function pickCategoryKpiVal(
   pts: ReturnType<typeof computeKpiPoints>,
-  cat: 'ALL' | KpiCategory,
+  cat: 'ALL' | KpiViewCategory,
   isTask: boolean
 ): number {
   switch (cat) {
@@ -162,8 +169,15 @@ function pickCategoryKpiVal(
     case 'KHQR': return isTask ? pts.khqrTasks : pts.khqrPoints;
     case 'Credit Card': return isTask ? pts.ccTasks : pts.ccPoints;
     case 'Merchant Visit': return isTask ? pts.mvTasks : pts.mvPoints;
+    case 'Booth Event': return isTask ? pts.boothTasks : pts.boothPoints;
     default: return isTask ? pts.totalTasks : pts.totalPoints;
   }
+}
+/** (27 Nov 2026) day tooltips: Merchant Visit without the Booth Event days, then the Booth Event days */
+function mvBoothNote(raw?: { mvTasks?: number; boothTasks?: number } | null): string {
+  const booth = Number(raw?.boothTasks) || 0;
+  const mv = Math.max(0, (Number(raw?.mvTasks) || 0) - booth);
+  return `${mv > 0 ? ` · MV: ${mv}` : ''}${booth > 0 ? ` · Booth Event: ${booth}` : ''}`;
 }
 function fmtShortDate(ymd: string): string {
   const parts = ymd.split('-');
@@ -895,7 +909,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [view, setView] = useState<KpiView>('all');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [branchFilter, setBranchFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | KpiCategory>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | KpiViewCategory>('ALL');
   const [query, setQuery] = useState('');
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
@@ -1392,6 +1406,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         prev.ccPrimary += s.ccPrimary;
         prev.ccSupp += s.ccSupp;
         prev.adjPts = (prev.adjPts || 0) + (s.adjPts || 0);
+        prev.adjBooth = (prev.adjBooth || 0) + (s.adjBooth || 0);
         prev.posSubmitted += s.posSubmitted;
         prev.posRejected += s.posRejected;
         prev.sbSubmitted += s.sbSubmitted;
@@ -1437,7 +1452,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const isManagement = meta?.isManagement ?? isStaffManagementExempt(s.staffId, s.staffName, exemptSet);
         const position = meta?.position || (isManagement ? 'Management' : 'MS Officer');
 
-        const pts = computeKpiPoints(s, ruleMap);
+        const pts = computeKpiPoints(s, ruleMap, SPLIT_BOOTH);
         const canonicalBranchName = branchNameMap.get(s.branchId) || s.branchName || s.branchId;
         const totalSubmitted = s.posSubmitted + s.sbSubmitted + pts.khqrTasks + s.ccSubmitted;
         const totalIssues = s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
@@ -1551,13 +1566,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
       b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
+      b.raw.adjBooth = (b.raw.adjBooth || 0) + (s.adjBooth || 0);
       addExtraCounts(b.raw, s);
       b.totalSubmitted += s.posSubmitted + s.sbSubmitted + s.khqrTasks + s.ccSubmitted;
       b.totalIssues += s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
     });
 
     const baseBranches = Array.from(map.values()).map((b) => {
-      const pts = computeKpiPoints(b.raw, ruleMap);
+      const pts = computeKpiPoints(b.raw, ruleMap, SPLIT_BOOTH);
       const kpiCount = b.kpiStaffCount > 0 ? b.kpiStaffCount : b.staffCount;
       const ptsPerStaff = kpiCount > 0 ? Math.round((pts.totalPoints / kpiCount) * 10) / 10 : 0;
       const tasksPerStaff = kpiCount > 0 ? Math.round((pts.totalTasks / kpiCount) * 10) / 10 : 0;
@@ -1603,6 +1619,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'KHQR' && b.khqrTasks === 0) return false;
       if (categoryFilter === 'Credit Card' && b.ccTasks === 0) return false;
       if (categoryFilter === 'Merchant Visit' && b.mvTasks === 0) return false;
+      if (categoryFilter === 'Booth Event' && b.boothTasks === 0) return false;
       if (q && !`${b.branchId} ${b.branchName}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -1663,6 +1680,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           av = a.mvTasks;
           bv = b.mvTasks;
           break;
+        case 'boothPoints':
+          av = a.boothPoints;
+          bv = b.boothPoints;
+          break;
+        case 'boothTasks':
+          av = a.boothTasks;
+          bv = b.boothTasks;
+          break;
         case 'ptsPerStaff':
           av = a.ptsPerStaff;
           bv = b.ptsPerStaff;
@@ -1707,6 +1732,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'KHQR' && s.khqrTasks === 0) return false;
       if (categoryFilter === 'Credit Card' && s.ccTasks === 0) return false;
       if (categoryFilter === 'Merchant Visit' && s.mvTasks === 0) return false;
+      if (categoryFilter === 'Booth Event' && s.boothTasks === 0) return false;
       if (q && !`${s.staffId} ${s.staffName} ${s.branchId} ${s.branchName} ${s.position || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -1771,6 +1797,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           av = a.mvTasks;
           bv = b.mvTasks;
           break;
+        case 'boothPoints':
+          av = a.boothPoints;
+          bv = b.boothPoints;
+          break;
+        case 'boothTasks':
+          av = a.boothTasks;
+          bv = b.boothTasks;
+          break;
         case 'qualityPct':
           av = a.qualityPct;
           bv = b.qualityPct;
@@ -1831,11 +1865,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       raw.ccPrimary += b.raw.ccPrimary;
       raw.ccSupp += b.raw.ccSupp;
       raw.adjPts = (raw.adjPts || 0) + (b.raw.adjPts || 0);
+      raw.adjBooth = (raw.adjBooth || 0) + (b.raw.adjBooth || 0);
       addExtraCounts(raw, b.raw);
       submitted += b.totalSubmitted;
       issues += b.totalIssues;
     });
-    const pts = computeKpiPoints(raw, ruleMap);
+    const pts = computeKpiPoints(raw, ruleMap, SPLIT_BOOTH);
     const activeBranchCount = filteredBranches.length;
     const kpiStaffOnly = filteredStaff.filter((s) => !s.isManagement);
     const mgtStaffOnly = filteredStaff.filter((s) => s.isManagement);
@@ -1888,11 +1923,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       khqrPoints: number;
       ccPoints: number;
       mvPoints: number;
+      boothPoints: number;
       posTasks: number;
       sbTasks: number;
       khqrTasks: number;
       ccTasks: number;
       mvTasks: number;
+      boothTasks: number;
       totalTasks: number;
       totalPoints: number;
     };
@@ -1952,6 +1989,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         b.raw.ccPrimary += ms.ccPrimary;
         b.raw.ccSupp += ms.ccSupp;
         b.raw.adjPts = (b.raw.adjPts || 0) + (ms.adjPts || 0);
+        b.raw.adjBooth = (b.raw.adjBooth || 0) + (ms.adjBooth || 0);
         addExtraCounts(b.raw, ms);
       }
       enriched = Array.from(buckets.values())
@@ -1960,7 +1998,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ...raw,
           activeBranches: bSet.size,
           activeStaff: sSet.size,
-          ...computeKpiPoints(raw, ruleMap),
+          ...computeKpiPoints(raw, ruleMap, SPLIT_BOOTH),
         }));
     } else if ((granularity === 'daily' || granularity === 'weekly') && Array.isArray(data.dailyStaff) && data.dailyStaff.length > 0) {
       const posRate = totals.posTasks > 0 ? totals.posPoints / totals.posTasks : (rulePts(ruleMap, 'POS_INSTALL') || 2);
@@ -1968,6 +2006,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const khqrRate = totals.khqrTasks > 0 ? totals.khqrPoints / totals.khqrTasks : (rulePts(ruleMap, 'KHQR_INSTALL') || 1);
       const ccRate = totals.ccTasks > 0 ? totals.ccPoints / totals.ccTasks : (rulePts(ruleMap, 'CC_PRIMARY') || 2);
       const mvRate = totals.mvTasks > 0 ? totals.mvPoints / totals.mvTasks : (rulePts(ruleMap, 'MV_VISIT') || 1);
+      const boothRate = totals.boothTasks > 0 ? totals.boothPoints / totals.boothTasks : (rulePts(ruleMap, 'MV_BOOTH_EVENT_FULL_DAY') || 30);
 
       const buckets = new Map<string, {
         period: string;
@@ -1978,6 +2017,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         khqrTasks: number;
         ccTasks: number;
         mvTasks: number;
+        boothTasks: number;
       }>();
 
       for (const ds of data.dailyStaff) {
@@ -1991,7 +2031,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const pKey = granularity === 'weekly' ? weekStartIso(ds.day) : ds.day;
         let b = buckets.get(pKey);
         if (!b) {
-          b = { period: pKey, branches: new Set(), staff: new Set(), posTasks: 0, sbTasks: 0, khqrTasks: 0, ccTasks: 0, mvTasks: 0 };
+          b = { period: pKey, branches: new Set(), staff: new Set(), posTasks: 0, sbTasks: 0, khqrTasks: 0, ccTasks: 0, mvTasks: 0, boothTasks: 0 };
           buckets.set(pKey, b);
         }
         if ((ds.totalTasks || 0) > 0) {
@@ -2002,7 +2042,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         b.sbTasks += Number(ds.sbTasks) || 0;
         b.khqrTasks += Number(ds.khqrTasks) || 0;
         b.ccTasks += Number(ds.ccTasks) || 0;
-        b.mvTasks += Number(ds.mvTasks) || 0;
+        // (27 Nov 2026) Booth Event days are a part of mv_tasks on the server: shown apart here
+        const boothT = Number(ds.boothTasks) || 0;
+        b.mvTasks += Math.max(0, (Number(ds.mvTasks) || 0) - boothT);
+        b.boothTasks += boothT;
       }
 
       const toBucket = (p: string, b?: (typeof buckets extends Map<string, infer V> ? V : never)): SeriesBucket => {
@@ -2011,12 +2054,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const khqrT = b?.khqrTasks || 0;
         const ccT = b?.ccTasks || 0;
         const mvT = b?.mvTasks || 0;
+        const boothT = b?.boothTasks || 0;
         const posPoints = Math.round(posT * posRate * 10) / 10;
         const sbPoints = Math.round(sbT * sbRate * 10) / 10;
         const khqrPoints = Math.round(khqrT * khqrRate * 10) / 10;
         const ccPoints = Math.round(ccT * ccRate * 10) / 10;
         const mvPoints = Math.round(mvT * mvRate * 10) / 10;
-        const totalPoints = Math.round((posPoints + sbPoints + khqrPoints + ccPoints + mvPoints) * 10) / 10;
+        const boothPoints = Math.round(boothT * boothRate * 10) / 10;
+        const totalPoints = Math.round((posPoints + sbPoints + khqrPoints + ccPoints + mvPoints + boothPoints) * 10) / 10;
         return {
           ...emptyRawBucket(p),
           activeBranches: b?.branches.size || 0,
@@ -2026,12 +2071,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           khqrPoints,
           ccPoints,
           mvPoints,
+          boothPoints,
           posTasks: posT,
           sbTasks: sbT,
           khqrTasks: khqrT,
           ccTasks: ccT,
           mvTasks: mvT,
-          totalTasks: posT + sbT + khqrT + ccT + mvT,
+          boothTasks: boothT,
+          totalTasks: posT + sbT + khqrT + ccT + mvT + boothT,
           totalPoints,
         };
       };
@@ -2057,7 +2104,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         data.monthly;
       enriched = src.map((row) => ({
         ...row,
-        ...computeKpiPoints(row, ruleMap),
+        ...computeKpiPoints(row, ruleMap, SPLIT_BOOTH),
       }));
     }
     const workingDaysMode = data?.targets?.workingDaysMode;
@@ -2152,6 +2199,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           av = a.mvTasks;
           bv = b.mvTasks;
           break;
+        case 'boothPoints':
+          av = a.boothPoints;
+          bv = b.boothPoints;
+          break;
+        case 'boothTasks':
+          av = a.boothTasks;
+          bv = b.boothTasks;
+          break;
         case 'totalTasks':
           av = a.totalTasks;
           bv = b.totalTasks;
@@ -2190,7 +2245,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const subCategoryBreakdown = useMemo(() => {
     const r = totals.raw;
-    const items: { code: string; category: KpiCategory; label: string; count: number; unitPts: number; points: number; unit: string }[] = [
+    const items: { code: string; category: KpiViewCategory; label: string; count: number; unitPts: number; points: number; unit: string }[] = [
       { code: 'POS_INSTALL', category: 'POS Terminal', label: ruleMap.get('POS_INSTALL')?.subCategory || 'POS New Installation', count: r.posInstall, unitPts: rulePts(ruleMap, 'POS_INSTALL'), points: r.posInstall * rulePts(ruleMap, 'POS_INSTALL'), unit: 'terminals' },
       { code: 'POS_REPLACE', category: 'POS Terminal', label: ruleMap.get('POS_REPLACE')?.subCategory || 'POS Replacement / Swap', count: r.posReplace, unitPts: rulePts(ruleMap, 'POS_REPLACE'), points: r.posReplace * rulePts(ruleMap, 'POS_REPLACE'), unit: 'swaps' },
       { code: 'POS_BATTERY', category: 'POS Terminal', label: ruleMap.get('POS_BATTERY')?.subCategory || 'POS Battery Replacement', count: r.posBattery, unitPts: rulePts(ruleMap, 'POS_BATTERY'), points: r.posBattery * rulePts(ruleMap, 'POS_BATTERY'), unit: 'batteries' },
@@ -2232,7 +2287,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     for (const [code, count] of Object.entries(r.extra || {})) {
       if (!count || seenCodes.has(code)) continue;
       const rule = ruleMap.get(code);
-      const category: KpiCategory =
+      const category: KpiViewCategory =
+        isBoothEventCode(code) ? 'Booth Event' :
         rule?.category ||
         (code.startsWith('MV_')
           ? 'Merchant Visit'
@@ -2249,8 +2305,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     }
     // (22 Nov 2026) Booth Event / Standby VIP: the points that make each booth day follow the Settings rule (shared by tag,
     // or the higher of the booth points and own points). Negative when the tasks done at the booth were already counted above.
-    const adj = Math.round((Number(r.adjPts) || 0) * 100) / 100;
-    if (adj) items.push({ code: 'BOOTH_STANDBY_ADJ', category: 'Merchant Visit', label: 'Booth / Standby VIP sharing adjustment', count: 0, unitPts: 0, points: adj, unit: 'points' });
+    // (27 Nov 2026) the Booth Event part under Booth Event, the Standby VIP part under Merchant Visit
+    const adjBooth = Math.round((Number(r.adjBooth) || 0) * 100) / 100;
+    const adj = Math.round(((Number(r.adjPts) || 0) - adjBooth) * 100) / 100;
+    if (adjBooth) items.push({ code: 'BOOTH_ADJ', category: 'Booth Event', label: 'Booth Event sharing (same Booth Tag)', count: 0, unitPts: 0, points: adjBooth, unit: 'points' });
+    if (adj) items.push({ code: 'BOOTH_STANDBY_ADJ', category: 'Merchant Visit', label: 'Standby VIP adjustment', count: 0, unitPts: 0, points: adj, unit: 'points' });
     return items
       .map((it) => ({ ...it, points: Math.round(it.points * 100) / 100 }))
       .sort((a, b) => b.points - a.points || b.count - a.count);
@@ -2715,7 +2774,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const dir = ppDirectoryScope.matchPpStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
         if (!dir) return null;
         const canonBranch = dir.branchId || ms.branchId;
-        const pts = computeKpiPoints(ms, ruleMap);
+        const pts = computeKpiPoints(ms, ruleMap, SPLIT_BOOTH);
         return {
           ...ms,
           staffId: dir.empId || ms.staffId,
@@ -2761,12 +2820,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
       b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
+      b.raw.adjBooth = (b.raw.adjBooth || 0) + (s.adjBooth || 0);
       addExtraCounts(b.raw, s);
     });
 
     const monthBranches = Array.from(bMap.values())
       .map((b) => {
-        const pts = computeKpiPoints(b.raw, ruleMap);
+        const pts = computeKpiPoints(b.raw, ruleMap, SPLIT_BOOTH);
         return {
           ...b,
           ...pts,
@@ -3037,7 +3097,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             accumulateRawCounts(bMonthRaw, mRaw);
           }
         }
-        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap);
+        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap, SPLIT_BOOTH);
         const val = pickCategoryKpiVal(pts, categoryFilter, isTaskMode);
         const target = s.isManagement ? 0 : m.staffTarget;
         const mPacingTarget = s.isManagement ? 0 : m.staffPacingTarget;
@@ -3138,7 +3198,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const cells = monthlyMatrixMeta.map((m) => {
         const mRaw = b.byMonth.get(m.ym);
         if (mRaw) accumulateRawCounts(rawTotal, mRaw);
-        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap);
+        const pts = computeKpiPoints(mRaw || emptyRawCounts(), ruleMap, SPLIT_BOOTH);
         const val = pickCategoryKpiVal(pts, categoryFilter, isTaskMode);
         const target = m.staffTarget * targetStaffMult;
         const mPacingTarget = m.staffPacingTarget * targetStaffMult;
@@ -3427,10 +3487,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     downloadCsv(
       `KPI_Branch_Performance_${pTag}`,
       ['Rank', 'Branch Name', 'Branch Code', 'Active Staff', 'POS Tasks', 'POS Points', 'Sound Box Tasks', 'Sound Box Points',
-        'KHQR Tasks', 'QR Materials', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Pts / Staff', 'Total KPI Points', 'Achievement %', 'Performance'],
+        'KHQR Tasks', 'QR Materials', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Booth Event Days', 'Booth Event Points', 'Total Tasks', 'Pts / Staff', 'Total KPI Points', 'Achievement %', 'Performance'],
       statusFilteredBranches.map((b, i) => [
         i + 1, cleanBranchName(b.branchName), b.branchId, b.staffCount, b.posTasks, b.posPoints, b.sbTasks, b.sbPoints,
-        b.khqrTasks, b.khqrMaterials, b.khqrPoints, b.ccTasks, b.ccPoints, b.mvTasks, b.mvPoints, b.totalTasks, b.ptsPerStaff, b.totalPoints, `${b.targetPct}%`, b.rating,
+        b.khqrTasks, b.khqrMaterials, b.khqrPoints, b.ccTasks, b.ccPoints, b.mvTasks, b.mvPoints, b.boothTasks, b.boothPoints, b.totalTasks, b.ptsPerStaff, b.totalPoints, `${b.targetPct}%`, b.rating,
       ])
     );
     return statusFilteredBranches.length;
@@ -3443,12 +3503,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       `KPI_Individual_Staff_${pTag}`,
       ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Operational Support', 'POS Points',
         'SB Install', 'SB Replace', 'SB Maintenance', 'SB Operational Support', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
-        'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
+        'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Booth Event Days', 'Booth Event Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
       statusFilteredStaff.map((s, i) => [
         i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId,
         s.posInstall, s.posReplace, s.posBattery, Number(s.extra?.['POS_MAINT']) || Number(s.posMaint) || 0, s.posPoints,
         s.sbInstall, s.sbReplace, Number(s.extra?.['SB_MAINTENANCE']) || 0, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
-        s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
+        s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.boothTasks, s.boothPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
     );
     return statusFilteredStaff.length;
@@ -3831,7 +3891,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 aria-label="Category filter"
                 value={categoryFilter}
                 onChange={(e) => {
-                  const v = e.target.value as 'ALL' | KpiCategory;
+                  const v = e.target.value as 'ALL' | KpiViewCategory;
                   startMatrixTransition(() => setCategoryFilter(v));
                 }}
                 className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
@@ -3842,6 +3902,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <option value="KHQR">KHQR</option>
                 <option value="Credit Card">Credit Card</option>
                 <option value="Merchant Visit">Merchant Visit</option>
+                <option value="Booth Event">Booth Event</option>
               </select>
 
               <div className="relative flex-1 min-w-[170px] max-w-[240px]">
@@ -4303,13 +4364,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5">
               {([
-                { cat: 'KHQR' as KpiCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
-                { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(Number(totals.raw.extra?.['SB_MAINTENANCE']) || 0)} maint · ${fmtInt(totals.raw.sbMaint)} op. support` },
-                { cat: 'Credit Card' as KpiCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
-                { cat: 'POS Terminal' as KpiCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(Number(totals.raw.extra?.['POS_MAINT']) || Number(totals.raw.posMaint) || 0)} op. support` },
-                { cat: 'Merchant Visit' as KpiCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
+                { cat: 'KHQR' as KpiViewCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
+                { cat: 'Sound Box' as KpiViewCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(Number(totals.raw.extra?.['SB_MAINTENANCE']) || 0)} maint · ${fmtInt(totals.raw.sbMaint)} op. support` },
+                { cat: 'Credit Card' as KpiViewCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
+                { cat: 'POS Terminal' as KpiViewCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(Number(totals.raw.extra?.['POS_MAINT']) || Number(totals.raw.posMaint) || 0)} op. support` },
+                { cat: 'Merchant Visit' as KpiViewCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
+                { cat: 'Booth Event' as KpiViewCategory, tasks: totals.boothTasks, pts: totals.boothPoints, extra: `${fmtInt(Number(totals.raw.extra?.['MV_BOOTH_EVENT_FULL_DAY']) || 0)} full day · ${fmtInt(Number(totals.raw.extra?.['MV_BOOTH_EVENT_HALF_DAY']) || 0)} half day` },
               ]).map((item) => {
                 const volShare = totals.totalTasks > 0 ? Math.round((item.tasks / totals.totalTasks) * 100) : 0;
                 const ptShare = totals.totalPoints > 0 ? Math.round((item.pts / totals.totalPoints) * 100) : 0;
@@ -4521,7 +4583,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         >
                           {([
                             { id: 'ALL' as const, label: 'All', catStyle: null, count: subCategoryBreakdown.length },
-                            ...(['KHQR', 'Sound Box', 'Credit Card', 'POS Terminal', 'Merchant Visit'] as KpiCategory[]).map((cat) => ({
+                            ...(['KHQR', 'Sound Box', 'Credit Card', 'POS Terminal', 'Merchant Visit', 'Booth Event'] as KpiViewCategory[]).map((cat) => ({
                               id: cat,
                               label: cat,
                               catStyle: CAT_COLORS[cat],
@@ -5223,18 +5285,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   { key: 'khqr', label: 'KHQR' },
                   { key: 'cc', label: 'Credit Card' },
                   { key: 'mv', label: 'Merchant Visit' },
+                  { key: 'booth', label: 'Booth Event' },
                 ] as const;
 
                 const renderMetricCell = (key: string, tasks: number, pts: number) => (
                   <td key={key} className="py-2.5 px-1.5 text-center tabular-nums whitespace-nowrap">
-                    <TaskPtsCell tasks={tasks} pts={pts} mode={metricMode} align="center" />
+                    <TaskPtsCell tasks={tasks} pts={pts} mode={metricMode} align="center" signed={key === 'booth'} />
                   </td>
                 );
 
                 const colWidths = leaderboardMode === 'staff' ? TOP10_STAFF_COL_WIDTHS : TOP10_BRANCH_COL_WIDTHS;
 
                 return (
-                  <table className="top10-table w-full min-w-[1200px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
+                  <table className="top10-table w-full min-w-[1300px] table-fixed text-left border-separate border-spacing-0 text-[13px]">
                     <colgroup>
                       {colWidths.map((w, idx) => (
                         <col key={idx} style={{ width: w }} />
@@ -5275,7 +5338,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       {leaderboardMode === 'staff' ? (
                         top10Data.staff.length === 0 ? (
                           <tr>
-                            <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
+                            <td colSpan={14} className="py-12 text-center text-xs text-slate-400">
                               No staff records in this period.
                             </td>
                           </tr>
@@ -5315,6 +5378,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               {renderMetricCell('khqr', s.khqrTasks, s.khqrPoints)}
                               {renderMetricCell('cc', s.ccTasks, s.ccPoints)}
                               {renderMetricCell('mv', s.mvTasks, s.mvPoints)}
+                              {renderMetricCell('booth', s.boothTasks, s.boothPoints)}
                               <td className="py-2.5 px-1.5">
                                 <div className="flex justify-center items-center">
                                   <MiniMixBar
@@ -5323,6 +5387,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     khqr={isTaskMode ? s.khqrTasks : s.khqrPoints}
                                     cc={isTaskMode ? s.ccTasks : s.ccPoints}
                                     mv={isTaskMode ? s.mvTasks : s.mvPoints}
+                                    booth={isTaskMode ? s.boothTasks : s.boothPoints}
                                     total={isTaskMode ? s.totalTasks : s.totalPoints}
                                   />
                                 </div>
@@ -5340,7 +5405,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         )
                       ) : top10Data.branches.length === 0 ? (
                         <tr>
-                          <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
+                          <td colSpan={14} className="py-12 text-center text-xs text-slate-400">
                             No branch records in this period.
                           </td>
                         </tr>
@@ -5375,6 +5440,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             {renderMetricCell('khqr', b.khqrTasks, b.khqrPoints)}
                             {renderMetricCell('cc', b.ccTasks, b.ccPoints)}
                             {renderMetricCell('mv', b.mvTasks, b.mvPoints)}
+                            {renderMetricCell('booth', b.boothTasks, b.boothPoints)}
                             <td className="py-2.5 px-1.5">
                               <div className="flex justify-center items-center">
                                 <MiniMixBar
@@ -5383,6 +5449,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   khqr={isTaskMode ? b.khqrTasks : b.khqrPoints}
                                   cc={isTaskMode ? b.ccTasks : b.ccPoints}
                                   mv={isTaskMode ? b.mvTasks : b.mvPoints}
+                                  booth={isTaskMode ? b.boothTasks : b.boothPoints}
                                   total={isTaskMode ? b.totalTasks : b.totalPoints}
                                 />
                               </div>
@@ -5492,7 +5559,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
             <div className="min-w-[1140px] w-full">
-              <div className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
+              <div className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(90px,0.94fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] glass-table-thead navy-header-bar bg-[#002F4A] text-white text-[11px] font-semibold normal-case tracking-normal px-3.5 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -5501,6 +5568,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label="KHQR" sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Credit Card" sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Merchant Visit" sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader label="Booth Event" sortKey={isTaskMode ? 'boothTasks' : 'boothPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Avg / Staff" sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label={isTaskMode ? 'Total Pts' : 'Total Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -5516,7 +5584,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 ).map((t) => (
                   <div
                     key={t.period}
-                    className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
+                    className="grid items-center gap-x-2 grid-cols-[minmax(88px,1fr)_minmax(60px,0.65fr)_minmax(50px,0.55fr)_minmax(96px,1.02fr)_minmax(92px,0.98fr)_minmax(86px,0.92fr)_minmax(94px,1fr)_minmax(102px,1.08fr)_minmax(90px,0.94fr)_minmax(86px,0.92fr)_minmax(82px,0.86fr)_minmax(88px,0.94fr)_minmax(58px,0.65fr)] px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
                   >
                     <span className="font-normal text-slate-900 tabular-nums">{t.label}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtInt(t.activeBranches)}</span>
@@ -5526,6 +5594,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.khqrTasks} pts={t.khqrPoints} mode={metricMode} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.ccTasks} pts={t.ccPoints} mode={metricMode} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.mvTasks} pts={t.mvPoints} mode={metricMode} /></span>
+                    <span className="text-center tabular-nums"><TaskPtsCell tasks={t.boothTasks} pts={t.boothPoints} mode={metricMode} signed /></span>
                     <span className="text-right tabular-nums">
                       <TaskPtsCell tasks={t.tasksPerStaff} pts={t.ptsPerStaff} mode={metricMode} align="right" decimalTasks />
                     </span>
@@ -6221,7 +6290,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         : `${fmtPts(c.val)} pts (${fmtInt(c.tasks)} tasks)`
                                     }${!meta.isFuture && c.target > 0 ? `\nTarget: ${fmtPts(c.target)} (${c.pct}%${meta.isCurrent ? ` · MTD pace ${c.pacingPct}%` : ''})` : ''}${
                                       !meta.isFuture
-                                        ? `\nPOS: ${c.pts.posTasks} (${fmtPts(c.pts.posPoints)} pts) · SB: ${c.pts.sbTasks} (${fmtPts(c.pts.sbPoints)} pts) · KHQR: ${c.pts.khqrTasks} (${fmtPts(c.pts.khqrPoints)} pts) · CC: ${c.pts.ccTasks} (${fmtPts(c.pts.ccPoints)} pts)${c.pts.mvTasks > 0 ? ` · MV: ${c.pts.mvTasks} (${fmtPts(c.pts.mvPoints)} pts)` : ''}`
+                                        ? `\nPOS: ${c.pts.posTasks} (${fmtPts(c.pts.posPoints)} pts) · SB: ${c.pts.sbTasks} (${fmtPts(c.pts.sbPoints)} pts) · KHQR: ${c.pts.khqrTasks} (${fmtPts(c.pts.khqrPoints)} pts) · CC: ${c.pts.ccTasks} (${fmtPts(c.pts.ccPoints)} pts)${c.pts.mvTasks > 0 ? ` · MV: ${c.pts.mvTasks} (${fmtPts(c.pts.mvPoints)} pts)` : ''}${c.pts.boothTasks > 0 ? ` · Booth Event: ${c.pts.boothTasks} (${fmtPts(c.pts.boothPoints)} pts)` : ''}`
                                         : ''
                                     }`;
                                     return (
@@ -6504,15 +6573,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       let tooltip = '';
                                       if (isHol) {
                                         tooltip = hasTasks
-                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
+                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                           : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                                       } else if (isWk) {
                                         tooltip = hasTasks
-                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
+                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                           : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                                       } else {
                                         tooltip = d.raw
-                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${(d.raw.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw.mvTasks}` : ''}\nActive Staff: ${d.raw.activeStaff}`
+                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}\nActive Staff: ${d.raw.activeStaff}`
                                           : `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                                       }
 
@@ -6634,6 +6703,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="KHQR" title="Sort by KHQR" sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Credit Card" title="Sort by Credit Card" sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Merchant Visit" title="Sort by Merchant Visit" sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label="Booth Event" title="Sort by Booth Event (booth days / booth points after sharing)" sortKey={isTaskMode ? 'boothTasks' : 'boothPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Avg" sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title="Average KPI points & tasks per active staff member in the branch" />
                   <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
@@ -6672,6 +6742,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.khqrTasks} pts={b.khqrPoints} mode={metricMode} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.ccTasks} pts={b.ccPoints} mode={metricMode} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.mvTasks} pts={b.mvPoints} mode={metricMode} /></span>
+                            <span className="text-center tabular-nums"><TaskPtsCell tasks={b.boothTasks} pts={b.boothPoints} mode={metricMode} signed /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.tasksPerStaff} pts={b.ptsPerStaff} mode={metricMode} decimalTasks /></span>
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? `${fmtPts(b.totalPoints)}` : fmtInt(b.totalTasks)}
@@ -6712,6 +6783,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           <span className="text-slate-500">KHQR: {isTaskMode ? fmtInt(s.khqrTasks) : fmtPts(s.khqrPoints)}</span>
                                           <span className="text-slate-500">CC: {isTaskMode ? fmtInt(s.ccTasks) : fmtPts(s.ccPoints)}</span>
                                           <span className="text-slate-500">MV: {isTaskMode ? fmtInt(s.mvTasks) : fmtPts(s.mvPoints)}</span>
+                                          {s.boothTasks > 0 && <span className="text-slate-500">Booth: {isTaskMode ? fmtInt(s.boothTasks) : fmtPts(s.boothPoints)}</span>}
                                           <span className="font-medium text-slate-900">
                                             {isTaskMode ? `${fmtInt(s.totalTasks)} tasks` : `${fmtPts(s.totalPoints)} pts`}
                                           </span>
@@ -6905,15 +6977,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             let tooltip = '';
                             if (isHol) {
                               tooltip = hasTasks
-                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
+                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                 : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                             } else if (isWk) {
                               tooltip = hasTasks
-                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
+                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${mvBoothNote(d.raw)}`
                                 : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                             } else {
                               tooltip = d.raw
-                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${(d.raw.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw.mvTasks}` : ''}`
+                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${mvBoothNote(d.raw)}`
                                 : `${row.staffName} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                             }
 
@@ -7051,6 +7123,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="KHQR" title="Sort by KHQR" sortKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Credit Card" title="Sort by Credit Card" sortKey={isTaskMode ? 'ccTasks' : 'ccPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Merchant Visit" title="Sort by Merchant Visit" sortKey={isTaskMode ? 'mvTasks' : 'mvPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader label="Booth Event" title="Sort by Booth Event (booth days / booth points after sharing)" sortKey={isTaskMode ? 'boothTasks' : 'boothPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
                   <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
@@ -7109,6 +7182,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} mode={metricMode} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} mode={metricMode} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.mvTasks} pts={s.mvPoints} mode={metricMode} /></span>
+                            <span className="text-center tabular-nums"><TaskPtsCell tasks={s.boothTasks} pts={s.boothPoints} mode={metricMode} signed /></span>
                             <span className="text-center tabular-nums text-slate-600">
                               {isTaskMode ? fmtPts(s.totalPoints) : fmtInt(s.totalTasks)}
                             </span>
@@ -7170,10 +7244,22 @@ const TaskPtsCell: React.FC<{
   align?: 'center' | 'right';
   decimalTasks?: boolean;
   emphasis?: boolean;
-}> = React.memo(({ tasks = 0, pts, mode = 'points', align = 'center', decimalTasks = false, emphasis = false }) => {
+  /** (27 Nov 2026) Booth Event: points can be below zero (the booth's share minus tasks already counted elsewhere) */
+  signed?: boolean;
+}> = React.memo(({ tasks = 0, pts, mode = 'points', align = 'center', decimalTasks = false, emphasis = false, signed = false }) => {
   const isTasks = mode === 'tasks';
   const val = isTasks ? tasks : pts;
   const alignCls = align === 'right' ? 'text-right' : 'text-center';
+  if (signed && !isTasks && val < 0) {
+    return (
+      <span
+        className={`font-figure tabular-nums block w-full whitespace-nowrap ${alignCls} text-rose-700 font-medium`}
+        title={`${fmtPts(pts)} pts · ${fmtInt(tasks)} booth ${tasks === 1 ? 'day' : 'days'} - booth points after sharing, minus this person's own task points that day (already counted in their own columns)`}
+      >
+        −{fmtPts(-val)}
+      </span>
+    );
+  }
   if (val <= 0) {
     return (
       <span className={`text-slate-300 font-light block w-full select-none ${alignCls}`}>
@@ -7200,6 +7286,7 @@ TaskPtsCell.displayName = 'TaskPtsCell';
 const KpiTooltipCategories: React.FC<{ row: any; isTasks: boolean }> = ({ row, isTasks }) => {
   const fmt = (tasks: number, pts: number) => (isTasks ? `${fmtInt(tasks || 0)} tasks` : `${fmtPts(pts || 0)} pts`);
   const mvVal = isTasks ? (row.mvTasks ?? 0) : (row.mvPoints ?? 0);
+  const boothVal = isTasks ? (row.boothTasks ?? 0) : (row.boothPoints ?? 0);
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-4">
@@ -7222,6 +7309,12 @@ const KpiTooltipCategories: React.FC<{ row: any; isTasks: boolean }> = ({ row, i
         <div className="flex items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#2d6a4f]" />Merchant Visit</span>
           <span className="text-slate-900 tabular-nums">{fmt(row.mvTasks, row.mvPoints)}</span>
+        </div>
+      )}
+      {boothVal !== 0 && (
+        <div className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#b5446e]" />Booth Event</span>
+          <span className="text-slate-900 tabular-nums">{fmt(row.boothTasks, row.boothPoints)}</span>
         </div>
       )}
     </div>
@@ -7429,23 +7522,25 @@ const RankBadge: React.FC<{ rank: number }> = ({ rank }) => {
   return <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-slate-500 tabular-nums shrink-0">{rank}</span>;
 };
 
-const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; mv?: number; total: number }> = ({ pos, sb, khqr, cc, mv = 0, total }) => {
+const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; mv?: number; booth?: number; total: number }> = ({ pos, sb, khqr, cc, mv = 0, booth = 0, total }) => {
   if (total <= 0) return null;
   const pPos = (pos / total) * 100;
   const pSb = (sb / total) * 100;
   const pKhqr = (khqr / total) * 100;
   const pCc = (cc / total) * 100;
   const pMv = (mv / total) * 100;
+  const pBooth = (booth / total) * 100;
   return (
     <div
       className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden flex gap-[1px]"
-      title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts${mv > 0 ? ` · MV: ${fmtPts(mv)} pts` : ''}`}
+      title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts${mv > 0 ? ` · MV: ${fmtPts(mv)} pts` : ''}${booth ? ` · Booth Event: ${fmtPts(booth)} pts` : ''}`}
     >
       {pPos > 0 && <div className="bg-[#184e77] h-full" style={{ width: `${pPos}%` }} />}
       {pSb > 0 && <div className="bg-[#4F518C] h-full" style={{ width: `${pSb}%` }} />}
       {pKhqr > 0 && <div className="bg-[#1e6091] h-full" style={{ width: `${pKhqr}%` }} />}
       {pCc > 0 && <div className="bg-[#f59e0b] h-full" style={{ width: `${pCc}%` }} />}
       {pMv > 0 && <div className="bg-[#2d6a4f] h-full" style={{ width: `${pMv}%` }} />}
+      {pBooth > 0 && <div className="bg-[#b5446e] h-full" style={{ width: `${pBooth}%` }} />}
     </div>
   );
 };

@@ -119,6 +119,8 @@ export interface KpiRawCounts {
   /** (22 Nov 2026) Booth Event / Standby VIP: points the server adds or takes away so the day follows the booth rules
    *  (shared by Booth Tag, or the higher of the booth points and the staff member's own) - Settings > KPI. */
   adjPts?: number;
+  /** (27 Nov 2026) the Booth Event part of adjPts (the rest is Standby VIP). KPI Performance shows Booth Event apart. */
+  adjBooth?: number;
   /** (4 Nov 2026) tasks of the rules added for the Merchant Visit app (POS_MAINT, POS_INACTIVE, POS_RETURN, MV_<activity>):
    *  { rule code: count }. The server counts only active rules. */
   extra?: Record<string, number>;
@@ -169,6 +171,8 @@ export interface KpiDailyBranchRaw {
   khqrTasks: number;
   ccTasks: number;
   mvTasks?: number;
+  /** (27 Nov 2026) Booth Event days, a part of mvTasks */
+  boothTasks?: number;
 }
 
 export interface KpiDailyStaffRaw {
@@ -183,6 +187,8 @@ export interface KpiDailyStaffRaw {
   khqrTasks: number;
   ccTasks: number;
   mvTasks?: number;
+  /** (27 Nov 2026) Booth Event days, a part of mvTasks */
+  boothTasks?: number;
 }
 
 export interface KpiDashboardData {
@@ -201,138 +207,8 @@ export interface KpiDashboardData {
   dailyFrom?: string | null;
 }
 
-export interface ComputedPoints {
-  posTasks: number;
-  posPoints: number;
-  sbTasks: number;
-  sbPoints: number;
-  khqrTasks: number;
-  khqrMaterials: number;
-  khqrPoints: number;
-  ccTasks: number;
-  ccPoints: number;
-  mvTasks: number;
-  mvPoints: number;
-  totalTasks: number;
-  totalPoints: number;
-}
-
-export function rulePts(map: Map<string, KpiPointRule>, code: string): number {
-  const r = map.get(code);
-  return r && r.active ? r.points : 0;
-}
-
-export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointRule>): ComputedPoints {
-  const posTasks = c.posInstall + c.posReplace + c.posBattery;
-  const posPoints =
-    c.posInstall * rulePts(ruleMap, 'POS_INSTALL') +
-    c.posReplace * rulePts(ruleMap, 'POS_REPLACE') +
-    c.posBattery * rulePts(ruleMap, 'POS_BATTERY');
-
-  const sbTasks = c.sbInstall + c.sbReplace + c.sbMaint + c.sbReturn;
-  const sbPoints =
-    c.sbInstall * rulePts(ruleMap, 'SB_INSTALL') +
-    c.sbReplace * rulePts(ruleMap, 'SB_REPLACE') +
-    c.sbMaint * rulePts(ruleMap, 'SB_MAINT') +
-    c.sbReturn * rulePts(ruleMap, 'SB_RETURN');
-
-  const khqrTasks = c.khqrInstall + c.khqrReplace;
-  const khqrPoints =
-    c.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') +
-    c.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE') +
-    c.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL') +
-    // (19 Nov 2026) KHQR Print & Laminate: per submission (New Installation or QR Replacement), the installer - points only
-    (c.khqrInstall + c.khqrReplace) * rulePts(ruleMap, 'KHQR_PRINT_LAMINATE');
-
-  const ccTasks = c.ccPrimary + c.ccSupp;
-  const ccPoints =
-    c.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') +
-    c.ccSupp * rulePts(ruleMap, 'CC_SUPP');
-
-  // (4 Nov 2026) the rules added for the Merchant Visit app & new tasks: counted per rule code, points from Settings
-  let xPosTasks = 0, xPosPoints = 0, xSbTasks = 0, xSbPoints = 0, xCcTasks = 0, xCcPoints = 0, xKhqrTasks = 0, xKhqrPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
-  
-  // Count direct task properties if provided and not already in c.extra
-  if (c.posMaint && !c.extra?.['POS_MAINT']) {
-    xPosTasks += c.posMaint;
-    xPosPoints += c.posMaint * rulePts(ruleMap, 'POS_MAINT');
-  }
-  if (c.posInactive && !c.extra?.['POS_INACTIVE']) {
-    xPosTasks += c.posInactive;
-    xPosPoints += c.posInactive * rulePts(ruleMap, 'POS_INACTIVE');
-  }
-  if (c.posReturn && !c.extra?.['POS_RETURN']) {
-    xPosTasks += c.posReturn;
-    xPosPoints += c.posReturn * rulePts(ruleMap, 'POS_RETURN');
-  }
-  if (c.posAdaptor && !c.extra?.['POS_ADAPTOR']) {
-    xPosTasks += c.posAdaptor;
-    xPosPoints += c.posAdaptor * rulePts(ruleMap, 'POS_ADAPTOR');
-  }
-  if (c.posStand && !c.extra?.['POS_STAND']) {
-    xPosTasks += c.posStand;
-    xPosPoints += c.posStand * rulePts(ruleMap, 'POS_STAND');
-  }
-  if (c.posDock && !c.extra?.['POS_DOCK']) {
-    xPosTasks += c.posDock;
-    xPosPoints += c.posDock * rulePts(ruleMap, 'POS_DOCK');
-  }
-  if (c.sbAdaptor && !c.extra?.['SB_ADAPTOR']) {
-    xSbTasks += c.sbAdaptor;
-    xSbPoints += c.sbAdaptor * rulePts(ruleMap, 'SB_ADAPTOR');
-  }
-
-  for (const [code, raw] of Object.entries(c.extra || {})) {
-    const n = Number(raw) || 0, rule = ruleMap.get(code);
-    if (!n) continue;
-    if (rule && rule.active) {
-      const pts = n * rule.points;
-      if (rule.category === 'POS Terminal') { xPosTasks += n; xPosPoints += pts; }
-      else if (rule.category === 'Sound Box') { xSbTasks += n; xSbPoints += pts; }
-      else if (rule.category === 'Credit Card') { xCcTasks += n; xCcPoints += pts; }
-      else if (rule.category === 'KHQR') { xKhqrTasks += n; xKhqrPoints += pts; }
-      else if (rule.category === 'Merchant Visit') { mvTasks += n; mvPoints += pts; }
-      else { xOtherTasks += n; xOtherPoints += pts; }
-    } else if (code.startsWith('MV_')) {
-      mvTasks += n;
-      if (rule && rule.points > 0) mvPoints += n * rule.points;
-    } else if (code.startsWith('POS_')) {
-      xPosTasks += n;
-      if (rule && rule.points > 0) xPosPoints += n * rule.points;
-    } else if (code.startsWith('SB_')) {
-      xSbTasks += n;
-      if (rule && rule.points > 0) xSbPoints += n * rule.points;
-    } else if (code.startsWith('CC_')) {
-      xCcTasks += n;
-      if (rule && rule.points > 0) xCcPoints += n * rule.points;
-    } else if (code.startsWith('KHQR_')) {
-      xKhqrTasks += n;
-      if (rule && rule.points > 0) xKhqrPoints += n * rule.points;
-    }
-  }
-
-  // (22 Nov 2026) Booth Event / Standby VIP adjustment (points only, counted with Merchant Visit)
-  mvPoints += Number(c.adjPts) || 0;
-
-  const totalTasks = posTasks + xPosTasks + sbTasks + xSbTasks + khqrTasks + xKhqrTasks + ccTasks + xCcTasks + mvTasks + xOtherTasks;
-  const totalPoints = Math.round((posPoints + xPosPoints + sbPoints + xSbPoints + khqrPoints + xKhqrPoints + ccPoints + xCcPoints + mvPoints + xOtherPoints) * 100) / 100;
-
-  return {
-    posTasks: posTasks + xPosTasks,
-    posPoints: Math.round((posPoints + xPosPoints) * 100) / 100,
-    sbTasks: sbTasks + xSbTasks,
-    sbPoints: Math.round((sbPoints + xSbPoints) * 100) / 100,
-    khqrTasks: khqrTasks + xKhqrTasks,
-    khqrMaterials: c.khqrMaterials,
-    khqrPoints: Math.round((khqrPoints + xKhqrPoints) * 100) / 100,
-    ccTasks: ccTasks + xCcTasks,
-    ccPoints: Math.round((ccPoints + xCcPoints) * 100) / 100,
-    mvTasks,
-    mvPoints: Math.round(mvPoints * 100) / 100,
-    totalTasks,
-    totalPoints,
-  };
-}
+// (27 Nov 2026) the points calculation lives in utils/kpiPoints (no database import, so it can be unit-tested)
+export { computeKpiPoints, rulePts, isBoothEventCode, type ComputedPoints } from '../utils/kpiPoints';
 
 // ───────────── In-memory & Session cache (0ms instant tab opening & instant switching) ─────────────
 interface KpiSeriesBundle {
@@ -349,8 +225,8 @@ interface KpiSeriesBundle {
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v5_';
-const SESSION_SERIES_PREFIX = 'kpi_series_cache_v5_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v6_';   // (27 Nov 2026) v6: adj_booth, booth_tasks
+const SESSION_SERIES_PREFIX = 'kpi_series_cache_v6_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
 
@@ -531,7 +407,7 @@ function getSeriesBundle(): KpiSeriesBundle | null {
 
 /** (26 Nov 2026) the summaries of today kept on disk for this person (persistCache): at most the 6 latest periods */
 const diskSlices = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
-const KPI_DISK_KEY = 'kpi_summary';
+const KPI_DISK_KEY = 'kpi_summary_v2';   // (27 Nov 2026) v2: adj_booth, booth_tasks
 interface KpiDiskCopy { day: string; series: KpiSeriesBundle | null; slices: [string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }][] }
 
 function flushKpiStorageWrites(): void {
@@ -829,6 +705,7 @@ function mapRawCounts(r: any): KpiRawCounts {
     ccPrimary: Number(r.cc_primary) || 0,
     ccSupp: Number(r.cc_supp) || 0,
     adjPts: Number(r.adj_pts) || 0,
+    adjBooth: Number(r.adj_booth) || 0,
     extra: r.extra && typeof r.extra === 'object'
       ? Object.fromEntries(Object.entries(r.extra).map(([k, v]) => [k, Number(v) || 0]))
       : {},
@@ -993,6 +870,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             khqrTasks: Number(r.khqr_tasks) || 0,
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
+            boothTasks: Number(r.booth_tasks) || 0,
           })) : [],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
@@ -1007,6 +885,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
             khqrTasks: Number(r.khqr_tasks) || 0,
             ccTasks: Number(r.cc_tasks) || 0,
             mvTasks: Number(r.mv_tasks) || 0,
+            boothTasks: Number(r.booth_tasks) || 0,
           })) : [],
           dailyFrom: typeof d.daily_from === 'string' && d.daily_from ? d.daily_from : null,
         };
