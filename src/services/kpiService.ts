@@ -121,6 +121,9 @@ export interface KpiRawCounts {
   adjPts?: number;
   /** (27 Nov 2026) the Booth Event part of adjPts (the rest is Standby VIP). KPI Performance shows Booth Event apart. */
   adjBooth?: number;
+  /** (27 Nov 2026) points of the tasks done at a booth, per category (POS / Sound Box / KHQR / Credit Card / Merchant
+   *  Visit). KPI Performance counts them under Booth Event, so that column shows the real booth points. */
+  boPos?: number; boSb?: number; boKhqr?: number; boCc?: number; boMv?: number;
   /** (4 Nov 2026) tasks of the rules added for the Merchant Visit app (POS_MAINT, POS_INACTIVE, POS_RETURN, MV_<activity>):
    *  { rule code: count }. The server counts only active rules. */
   extra?: Record<string, number>;
@@ -225,8 +228,8 @@ interface KpiSeriesBundle {
 }
 
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v6_';   // (27 Nov 2026) v6: adj_booth, booth_tasks
-const SESSION_SERIES_PREFIX = 'kpi_series_cache_v6_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v7_';   // (27 Nov 2026) v7: adj_booth, booth_tasks, bo_*
+const SESSION_SERIES_PREFIX = 'kpi_series_cache_v7_';
 let latestSeries: KpiSeriesBundle | null = null;
 let staffSliceRpcSupported: boolean | null = null;
 
@@ -407,7 +410,7 @@ function getSeriesBundle(): KpiSeriesBundle | null {
 
 /** (26 Nov 2026) the summaries of today kept on disk for this person (persistCache): at most the 6 latest periods */
 const diskSlices = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }>();
-const KPI_DISK_KEY = 'kpi_summary_v2';   // (27 Nov 2026) v2: adj_booth, booth_tasks
+const KPI_DISK_KEY = 'kpi_summary_v3';   // (27 Nov 2026) v3: adj_booth, booth_tasks, bo_*
 interface KpiDiskCopy { day: string; series: KpiSeriesBundle | null; slices: [string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[]; fetchedAt?: number }][] }
 
 function flushKpiStorageWrites(): void {
@@ -706,6 +709,7 @@ function mapRawCounts(r: any): KpiRawCounts {
     ccSupp: Number(r.cc_supp) || 0,
     adjPts: Number(r.adj_pts) || 0,
     adjBooth: Number(r.adj_booth) || 0,
+    boPos: Number(r.bo_pos) || 0, boSb: Number(r.bo_sb) || 0, boKhqr: Number(r.bo_khqr) || 0, boCc: Number(r.bo_cc) || 0, boMv: Number(r.bo_mv) || 0,
     extra: r.extra && typeof r.extra === 'object'
       ? Object.fromEntries(Object.entries(r.extra).map(([k, v]) => [k, Number(v) || 0]))
       : {},

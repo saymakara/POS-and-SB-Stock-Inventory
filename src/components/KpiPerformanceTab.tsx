@@ -140,6 +140,7 @@ function emptyRawCounts(): KpiRawCounts {
     ccPrimary: 0, ccSupp: 0,
     adjPts: 0,
     adjBooth: 0,
+    boPos: 0, boSb: 0, boKhqr: 0, boCc: 0, boMv: 0,
   };
 }
 function accumulateRawCounts(acc: KpiRawCounts, src: KpiRawCounts): void {
@@ -157,6 +158,11 @@ function accumulateRawCounts(acc: KpiRawCounts, src: KpiRawCounts): void {
   acc.ccSupp += src.ccSupp || 0;
   acc.adjPts = (acc.adjPts || 0) + (src.adjPts || 0);
   acc.adjBooth = (acc.adjBooth || 0) + (src.adjBooth || 0);
+  acc.boPos = (acc.boPos || 0) + (src.boPos || 0);
+  acc.boSb = (acc.boSb || 0) + (src.boSb || 0);
+  acc.boKhqr = (acc.boKhqr || 0) + (src.boKhqr || 0);
+  acc.boCc = (acc.boCc || 0) + (src.boCc || 0);
+  acc.boMv = (acc.boMv || 0) + (src.boMv || 0);
   addExtraCounts(acc, src);
 }
 function pickCategoryKpiVal(
@@ -1408,6 +1414,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         prev.ccSupp += s.ccSupp;
         prev.adjPts = (prev.adjPts || 0) + (s.adjPts || 0);
         prev.adjBooth = (prev.adjBooth || 0) + (s.adjBooth || 0);
+        prev.boPos = (prev.boPos || 0) + (s.boPos || 0);
+        prev.boSb = (prev.boSb || 0) + (s.boSb || 0);
+        prev.boKhqr = (prev.boKhqr || 0) + (s.boKhqr || 0);
+        prev.boCc = (prev.boCc || 0) + (s.boCc || 0);
+        prev.boMv = (prev.boMv || 0) + (s.boMv || 0);
         prev.posSubmitted += s.posSubmitted;
         prev.posRejected += s.posRejected;
         prev.sbSubmitted += s.sbSubmitted;
@@ -1568,6 +1579,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.ccSupp += s.ccSupp;
       b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
       b.raw.adjBooth = (b.raw.adjBooth || 0) + (s.adjBooth || 0);
+      b.raw.boPos = (b.raw.boPos || 0) + (s.boPos || 0);
+      b.raw.boSb = (b.raw.boSb || 0) + (s.boSb || 0);
+      b.raw.boKhqr = (b.raw.boKhqr || 0) + (s.boKhqr || 0);
+      b.raw.boCc = (b.raw.boCc || 0) + (s.boCc || 0);
+      b.raw.boMv = (b.raw.boMv || 0) + (s.boMv || 0);
       addExtraCounts(b.raw, s);
       b.totalSubmitted += s.posSubmitted + s.sbSubmitted + s.khqrTasks + s.ccSubmitted;
       b.totalIssues += s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
@@ -1867,6 +1883,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       raw.ccSupp += b.raw.ccSupp;
       raw.adjPts = (raw.adjPts || 0) + (b.raw.adjPts || 0);
       raw.adjBooth = (raw.adjBooth || 0) + (b.raw.adjBooth || 0);
+      raw.boPos = (raw.boPos || 0) + (b.raw.boPos || 0);
+      raw.boSb = (raw.boSb || 0) + (b.raw.boSb || 0);
+      raw.boKhqr = (raw.boKhqr || 0) + (b.raw.boKhqr || 0);
+      raw.boCc = (raw.boCc || 0) + (b.raw.boCc || 0);
+      raw.boMv = (raw.boMv || 0) + (b.raw.boMv || 0);
       addExtraCounts(raw, b.raw);
       submitted += b.totalSubmitted;
       issues += b.totalIssues;
@@ -1991,6 +2012,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         b.raw.ccSupp += ms.ccSupp;
         b.raw.adjPts = (b.raw.adjPts || 0) + (ms.adjPts || 0);
         b.raw.adjBooth = (b.raw.adjBooth || 0) + (ms.adjBooth || 0);
+        b.raw.boPos = (b.raw.boPos || 0) + (ms.boPos || 0);
+        b.raw.boSb = (b.raw.boSb || 0) + (ms.boSb || 0);
+        b.raw.boKhqr = (b.raw.boKhqr || 0) + (ms.boKhqr || 0);
+        b.raw.boCc = (b.raw.boCc || 0) + (ms.boCc || 0);
+        b.raw.boMv = (b.raw.boMv || 0) + (ms.boMv || 0);
         addExtraCounts(b.raw, ms);
       }
       enriched = Array.from(buckets.values())
@@ -2822,6 +2848,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.ccSupp += s.ccSupp;
       b.raw.adjPts = (b.raw.adjPts || 0) + (s.adjPts || 0);
       b.raw.adjBooth = (b.raw.adjBooth || 0) + (s.adjBooth || 0);
+      b.raw.boPos = (b.raw.boPos || 0) + (s.boPos || 0);
+      b.raw.boSb = (b.raw.boSb || 0) + (s.boSb || 0);
+      b.raw.boKhqr = (b.raw.boKhqr || 0) + (s.boKhqr || 0);
+      b.raw.boCc = (b.raw.boCc || 0) + (s.boCc || 0);
+      b.raw.boMv = (b.raw.boMv || 0) + (s.boMv || 0);
       addExtraCounts(b.raw, s);
     });
 
