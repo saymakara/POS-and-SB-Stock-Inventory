@@ -31,20 +31,20 @@ export function rulePts(map: Map<string, KpiPointRule>, code: string): number {
 /** `splitBooth`: Booth Event is its own category (KPI Performance) instead of a part of Merchant Visit (Dashboard). */
 export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointRule>, opts?: { splitBooth?: boolean }): ComputedPoints {
   const posTasks = c.posInstall + c.posReplace + c.posBattery;
-  const posPoints =
+  let posPoints =
     c.posInstall * rulePts(ruleMap, 'POS_INSTALL') +
     c.posReplace * rulePts(ruleMap, 'POS_REPLACE') +
     c.posBattery * rulePts(ruleMap, 'POS_BATTERY');
 
   const sbTasks = c.sbInstall + c.sbReplace + c.sbMaint + c.sbReturn;
-  const sbPoints =
+  let sbPoints =
     c.sbInstall * rulePts(ruleMap, 'SB_INSTALL') +
     c.sbReplace * rulePts(ruleMap, 'SB_REPLACE') +
     c.sbMaint * rulePts(ruleMap, 'SB_MAINT') +
     c.sbReturn * rulePts(ruleMap, 'SB_RETURN');
 
   const khqrTasks = c.khqrInstall + c.khqrReplace;
-  const khqrPoints =
+  let khqrPoints =
     c.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') +
     c.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE') +
     c.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL') +
@@ -52,7 +52,7 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
     (c.khqrInstall + c.khqrReplace) * rulePts(ruleMap, 'KHQR_PRINT_LAMINATE');
 
   const ccTasks = c.ccPrimary + c.ccSupp;
-  const ccPoints =
+  let ccPoints =
     c.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') +
     c.ccSupp * rulePts(ruleMap, 'CC_SUPP');
 
@@ -132,8 +132,14 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
   // (27 Nov 2026) with splitBooth, the Booth Event part goes to Booth Event
   const adjBooth = Number(c.adjBooth) || 0;
   boothPoints += adjBooth;
-  if (opts?.splitBooth) mvPoints += (Number(c.adjPts) || 0) - adjBooth;
-  else mvPoints += Number(c.adjPts) || 0;
+  if (opts?.splitBooth) {
+    mvPoints += (Number(c.adjPts) || 0) - adjBooth;
+    // (27 Nov 2026) the tasks done at the booth belong to the booth: their points move from their own category into
+    // Booth Event, so Booth Event shows the real booth points (e.g. 30) and the total does not change
+    const bo = { pos: Number(c.boPos) || 0, sb: Number(c.boSb) || 0, khqr: Number(c.boKhqr) || 0, cc: Number(c.boCc) || 0, mv: Number(c.boMv) || 0 };
+    posPoints -= bo.pos; sbPoints -= bo.sb; khqrPoints -= bo.khqr; ccPoints -= bo.cc; mvPoints -= bo.mv;
+    boothPoints += bo.pos + bo.sb + bo.khqr + bo.cc + bo.mv;
+  } else mvPoints += Number(c.adjPts) || 0;
   const splitT = opts?.splitBooth ? boothTasks : 0, splitP = opts?.splitBooth ? boothPoints : 0;
 
   const totalTasks = posTasks + xPosTasks + sbTasks + xSbTasks + khqrTasks + xKhqrTasks + ccTasks + xCcTasks + mvTasks + xOtherTasks + splitT;

@@ -14,7 +14,7 @@ const rules = [
   rule('MV_STANDBY_VIP_HALF_DAY', 'Merchant Visit', 'Standby VIP - Half Day', 15),
 ];
 // booth 271126 on one day (as 27 Nov, names from the stand-in Staff Directory): 4 staff, 120 task points, equal share 30 each; one standby VIP half day
-const st = (id, name, ki, kr, extra, adj, adjB) => ({ staff_id: id, staff_name: name, branch_id: '101', branch_name: 'Branch 101', khqr_install: ki, khqr_replace: kr, extra, adj_pts: adj, adj_booth: adjB });
+const st = (id, name, ki, kr, extra, adj, adjB) => ({ staff_id: id, staff_name: name, branch_id: '101', branch_name: 'Branch 101', khqr_install: ki, khqr_replace: kr, extra, adj_pts: adj, adj_booth: adjB, bo_khqr: -adjB });
 const staff = [
   st('20010', 'STAFF Number10', 14, 27, { MV_BOOTH_EVENT_FULL_DAY: 1 }, -49.2, -49.2),
   st('20011', 'STAFF Number11', 5, 22, { MV_BOOTH_EVENT_FULL_DAY: 1 }, -32.4, -32.4),
@@ -40,7 +40,7 @@ const route = async (r) => {
 };
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium' });
-  const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
+  const ctx = await b.newContext({ viewport: { width: Number(process.env.VW || 1600), height: 1000 }, acceptDownloads: true });
   await ctx.route(B + '/**', route);
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
@@ -59,9 +59,25 @@ const route = async (r) => {
   // the staff table: the row of the booth staff member with 49.2 own points
   const staffTab = p.locator('main button', { hasText: /^Staff$/ }).first();
   if (await staffTab.count()) { await staffTab.click().catch(() => {}); await sleep(800); }
-  const rowText = await p.locator('main button', { hasText: 'STAFF Number10' }).filter({ hasText: 'Code 110' }).first().innerText().catch(() => '');
+  const rowText = await p.locator('main button', { hasText: 'STAFF Number10' }).filter({ hasText: 'Branch 110' }).filter({ hasText: 'Officer' }).first().innerText().catch(() => '');
   ok(/30/.test(rowText), 'Booth staff (49.2 own points) total stays 30', rowText);
-  ok(/−19\.2/.test(rowText), 'Booth staff Booth Event column: 30 booth points - 49.2 shared out = -19.2', rowText);
+  ok(!/−|-\d/.test(rowText) && (rowText.match(/(^|\n)30(\n|$)/g) || []).length >= 2, 'Booth staff: Booth Event column shows the real booth points 30 (no minus); KHQR at the booth counted there', rowText);
+  // (27 Nov 2026) staff table: names, branches and Status labels are not cut off
+  const cut = await p.evaluate(() => Array.from(document.querySelectorAll('main [class*="24px_minmax(150px"]')).flatMap((row) => Array.from(row.querySelectorAll('span'))).filter((el) => el.children.length === 0 && el.innerText.trim() && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow === 'hidden').map((el) => el.innerText).slice(0, 5));
+  ok(cut.length === 0, 'no text cut off in the KPI tables', cut);
+  ok(!/Code \d/.test(await p.textContent('main')), 'branch code shown as a number only (no word "Code")');
+  const over = await p.evaluate(() => { const r = document.querySelector('main [class*="24px_minmax(150px"]'); if (!r) return 'no row'; const sc = r.closest('.overflow-x-auto'); return sc ? sc.scrollWidth - sc.clientWidth : 'no scroller'; });
+  ok(over === 0, `the staff table fits the page width (${process.env.VW || 1600} px), Status column fully visible`, over);
+  const hdrCut = await p.evaluate(() => Array.from(document.querySelectorAll('main [class*="24px_minmax(150px"].glass-table-thead button span')).filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.innerText));
+  ok(hdrCut.length === 0, 'staff table headings fully visible', hdrCut);
+  const brTab = p.locator('main button', { hasText: 'KPI by Branch' }).first();
+  if (await brTab.count()) {
+    await brTab.click(); await sleep(1000);
+    const overB = await p.evaluate(() => { const r = document.querySelector('main [class*="24px_minmax(150px"][class*="minmax(40px"]'); if (!r) return 'no row'; const sc = r.closest('.overflow-x-auto'); return sc ? sc.scrollWidth - sc.clientWidth : 'no scroller'; });
+    ok(overB === 0, `the branch table fits the page width (${process.env.VW || 1600} px)`, overB);
+    if (process.env.SHOT3) await p.screenshot({ path: process.env.SHOT3 });
+    await p.locator('main button', { hasText: 'KPI by Staff' }).first().click(); await sleep(800);
+  }
   if (process.env.SHOT) { await p.screenshot({ path: process.env.SHOT, fullPage: false }); }
   // filter: Booth Event shows only booth staff
   const sel = p.locator('main select').filter({ has: p.locator('option[value="Booth Event"]') }).first();
