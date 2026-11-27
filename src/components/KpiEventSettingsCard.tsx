@@ -17,7 +17,7 @@ import {
 interface Props { toast: (m: string) => void; onChanged?: () => void }
 
 const BOOTH_OPTIONS: { v: BoothMode; title: string; text: string }[] = [
-  { v: 'shared', title: 'Shared by Booth Tag (recommended)', text: 'Staff with the same Booth Tag on the same day share the points of all their tasks equally; each gets the booth points or the share, whichever is higher. Half-day staff share only the tasks done in their hours.' },
+  { v: 'shared', title: 'Shared by Booth Tag (recommended)', text: 'Staff with the same Booth Tag on the same day: each gets the booth points or their own points, whichever is higher. When the booth\'s tasks together earn more than the booth points of all its staff, everyone gets an equal share instead. Half-day staff count only the tasks done in their hours.' },
   { v: 'higher', title: 'Higher of booth points or own points', text: 'Each staff member alone: the booth points, or the points of their own tasks that day if higher. No sharing.' },
   { v: 'fixed', title: 'Fixed booth points (as before)', text: 'The booth points are added on top of the tasks done that day.' },
 ];
