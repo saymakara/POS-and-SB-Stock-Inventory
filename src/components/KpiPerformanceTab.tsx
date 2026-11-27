@@ -59,10 +59,10 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
 }
 
 const KPI_BRANCH_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(40px,0.32fr)_minmax(88px,0.74fr)_minmax(84px,0.70fr)_minmax(80px,0.68fr)_minmax(88px,0.74fr)_minmax(96px,0.80fr)_minmax(84px,0.70fr)_minmax(72px,0.62fr)_minmax(48px,0.38fr)_minmax(92px,0.72fr)_minmax(84px,0.74fr)_minmax(114px,0.78fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(40px,0.32fr)_minmax(88px,0.74fr)_minmax(84px,0.70fr)_minmax(80px,0.68fr)_minmax(88px,0.74fr)_minmax(96px,0.80fr)_minmax(84px,0.70fr)_minmax(72px,0.62fr)_minmax(48px,0.38fr)_minmax(92px,0.72fr)_minmax(56px,0.42fr)_minmax(114px,0.78fr)_14px]';
 
 const KPI_STAFF_GRID =
-  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(122px,1.0fr)_minmax(90px,0.76fr)_minmax(86px,0.72fr)_minmax(82px,0.70fr)_minmax(90px,0.76fr)_minmax(98px,0.82fr)_minmax(86px,0.72fr)_minmax(48px,0.38fr)_minmax(92px,0.74fr)_minmax(86px,0.74fr)_minmax(114px,0.78fr)_14px]';
+  'grid items-center gap-x-1.5 grid-cols-[24px_minmax(130px,1.08fr)_minmax(122px,1.0fr)_minmax(90px,0.76fr)_minmax(86px,0.72fr)_minmax(82px,0.70fr)_minmax(90px,0.76fr)_minmax(98px,0.82fr)_minmax(86px,0.72fr)_minmax(48px,0.38fr)_minmax(92px,0.74fr)_minmax(56px,0.42fr)_minmax(114px,0.78fr)_14px]';
 
 // Balanced proportional column widths for Top 10 Leaderboard tables (100% total prevents oversized text-column voids)
 const TOP10_STAFF_COL_WIDTHS = [
@@ -6707,7 +6707,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="Avg" sortKey={isTaskMode ? 'tasksPerStaff' : 'ptsPerStaff'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title="Average KPI points & tasks per active staff member in the branch" />
                   <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
-                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
+                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pl-1 pr-1.5" />
                   <span className="text-slate-200 pl-2">Status</span>
                   <span />
                 </div>
@@ -6750,7 +6750,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-right tabular-nums font-figure font-medium text-[#002F4A] whitespace-nowrap pr-1">
                               {isTaskMode ? fmtInt(b.totalTasks) : fmtPts(b.totalPoints)}
                             </span>
-                            <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
+                            <span className="min-w-0 pl-1 pr-1.5"><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
                             <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={b.rating} pacingPct={b.pacingPct} title={`Pacing: ${b.pacingPct}% (${fmtPts(b.totalPoints)} / ${fmtPts(b.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
                             <ChevronDown className={`w-4 h-4 text-slate-400 justify-self-end transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
@@ -7126,7 +7126,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="Booth Event" title="Sort by Booth Event (booth days / booth points after sharing)" sortKey={isTaskMode ? 'boothTasks' : 'boothPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Pts' : 'Tasks'} sortKey={isTaskMode ? 'totalPoints' : 'totalTasks'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label={isTaskMode ? 'Total Tasks' : 'Total Pts'} sortKey={isTaskMode ? 'totalTasks' : 'totalPoints'} activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pr-1" />
-                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} className="pl-2.5 pr-1.5" />
+                  <SortableHeader label="Target" title={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" className="pl-1 pr-1.5" />
                   <span className="text-slate-200 pl-2">Status</span>
                   <span />
                 </div>
@@ -7189,7 +7189,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-right tabular-nums font-figure font-medium text-[#002F4A] whitespace-nowrap pr-1">
                               {isTaskMode ? fmtInt(s.totalTasks) : fmtPts(s.totalPoints)}
                             </span>
-                            <span className="min-w-0 pl-2.5 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
+                            <span className="min-w-0 pl-1 pr-1.5"><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
                             <span className="min-w-0 pl-2 flex items-center"><RatingBadge rating={s.rating} pacingPct={s.pacingPct} title={`Pacing: ${s.pacingPct}% (${fmtPts(s.totalPoints)} / ${fmtPts(s.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
                             <ChevronDown className={`w-4 h-4 text-slate-400 justify-self-end transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
@@ -7621,11 +7621,9 @@ const TargetBar: React.FC<{
       ? `${pct}% of target (${fmtPts(points)} / ${fmtPts(target)} pts)${pacingPct !== undefined && pacingTarget !== undefined ? ` · Pacing: ${pacingPct}% (${fmtPts(points)} / ${fmtPts(pacingTarget)} pts)` : ''}`
       : `${pct}% of target`);
   return (
-    <div className="flex items-center gap-2 min-w-0" title={tooltip}>
-      <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-slate-200/75 overflow-hidden">
-        <div className="h-full rounded-full bg-[#1e5b88]" style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
-      </div>
-      <span className="text-[11px] font-figure font-medium tabular-nums text-slate-700 min-w-[42px] shrink-0 text-right whitespace-nowrap">{pct}%</span>
+    // (27 Nov 2026) the percentage only (the bar was removed to save space)
+    <div className="min-w-0 text-right" title={tooltip}>
+      <span className="text-[12px] font-figure font-medium tabular-nums text-slate-700 whitespace-nowrap">{pct}%</span>
     </div>
   );
 });
