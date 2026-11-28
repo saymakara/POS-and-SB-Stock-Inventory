@@ -186,13 +186,12 @@
   background-color: #f3f4f6;
 }
 
-/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
-   (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
+/* Apple Space Black Sidebar (#0D0F12 -> #16191F) */
 .sb-sidebar-gradient {
-  background-color: #002F4A;   /* signature solid sidebar navy blue */
-  background-image: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
+  background-color: #0d0f12;
+  background-image: linear-gradient(180deg, #0d0f12 0%, #16191f 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.35);
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
@@ -563,15 +562,15 @@ button:hover:not(:disabled),
   color: #3f3f46 !important; /* Promoted from #71717a to zinc-700 */
 }
 
-/* Maintain bright crisp light text inside signature navy blue sidebar */
+/* Maintain crisp cool-aluminum text inside Space Black sidebar */
 .sb-sidebar-gradient .text-zinc-400,
 .sb-sidebar-gradient .text-slate-400 {
-  color: #a5d2eb !important;
+  color: #9ca3af !important;
 }
 
 .sb-sidebar-gradient .text-zinc-500,
 .sb-sidebar-gradient .text-slate-500 {
-  color: #bae6fd !important;
+  color: #d1d5db !important;
 }
 
 .will-change-gpu {
