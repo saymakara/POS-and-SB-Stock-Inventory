@@ -1069,33 +1069,6 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalPos)}
               </span>
-              {!loading && data.latestPosMomText && (
-                <span
-                  className={`inline-flex items-center gap-1 font-figure font-semibold text-[10px] pl-1 ml-0.5 border-l ${
-                    isLight ? 'border-slate-200' : 'border-slate-700'
-                  } ${
-                    data.latestPosMomPct === null
-                      ? isLight ? 'text-sky-700' : 'text-sky-300'
-                      : data.latestPosMomPct > 0
-                        ? isLight ? 'text-emerald-700' : 'text-emerald-400'
-                        : data.latestPosMomPct < 0
-                          ? isLight ? 'text-rose-700' : 'text-rose-400'
-                          : isLight ? 'text-slate-600' : 'text-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      (data.latestPosMomPct ?? 0) > 0
-                        ? isLight ? 'bg-emerald-600' : 'bg-emerald-400'
-                        : (data.latestPosMomPct ?? 0) < 0
-                          ? isLight ? 'bg-rose-600' : 'bg-rose-400'
-                          : isLight ? 'bg-slate-600' : 'bg-slate-400'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {data.latestPosMomText}
-                </span>
-              )}
             </span>
 
             <span
@@ -1110,33 +1083,6 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
               <span className={`font-figure font-bold tabular-nums ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {loading ? '—' : fmtNum(data.totalSb)}
               </span>
-              {!loading && data.latestSbMomText && (
-                <span
-                  className={`inline-flex items-center gap-1 font-figure font-semibold text-[10px] pl-1 ml-0.5 border-l ${
-                    isLight ? 'border-slate-200' : 'border-slate-700'
-                  } ${
-                    data.latestSbMomPct === null
-                      ? isLight ? 'text-violet-700' : 'text-violet-300'
-                      : data.latestSbMomPct > 0
-                        ? isLight ? 'text-emerald-700' : 'text-emerald-400'
-                        : data.latestSbMomPct < 0
-                          ? isLight ? 'text-rose-700' : 'text-rose-400'
-                          : isLight ? 'text-slate-600' : 'text-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      (data.latestSbMomPct ?? 0) > 0
-                        ? isLight ? 'bg-emerald-600' : 'bg-emerald-400'
-                        : (data.latestSbMomPct ?? 0) < 0
-                          ? isLight ? 'bg-rose-600' : 'bg-rose-400'
-                          : isLight ? 'bg-slate-600' : 'bg-slate-400'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {data.latestSbMomText}
-                </span>
-              )}
             </span>
           </div>
 
@@ -1206,11 +1152,9 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
             series2Color={sbColor}
             height={292}
             showLegend={false}
-            showMomChangeLine={true}
-            priorSeries1Value={data.priorPos}
-            priorSeries2Value={data.priorSb}
+            showMomChangeLine={false}
             theme={theme}
-            ariaLabel={`Monthly POS Installation and Sound Box Installation comparison with month-to-month percentage change over trailing ${horizonMonths} months`}
+            ariaLabel={`Monthly POS Installation and Sound Box Installation comparison over trailing ${horizonMonths} months`}
           />
         )}
       </div>
@@ -4079,7 +4023,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 const datedTot = Math.max(1, batterySummary.total);
                 const pctOf = (v: number, tot = datedTot) =>
                   tot > 0 ? Math.round((v / tot) * 100) : 0;
-                const healthyPct = batterySummary.total > 0 ? pctOf(batterySummary.healthy) : 0;
                 const midLabelMax = Math.max(12, batteryWarningMonths - 1);
                 const warnLabelMax = Math.max(batteryWarningMonths, batteryLifespanMonths - 1);
                 const cohorts = [
@@ -4115,85 +4058,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
                     } flex-1 flex flex-col`}
                   >
-                    {/* Section 1: Compliance headline + stacked SLA bar + 3 status tiles */}
-                    <div className="px-4 @[300px]:px-5 py-4 space-y-3.5">
-                      <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1.5">
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
-                          <span
-                            className={`text-[28px] @[300px]:text-[30px] font-bold font-figure leading-none tracking-tight ${
-                              isLight ? 'text-slate-900' : 'text-white'
-                            }`}
-                          >
-                            <FigureSlot pending={batteryPending}>
-                              {`${healthyPct}%`}
-                            </FigureSlot>
-                          </span>
-                          <span
-                            className={`text-[10.5px] @[300px]:text-[11px] font-semibold px-2 @[300px]:px-2.5 py-0.5 rounded-full whitespace-nowrap ${
-                              batterySummary.critical > 0
-                                ? isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-500/15 text-rose-300'
-                                : batterySummary.replaceSoon > 0
-                                  ? isLight ? 'bg-amber-50 text-amber-800' : 'bg-amber-500/15 text-amber-300'
-                                  : isLight ? 'bg-[#2d6a4f]/10 text-[#2d6a4f]' : 'bg-emerald-500/15 text-emerald-300'
-                            }`}
-                          >
-                            Healthy &lt;{batteryWarningMonths}M
-                          </span>
-                        </div>
-                        <div className="text-right shrink-0 ml-auto">
-                          {batteryPending ? (
-                            <div className="space-y-1 flex flex-col items-end" aria-hidden="true">
-                              <span className="skeleton h-3 w-16 rounded block" />
-                              <span className="skeleton h-2.5 w-20 rounded block" />
-                            </div>
-                          ) : (
-                            <>
-                              <div className={`text-[11px] @[300px]:text-[11.5px] font-figure font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                                {batterySummary.avgLifePct}% avg life
-                              </div>
-                              <div className={`text-[10px] @[300px]:text-[10.5px] font-figure whitespace-nowrap ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                Avg {batterySummary.avgMonthsUsed}M / {batteryLifespanMonths}M
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`h-3 w-full rounded-full ${
-                          isLight ? 'bg-slate-100' : 'bg-slate-800'
-                        } overflow-hidden flex gap-0.5`}
-                      >
-                        {batteryPending ? (
-                          <div className="h-full w-full rounded-full skeleton" />
-                        ) : batterySummary.total > 0 ? (
-                          [
-                            { key: 'healthy', val: batterySummary.healthy, color: '#2d6a4f', label: 'Healthy' },
-                            { key: 'soon', val: batterySummary.replaceSoon, color: '#f59e0b', label: 'Due Soon' },
-                            { key: 'expired', val: batterySummary.critical, color: '#dc2626', label: 'Expired' },
-                          ].map((seg) =>
-                            seg.val > 0 ? (
-                              <div
-                                key={seg.key}
-                                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
-                                style={{
-                                  width: `${Math.max(2, (seg.val / datedTot) * 100)}%`,
-                                  backgroundColor: seg.color,
-                                }}
-                                title={`${seg.label}: ${fmtNum(seg.val)} (${pctOf(seg.val)}%)`}
-                              />
-                            ) : null
-                          )
-                        ) : (
-                          <div
-                            className={`h-full w-full rounded-full ${
-                              isLight ? 'bg-slate-200/70' : 'bg-slate-700/60'
-                            }`}
-                          />
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 @[290px]:grid-cols-3 gap-1.5 @[320px]:gap-2">
+                    {/* Section 1: 3 Status Summary Tiles */}
+                    <div className="px-4 @[300px]:px-5 pt-1.5 pb-4">
+                      <div className="grid grid-cols-1 @[290px]:grid-cols-3 gap-2">
                         {[
                           {
                             key: 'healthy',
@@ -4219,7 +4086,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         ].map((tile) => (
                           <div
                             key={tile.key}
-                            className={`rounded-xl px-2.5 @[290px]:px-2 py-2 @[290px]:py-2.5 border flex items-center justify-between @[290px]:block ${
+                            className={`rounded-xl px-3 @[290px]:px-2.5 py-2.5 @[290px]:py-3 border flex items-center justify-between @[290px]:block ${
                               isLight
                                 ? 'bg-slate-50/80 border-slate-200/60'
                                 : 'bg-slate-800/45 border-slate-700/60'
@@ -4232,15 +4099,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               />
                               <span className="whitespace-nowrap">{tile.label}</span>
                             </div>
-                            <div className="@[290px]:mt-1.5 flex items-baseline justify-end @[290px]:justify-between gap-1.5 @[290px]:gap-1">
+                            <div className="@[290px]:mt-2 flex items-baseline justify-end @[290px]:justify-between gap-1.5 @[290px]:gap-1">
                               {batteryPending ? (
-                                <span className="skeleton h-4 w-12 rounded inline-block" aria-hidden="true" />
+                                <span className="skeleton h-5 w-12 rounded inline-block" aria-hidden="true" />
                               ) : (
                                 <>
-                                  <span className={`text-[14px] @[330px]:text-[15px] font-bold font-figure tabular-nums leading-none whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                  <span className={`text-[16px] @[330px]:text-[18px] font-bold font-figure tabular-nums leading-none whitespace-nowrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
                                     {fmtNum(tile.count)}
                                   </span>
-                                  <span className="text-[10px] font-figure tabular-nums text-slate-400 whitespace-nowrap">
+                                  <span className="text-[10.5px] font-figure tabular-nums text-slate-400 whitespace-nowrap">
                                     {batterySummary.total > 0 ? `${tile.share}%` : '—'}
                                   </span>
                                 </>
@@ -4252,7 +4119,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
 
                     {/* Section 2: Age Cohort Breakdown */}
-                    <div className="px-4 @[300px]:px-5 pt-4 pb-5 flex-1 flex flex-col justify-between gap-3">
+                    <div className="px-4 @[300px]:px-5 pt-4 pb-5 flex-1 flex flex-col gap-4">
                       <div className="flex items-center justify-between text-[12px]">
                         <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                           Age Distribution
@@ -4265,13 +4132,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="flex-1 flex flex-col justify-between gap-3">
+                      <div className="flex-1 flex flex-col justify-between gap-3.5">
                         {cohorts.map((c) => {
                           const share = batterySummary.total > 0 ? Math.round((c.count / datedTot) * 100) : 0;
                           const barW = c.count > 0 ? Math.max(3, (c.count / datedTot) * 100) : 0;
                           return (
-                            <div key={c.key} className="space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-[11.5px]">
+                            <div key={c.key} className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2 text-[12px]">
                                 <span className={`truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                                   {c.label}
                                 </span>
@@ -4284,7 +4151,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                   </span>
                                 )}
                               </div>
-                              <div className={`h-2 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                              <div className={`h-2.5 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
                                 {batteryPending ? (
                                   <div className="h-full w-2/3 rounded-full skeleton" />
                                 ) : barW > 0 && (

@@ -417,10 +417,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           ...DEFAULT_APP_SETTINGS,
           ...parsed,
           customLogoTitle: normalizedTitle,
-          logoPresetId:
-            !parsed.logoPresetId || parsed.logoPresetId === 'fintech-pulse'
-              ? 'quantum-sound'
-              : parsed.logoPresetId,
+          logoPresetId: 'quantum-sound',
           customFields:
             parsed.customFields && Array.isArray(parsed.customFields) && parsed.customFields.length > 0
               ? parsed.customFields

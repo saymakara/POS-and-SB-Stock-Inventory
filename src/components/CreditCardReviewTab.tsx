@@ -354,8 +354,8 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                   }`}
                 >
                   <option value="">All branches</option>
-                  {region !== 'REGIONAL' && <option value="100">Code 100 · Head Office</option>}
-                  {branchOptions.map((b) => <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>)}
+                  {region !== 'REGIONAL' && <option value="100">100 · Head Office</option>}
+                  {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.id} · {b.name}</option>)}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" aria-hidden />
               </div>
@@ -643,7 +643,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
             {e.staffName || '—'}{e.staffId ? ` (${e.staffId})` : ''}
           </span>
           <span className="block text-[11px] text-slate-500 truncate mt-0.5">
-            {e.branchText ? `${e.branchText}${e.branchId ? ` · Code ${e.branchId}` : ''}` : (e.branchId ? `Code ${e.branchId}` : '')}
+            {e.branchText ? `${e.branchText}${e.branchId ? ` · ${e.branchId}` : ''}` : (e.branchId || '')}
           </span>
         </span>
         <span className="leading-tight pl-1">
