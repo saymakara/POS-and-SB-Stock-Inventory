@@ -17,7 +17,6 @@ import {
   CreditCard,
   Layers,
   Trash2,
-  Search,
   Users,
   ClipboardList,
   AlertTriangle,
@@ -33,16 +32,9 @@ import {
   saveKpiTargetsOnServer,
   syncKpiFromMerchantVisit,
   type KpiSyncResult,
+  type KpiSyncSource,
 } from '../services/kpiService';
 import { Branch } from '../types';
-import {
-  ManagementExemptStaff,
-  getManagementExemptStaff,
-  addManagementExemptStaff,
-  removeManagementExemptStaff,
-} from '../utils/kpiManagementUtils';
-import { getCachedStaff } from '../services/staffCache';
-import { RAW_BRANCHES } from '../data/initialData';
 import {
   PillMotion,
   CAPSULE_TRACK_COMPACT_CLS,
@@ -211,7 +203,6 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   onRuleDeleted,
   onTargetsSaved,
   toast,
-  branches = [],
 }: KpiRulesAdminSectionProps) {
   const [catFilter, setCatFilter] = useState<'ALL' | KpiCategory>('ALL');
   const [savingCode, setSavingCode] = useState<string | null>(null);
@@ -219,7 +210,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const [deleteTarget, setDeleteTarget] = useState<KpiPointRule | null>(null);
   // (22 Nov 2026) Sync from Merchant Visit: the preview, the "also bring back deleted" choice, and the tasks just added
   const [syncPreview, setSyncPreview] = useState<KpiSyncResult | null>(null);
-  const [syncBusy, setSyncBusy] = useState<'' | 'check' | 'apply'>('');
+  const [syncBusy, setSyncBusy] = useState<'' | 'check' | 'check-field' | 'apply'>('');
   const [syncIncludeDeleted, setSyncIncludeDeleted] = useState(false);
   const [newlySynced, setNewlySynced] = useState<Set<string>>(new Set());
   const [showAdd, setShowAdd] = useState(false);
@@ -233,135 +224,6 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const [tForm, setTForm] = useState(targets);
   const [savingTargets, setSavingTargets] = useState(false);
   useEffect(() => { setTForm(targets); }, [targets]);
-
-  // ───────────── Management KPI Exemption State ─────────────
-  const [exemptStaff, setExemptStaff] = useState<ManagementExemptStaff[]>(() => getManagementExemptStaff());
-  const [selectedStaffKey, setSelectedStaffKey] = useState<string>('');
-  const [exemptFilter, setExemptFilter] = useState<string>('');
-  const [showCustomAdd, setShowCustomAdd] = useState(false);
-  const [customStaffName, setCustomStaffName] = useState('');
-  const [customStaffId, setCustomStaffId] = useState('');
-  const [customStaffPos, setCustomStaffPos] = useState('Management');
-  const [customStaffBranch, setCustomStaffBranch] = useState('100');
-
-  // Compile full staff directory from branches, cached staff and initial data
-  const allAvailableStaff = useMemo(() => {
-    const list: Array<{ staffId: string; staffName: string; position: string; branchId: string; branchName: string }> = [];
-    const seen = new Set<string>();
-
-    const addStaff = (id: string, name: string, pos: string, bId: string, bName: string) => {
-      const cleanId = (id || '').trim();
-      const cleanName = (name || '').trim();
-      const key = (cleanId || cleanName).toLowerCase();
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      list.push({
-        staffId: cleanId,
-        staffName: cleanName,
-        position: pos || 'MS Officer',
-        branchId: bId || '100',
-        branchName: bName || 'Head Office',
-      });
-    };
-
-    // 1. From branches prop
-    (branches || []).forEach((b) => {
-      (b.staffDetails || []).forEach((u) => {
-        addStaff(u.empId || '', u.name, u.position || '', b.id, b.name);
-      });
-    });
-
-    // 2. From getCachedStaff()
-    const cached = getCachedStaff();
-    if (cached) {
-      cached.forEach((a) => {
-        addStaff(a.empId || '', a.name, a.position || '', a.branchId || '100', `Branch ${a.branchId || '100'}`);
-      });
-    }
-
-    // 3. Fallback from RAW_BRANCHES
-    RAW_BRANCHES.forEach((b: { id: string; name: string; st: [string, string, string, string, string][] }) => {
-      (b.st || []).forEach((row: [string, string, string, string, string]) => {
-        const [id, name, pos] = row;
-        addStaff(id, name, pos, b.id, b.name);
-      });
-    });
-
-    return list.sort((a, b) => a.staffName.localeCompare(b.staffName));
-  }, [branches]);
-
-  // Exclude staff that are already in the exempt roster
-  const availableSelectableStaff = useMemo(() => {
-    const exemptSet = new Set(
-      exemptStaff.map((s) => (s.staffId || s.staffName).toLowerCase())
-    );
-    return allAvailableStaff.filter(
-      (s) => !exemptSet.has((s.staffId || s.staffName).toLowerCase())
-    );
-  }, [allAvailableStaff, exemptStaff]);
-
-  const filteredExemptStaff = useMemo(() => {
-    if (!exemptFilter.trim()) return exemptStaff;
-    const q = exemptFilter.toLowerCase();
-    return exemptStaff.filter(
-      (s) =>
-        s.staffName.toLowerCase().includes(q) ||
-        s.staffId.toLowerCase().includes(q) ||
-        (s.position && s.position.toLowerCase().includes(q)) ||
-        (s.branchId && s.branchId.toLowerCase().includes(q)) ||
-        (s.branchName && s.branchName.toLowerCase().includes(q))
-    );
-  }, [exemptStaff, exemptFilter]);
-
-  const handleAddSelectedStaff = () => {
-    if (!selectedStaffKey) return;
-    const target = allAvailableStaff.find(
-      (s) => (s.staffId || s.staffName).toLowerCase() === selectedStaffKey.toLowerCase()
-    );
-    if (!target) return;
-    const newEntry: ManagementExemptStaff = {
-      staffId: target.staffId,
-      staffName: target.staffName,
-      position: target.position,
-      branchId: target.branchId,
-      branchName: target.branchName,
-      addedAt: new Date().toISOString(),
-      addedBy: 'Admin',
-    };
-    addManagementExemptStaff(newEntry);
-    setExemptStaff(getManagementExemptStaff());
-    setSelectedStaffKey('');
-    toast(`Added ${target.staffName} (${target.staffId || target.position}) to Management (Exempt from KPI).`);
-  };
-
-  const handleAddCustomStaff = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customStaffName.trim()) {
-      toast('Please enter a staff name.');
-      return;
-    }
-    const newEntry: ManagementExemptStaff = {
-      staffId: customStaffId.trim(),
-      staffName: customStaffName.trim(),
-      position: customStaffPos.trim() || 'Management',
-      branchId: customStaffBranch.trim() || '100',
-      branchName: customStaffBranch.trim() === '100' ? 'Head Office' : `Branch ${customStaffBranch.trim()}`,
-      addedAt: new Date().toISOString(),
-      addedBy: 'Admin',
-    };
-    addManagementExemptStaff(newEntry);
-    setExemptStaff(getManagementExemptStaff());
-    setCustomStaffName('');
-    setCustomStaffId('');
-    setShowCustomAdd(false);
-    toast(`Added ${newEntry.staffName} to Management (Exempt from KPI).`);
-  };
-
-  const handleRemoveExemptStaff = (staffIdOrName: string, name: string) => {
-    removeManagementExemptStaff(staffIdOrName);
-    setExemptStaff(getManagementExemptStaff());
-    toast(`Removed ${name} from Management exemption. Staff will now be tracked for KPI.`);
-  };
 
   const filteredRules = useMemo(
     () =>
@@ -440,19 +302,21 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
     }
   };
 
-  const handleSyncCheck = async () => {
+  // (28 Nov 2026) two sources: Merchant Visit activities, or the POS Terminal / Sound Box forms (e.g. Sound Box Maintenance)
+  const srcName = (src: KpiSyncSource) => (src === 'field' ? 'POS & Sound Box' : 'Merchant Visit');
+  const handleSyncCheck = async (src: KpiSyncSource = 'mv') => {
     if (syncBusy) return;
-    setSyncBusy('check');
+    setSyncBusy(src === 'field' ? 'check-field' : 'check');
     try {
-      const r = await syncKpiFromMerchantVisit(false);
+      const r = await syncKpiFromMerchantVisit(false, false, src);
       if (!r.candidates.length && !r.deletedSkipped.length) {
-        toast(`Up to date: all ${r.activitiesChecked} Merchant Visit tasks already have a KPI task.`);
+        toast(`Up to date: all ${r.activitiesChecked} ${srcName(src)} tasks already have a KPI task.`);
       } else {
         setSyncIncludeDeleted(false);
         setSyncPreview(r);
       }
     } catch (e) {
-      toast(`Could not check Merchant Visit tasks: ${e instanceof Error ? e.message : String(e)}`);
+      toast(`Could not check ${srcName(src)} tasks: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSyncBusy('');
     }
@@ -462,7 +326,8 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
     if (syncBusy || !syncPreview) return;
     setSyncBusy('apply');
     try {
-      const r = await syncKpiFromMerchantVisit(true, syncIncludeDeleted);
+      const src = syncPreview.source;
+      const r = await syncKpiFromMerchantVisit(true, syncIncludeDeleted, src);
       r.rules.forEach((rule) => onRuleSaved(rule));
       setNewlySynced((prev) => {
         const next = new Set(prev);
@@ -473,7 +338,9 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       if (r.rules.length) setCatFilter('ALL');
       toast(
         r.added
-          ? `Added ${r.added} KPI task(s) from Merchant Visit. New tasks start at 0 pts and Inactive: set the points, Save, then switch them to Active.`
+          ? src === 'field'
+            ? `Added ${r.added} KPI task(s) from the POS & Sound Box forms. They start Inactive at the points these visits earn today: check the points, Save, then switch them to Active.`
+            : `Added ${r.added} KPI task(s) from Merchant Visit. New tasks start at 0 pts and Inactive: set the points, Save, then switch them to Active.`
           : 'Nothing to add: the KPI tasks are already up to date.'
       );
     } catch (e) {
@@ -831,226 +698,11 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
           </div>
       </section>
 
-      {/* ───────────── 3. Management Level KPI Exemption (User-Defined) ───────────── */}
-      <section className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 p-5 space-y-3.5 shadow-2xs" aria-label="Management Level KPI Exemption">
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-4 h-4" aria-hidden />
-              </span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Management Level KPI Exemption (0 Target · Non-Mandatory)</h4>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200/80 tabular-nums">
-                    {exemptStaff.length} defined
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Define staff members who are management level. Personnel added here do not count towards mandatory frontline KPI targets (assigned 0 target with &quot;Management (Exempt)&quot; rating).
-                </p>
-              </div>
-            </div>
-
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setShowCustomAdd((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer shadow-2xs transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{showCustomAdd ? 'Close Custom Entry' : 'Add Custom / Unlisted Staff'}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Quick Staff Selector (Add from Directory) */}
-          {isAdmin && (
-            <div className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs">
-              <div className="text-[11px] font-semibold text-slate-700 mb-2 flex items-center justify-between">
-                <span>Select staff from bank directory to add to Management Exemption:</span>
-                <span className="text-[10px] text-slate-400 font-normal">Only defined staff will be exempt from KPI</span>
-              </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="relative flex-1">
-                  <select
-                    value={selectedStaffKey}
-                    onChange={(e) => setSelectedStaffKey(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-200/90 bg-slate-50/60 focus:bg-white px-3 py-2 cursor-pointer text-slate-800 font-normal outline-none focus:border-indigo-400 transition"
-                  >
-                    <option value="">— Select a staff member to exempt ({availableSelectableStaff.length} available) —</option>
-                    {availableSelectableStaff.map((s) => (
-                      <option key={(s.staffId || s.staffName).toLowerCase()} value={(s.staffId || s.staffName).toLowerCase()}>
-                        {s.staffName} (ID: {s.staffId || '—'}) — {s.position} · Branch {s.branchId} ({s.branchName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  disabled={!selectedStaffKey}
-                  onClick={handleAddSelectedStaff}
-                  className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition shadow-2xs ${
-                    selectedStaffKey
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add to Management (Exempt)</span>
-                </button>
-              </div>
-
-              {/* Custom / Unlisted Staff Form */}
-              {showCustomAdd && (
-                <form onSubmit={handleAddCustomStaff} className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Staff Name *</label>
-                    <input
-                      required
-                      value={customStaffName}
-                      onChange={(e) => setCustomStaffName(e.target.value)}
-                      placeholder="e.g. NGET Monioudom"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Staff ID (Optional)</label>
-                    <input
-                      value={customStaffId}
-                      onChange={(e) => setCustomStaffId(e.target.value)}
-                      placeholder="e.g. 10764"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Position / Title</label>
-                    <input
-                      value={customStaffPos}
-                      onChange={(e) => setCustomStaffPos(e.target.value)}
-                      placeholder="e.g. MS Team Leader"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Branch Code</label>
-                    <input
-                      value={customStaffBranch}
-                      onChange={(e) => setCustomStaffBranch(e.target.value)}
-                      placeholder="e.g. 100"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="submit"
-                      className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Save Exempt Staff
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomAdd(false)}
-                      className="btn btn-secondary text-xs py-1.5 px-2"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* List of Defined Management Exempt Personnel */}
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-            <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                <Users className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Defined Management Roster ({exemptStaff.length})</span>
-              </div>
-              {exemptStaff.length > 3 && (
-                <div className="relative min-w-[180px]">
-                  <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={exemptFilter}
-                    onChange={(e) => setExemptFilter(e.target.value)}
-                    placeholder="Filter exempt staff…"
-                    className="w-full pl-7 pr-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white outline-none"
-                  />
-                </div>
-              )}
-            </div>
-
-            {exemptStaff.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-500">
-                <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="font-medium text-slate-700">No management staff defined yet.</p>
-                <p className="text-slate-500 text-[11px] mt-0.5">
-                  All staff members are currently tracked for mandatory KPI targets. Select a staff member above to designate them as Management (Exempt from KPI).
-                </p>
-              </div>
-            ) : filteredExemptStaff.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-400">
-                No exempt staff matching &quot;{exemptFilter}&quot;.
-              </div>
-            ) : (
-              <div className="overflow-x-auto overflow-y-hidden">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
-                      <th className="py-2 px-3 w-10 text-center">#</th>
-                      <th className="py-2 px-3 w-24">Staff ID</th>
-                      <th className="py-2 px-3">Staff Name</th>
-                      <th className="py-2 px-3">Position</th>
-                      <th className="py-2 px-3">Branch</th>
-                      <th className="py-2 px-3 text-center">KPI Status</th>
-                      {isAdmin && <th className="py-2 px-3 text-right w-24">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {filteredExemptStaff.map((s, idx) => (
-                      <tr key={s.staffId || s.staffName} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                        <td className="py-2 px-3 font-mono font-medium text-slate-700">
-                          <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">
-                            {s.staffId || '—'}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 font-medium text-slate-900">
-                          <span className="inline-flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                            <span>{s.staffName}</span>
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-slate-600">{s.position || 'Management'}</td>
-                        <td className="py-2 px-3 text-slate-600">
-                          {s.branchId ? `${s.branchId} · ${s.branchName || 'Branch'}` : '—'}
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            <ShieldCheck className="w-3 h-3" /> Exempt (0 Target)
-                          </span>
-                        </td>
-                        {isAdmin && (
-                          <td className="py-2 px-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveExemptStaff(s.staffId || s.staffName, s.staffName)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-[11px] font-medium cursor-pointer transition"
-                              title="Remove from Management exemption (will count for KPI)"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Remove</span>
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-      </section>
+      {/* (28 Nov 2026) Management Level and Team leads are set in the Staff Directory (Edit a staff member) */}
+      <p className="text-[12px] text-slate-600 px-1 -my-1" data-kpi-roles-moved>
+        <Users className="w-3.5 h-3.5 inline -mt-0.5 mr-1 text-[#1e5b88]" aria-hidden />
+        Management Level (0 target) and Team leads (Team KPI in the Merchant Visit app) are set in <strong>Staff Directory</strong>: open a staff member and use <em>KPI role</em>.
+      </p>
 
       {/* ───────────── 4. KPI Point Matrix ───────────── */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="KPI Point Matrix">
@@ -1094,13 +746,25 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             {isAdmin && (
               <button
                 type="button"
-                onClick={handleSyncCheck}
+                onClick={() => handleSyncCheck('mv')}
                 disabled={Boolean(syncBusy)}
                 data-kpi-sync
                 title="Find Merchant Visit app tasks that have no KPI task yet and add them"
                 className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check' ? 'animate-spin' : ''}`} /> Sync from Merchant Visit
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleSyncCheck('field')}
+                disabled={Boolean(syncBusy)}
+                data-kpi-sync-field
+                title="Find POS Terminal and Sound Box form tasks (e.g. Sound Box Maintenance) that have no KPI task yet and add them"
+                className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check-field' ? 'animate-spin' : ''}`} /> Sync POS &amp; Sound Box
               </button>
             )}
             {isAdmin && (
@@ -1249,7 +913,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   <RefreshCw className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 id="kpi-sync-title" className="text-sm font-bold text-slate-900">Sync KPI tasks from Merchant Visit</h3>
+                  <h3 id="kpi-sync-title" className="text-sm font-bold text-slate-900">Sync KPI tasks from {syncPreview.source === 'field' ? 'POS & Sound Box forms' : 'Merchant Visit'}</h3>
                   <p className="text-[11px] text-slate-500">
                     {syncPreview.activitiesChecked} task type(s) in the app · {syncPreview.alreadyHaveRule} already have a KPI task
                   </p>
@@ -1263,10 +927,18 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3 text-xs">
               {syncPreview.candidates.length > 0 ? (
                 <>
-                  <p className="text-slate-600">
-                    These Merchant Visit tasks have <span className="font-semibold">no KPI task yet</span>, so they give no points today.
-                    They will be added at <span className="font-semibold">0 pts and Inactive</span>: no KPI total changes until you set the points and switch them on.
-                  </p>
+                  {syncPreview.source === 'field' ? (
+                    <p className="text-slate-600">
+                      These POS / Sound Box form tasks have <span className="font-semibold">no KPI task of their own yet</span>: today they count under the
+                      general task (e.g. Sound Box Maintenance under Sound Box Operational Support). They will be added <span className="font-semibold">Inactive,
+                      at the points they earn today</span>: nothing changes until you switch them on, then they count separately.
+                    </p>
+                  ) : (
+                    <p className="text-slate-600">
+                      These Merchant Visit tasks have <span className="font-semibold">no KPI task yet</span>, so they give no points today.
+                      They will be added at <span className="font-semibold">0 pts and Inactive</span>: no KPI total changes until you set the points and switch them on.
+                    </p>
+                  )}
                   <ul className="rounded-xl border border-slate-200 divide-y divide-slate-100" data-kpi-sync-list>
                     {syncPreview.candidates.map((c) => (
                       <li key={c.code} className="px-3 py-2 flex items-center justify-between gap-3">
@@ -1275,7 +947,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                           <div className="text-[11px] text-slate-500 font-mono truncate">{c.code} · {c.category}</div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-semibold text-slate-800 tabular-nums">{c.visits.toLocaleString('en-US')} visit(s)</div>
+                          <div className="font-semibold text-slate-800 tabular-nums">{c.visits.toLocaleString('en-US')} visit(s){c.points != null ? ` · ${c.points} pts` : ''}</div>
                           {c.lastSeen && <div className="text-[11px] text-slate-500">last {new Date(c.lastSeen).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
                         </div>
                       </li>
@@ -1283,7 +955,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   </ul>
                 </>
               ) : (
-                <p className="text-slate-600">Every Merchant Visit task already has a KPI task, except the ones you deleted.</p>
+                <p className="text-slate-600">Every {syncPreview.source === 'field' ? 'POS & Sound Box' : 'Merchant Visit'} task already has a KPI task, except the ones you deleted.</p>
               )}
               {syncPreview.deletedSkipped.length > 0 && (
                 <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2.5 cursor-pointer">

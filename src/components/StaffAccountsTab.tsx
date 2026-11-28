@@ -8,6 +8,9 @@ import { Branch, UserRole } from '../types';
 import { StaffAccount, saveStaffAccount, deleteStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
 import { getCachedStaff, loadStaff, onStaffList, setCachedStaff } from '../services/staffCache';
 import { saveStaffAlias } from '../utils/staffUtils';
+import { KPI_MANAGEMENT_EXEMPT_EVENT, getManagementExemptStaff, loadManagementList, migrateLegacyManagementList, setManagementLevel } from '../utils/kpiManagementUtils';
+import { KpiTeamLead, deleteTeamLead, fetchTeamLeads, saveTeamLead } from '../services/kpiTeamLeadService';
+import { onPortalSync } from '../utils/portalSync';
 
 /**
  * Accounts & Access / Staff Directory: sign-in accounts of the inventory dashboard, kept in the database.
@@ -16,6 +19,10 @@ import { saveStaffAlias } from '../utils/staffUtils';
  */
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin (HQ)', BRANCH: 'Branch staff' };
+/** (28 Nov 2026) KPI role of a staff member, set here instead of Settings -> KPI: Management Level (0 target) and Team lead. */
+type KpiRoleForm = { mgmt: boolean; tl: boolean; tlBranches: string[]; tlMembers: string; tlActive: boolean };
+const blankKpi: KpiRoleForm = { mgmt: false, tl: false, tlBranches: [], tlMembers: '', tlActive: true };
+const idKey = (x: string) => String(x || '').trim().toLowerCase();
 const blank = {
   emp_id: '',
   name: '',
@@ -70,6 +77,47 @@ export const StaffAccountsTab: React.FC<{
   const [deleteTarget, setDeleteTarget] = useState<StaffAccount | null>(null);
   const [deleteReason, setDeleteReason] = useState('Staff resigned');
   const [deleting, setDeleting] = useState(false);
+
+  // (28 Nov 2026) KPI roles: Management Level (database list) and Team leads (Team KPI in the Merchant Visit app)
+  const [mgmtIds, setMgmtIds] = useState<Set<string>>(() => new Set(getManagementExemptStaff().map((m) => idKey(m.staffId)).filter(Boolean)));
+  const [teamLeads, setTeamLeads] = useState<Map<string, KpiTeamLead>>(new Map());
+  const [kpiForm, setKpiForm] = useState<KpiRoleForm>(blankKpi);
+  const [kpiErr, setKpiErr] = useState('');
+  const loadTeamLeads = useCallback(async () => {
+    try {
+      const rows = await fetchTeamLeads();
+      setTeamLeads(new Map(rows.map((t) => [idKey(t.staffId), t])));
+      setKpiErr('');
+    } catch (e) { setKpiErr(e instanceof Error ? e.message : String(e)); }
+  }, []);
+  useEffect(() => {
+    if (!isAdmin) return;
+    const onMgmt = () => setMgmtIds(new Set(getManagementExemptStaff().map((m) => idKey(m.staffId)).filter(Boolean)));
+    window.addEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, onMgmt);
+    void loadManagementList().catch((e) => setKpiErr(e instanceof Error ? e.message : String(e)));
+    void loadTeamLeads();
+    // a browser's old Management list (kept on this computer only before 28 Nov 2026) is copied to the database once
+    void migrateLegacyManagementList()
+      .then((r) => {
+        if (r.copied) triggerToast(`Management Level: ${r.copied} staff copied from this browser to the database.`);
+        if (r.skipped.length) triggerToast(`Management Level: set these in the staff form (no Staff ID saved): ${r.skipped.join(', ')}`);
+      })
+      .catch(() => undefined);
+    let timer = 0;
+    const unsub = onPortalSync(['kpi'], () => { window.clearTimeout(timer); timer = window.setTimeout(() => { void loadTeamLeads(); }, 600); });
+    return () => { window.removeEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, onMgmt); window.clearTimeout(timer); unsub(); };
+  }, [isAdmin, loadTeamLeads, triggerToast]);
+  const sortedBranches = useMemo(
+    () => branches.filter((b) => b.id !== '100').sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
+    [branches]
+  );
+  const kpiOf = useCallback(
+    (empId: string): KpiRoleForm => {
+      const t = teamLeads.get(idKey(empId));
+      return { mgmt: mgmtIds.has(idKey(empId)), tl: !!t, tlBranches: t ? [...t.branchIds] : [], tlMembers: t ? t.memberIds.join(', ') : '', tlActive: t ? t.active : true };
+    },
+    [mgmtIds, teamLeads]
+  );
 
   const onlineByEmp = useMemo(() => {
     const m = new Map<string, OnlineOperatorPresence>();
@@ -129,11 +177,12 @@ export const StaffAccountsTab: React.FC<{
       if (statusFilter === 'ACTIVE' && !a.active) return false;
       if (statusFilter === 'REVOKED' && a.active) return false;
       if (!s) return true;
-      return [a.empId, a.name, a.branchId, branchName(a.branchId), ROLE_LABEL[a.role], getLocation(a)].some((v) =>
+      const kpiRole = (mgmtIds.has(idKey(a.empId)) ? 'management ' : '') + (teamLeads.has(idKey(a.empId)) ? 'team lead' : '');
+      return [a.empId, a.name, a.branchId, branchName(a.branchId), ROLE_LABEL[a.role], getLocation(a), kpiRole].some((v) =>
         String(v).toLowerCase().includes(s)
       );
     });
-  }, [list, dq, statusFilter, branchName, getLocation, isStaffOnline]);
+  }, [list, dq, statusFilter, branchName, getLocation, isStaffOnline, mgmtIds, teamLeads]);
 
   const { sorted: shown, sort: stSort, toggle: stToggle } = useSort<StaffAccount>(matched, {
     emp: (a) => Number(a.empId) || a.empId,
@@ -162,8 +211,9 @@ export const StaffAccountsTab: React.FC<{
         active: a.active,
         password: '',
       });
+      setKpiForm(kpiOf(a.empId));
     },
-    [getLocation]
+    [getLocation, kpiOf]
   );
 
   const roleOptions = role === 'SUPER_ADMIN' ? ['BRANCH', 'ADMIN', 'SUPER_ADMIN'] : ['BRANCH'];
@@ -263,6 +313,15 @@ export const StaffAccountsTab: React.FC<{
       setFormErr('The password must be at least 8 characters.');
       return;
     }
+    const tlMemberIds = kpiForm.tlMembers.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+    if (kpiForm.tl && !kpiForm.tlBranches.length && !tlMemberIds.length) {
+      setFormErr('Team lead: choose at least one branch or add a Staff ID to the team.');
+      return;
+    }
+    if (tlMemberIds.some((x) => !/^[A-Za-z0-9._-]{1,40}$/.test(x))) {
+      setFormErr('Team lead: the extra Staff IDs must be letters or digits, separated by commas.');
+      return;
+    }
     setBusy(true);
     try {
       const cleanEmp = form.emp_id.trim();
@@ -291,7 +350,32 @@ export const StaffAccountsTab: React.FC<{
         // ignore storage errors
       }
       if (form.password) setShownPassword({ emp: cleanEmp, pw: form.password });
-      triggerToast(isNew ? `Account ${cleanEmp} created` : `Account ${cleanEmp} saved`);
+      // (28 Nov 2026) KPI role: only what changed is sent
+      const before = isNew ? blankKpi : kpiOf(cleanEmp);
+      const kpiMsgs: string[] = [];
+      try {
+        if (before.mgmt !== kpiForm.mgmt) {
+          await setManagementLevel([{ staffId: cleanEmp, staffName: form.name.trim(), on: kpiForm.mgmt }]);
+          kpiMsgs.push(kpiForm.mgmt ? 'Management Level on' : 'Management Level off');
+        }
+        const sameList = (x: string[], y: string[]) => x.length === y.length && [...x].sort().join(',') === [...y].sort().join(',');
+        const beforeMembers = before.tlMembers.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+        if (kpiForm.tl && (!before.tl || !sameList(before.tlBranches, kpiForm.tlBranches) || !sameList(beforeMembers, tlMemberIds) || before.tlActive !== kpiForm.tlActive
+            || (teamLeads.get(idKey(cleanEmp))?.staffName || '') !== form.name.trim())) {
+          await saveTeamLead({ staffId: cleanEmp, staffName: form.name.trim(), branchIds: kpiForm.tlBranches, memberIds: tlMemberIds, active: kpiForm.tlActive });
+          kpiMsgs.push('Team lead saved');
+        } else if (!kpiForm.tl && before.tl) {
+          await deleteTeamLead(cleanEmp);
+          kpiMsgs.push('Team lead removed');
+        }
+        if (kpiMsgs.length) await loadTeamLeads();
+      } catch (kx) {
+        setFormErr(`Account ${cleanEmp} saved, but the KPI role was not saved: ${kx instanceof Error ? kx.message : String(kx)}`);
+        setIsNew(false);
+        if (onStaffUpdated) onStaffUpdated(); else load(true);
+        return;
+      }
+      triggerToast((isNew ? `Account ${cleanEmp} created` : `Account ${cleanEmp} saved`) + (kpiMsgs.length ? ' · ' + kpiMsgs.join(' · ') : ''));
       setForm(null);
       if (onStaffUpdated) onStaffUpdated(); else load(true);
     } catch (x) {
@@ -342,6 +426,7 @@ export const StaffAccountsTab: React.FC<{
                 onClick={() => {
                   setIsNew(true);
                   setForm({ ...blank, password: makePassword() });
+                  setKpiForm(blankKpi);
                   setFormErr('');
                 }}
                 className="btn btn-primary shadow-sm flex items-center gap-1.5 px-4 py-2 text-xs font-bold"
@@ -526,6 +611,56 @@ export const StaffAccountsTab: React.FC<{
               </button>
             </div>
           </div>
+          {isAdmin && (
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl border border-indigo-200/80 bg-indigo-50/30" data-staff-kpi-role>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-800">KPI role</span>
+                <span className="text-[10.5px] text-slate-500">Used by the KPI page and the Merchant Visit app (Staff ID {form.emp_id.trim() || '—'})</span>
+              </div>
+              {kpiErr && <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{kpiErr}</div>}
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={kpiForm.mgmt} onChange={(e) => setKpiForm({ ...kpiForm, mgmt: e.target.checked })} data-staff-kpi-mgmt />
+                <span>
+                  <span className="block text-xs font-bold text-slate-900">Management Level · 0 KPI target, non-mandatory</span>
+                  <span className="block text-[11px] text-slate-500">Shown on the KPI page with their figures, but not measured against a target and not ranked as frontline staff.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={kpiForm.tl} onChange={(e) => setKpiForm({ ...kpiForm, tl: e.target.checked })} data-staff-kpi-tl />
+                <span>
+                  <span className="block text-xs font-bold text-slate-900">Team lead · Team KPI in the Merchant Visit app</span>
+                  <span className="block text-[11px] text-slate-500">Sees the KPI of the staff in the branches below (More → Team KPI), plus any Staff IDs added by hand.</span>
+                </span>
+              </label>
+              {kpiForm.tl && (
+                <div className="flex flex-col gap-2 pl-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-700">Branches ({kpiForm.tlBranches.length})</span>
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                      <input type="checkbox" checked={kpiForm.tlActive} onChange={(e) => setKpiForm({ ...kpiForm, tlActive: e.target.checked })} />
+                      Team KPI switched on
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto" data-staff-kpi-branches>
+                    {sortedBranches.map((b) => {
+                      const on = kpiForm.tlBranches.includes(b.id);
+                      return (
+                        <button key={b.id} type="button" aria-pressed={on}
+                          onClick={() => setKpiForm({ ...kpiForm, tlBranches: on ? kpiForm.tlBranches.filter((x) => x !== b.id) : [...kpiForm.tlBranches, b.id] })}
+                          className={`px-2 py-1 rounded-lg border text-[11px] cursor-pointer transition ${on ? 'bg-[#002F4A] border-[#002F4A] text-white font-bold' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'}`}>
+                          {b.id} · {b.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-700">
+                    Extra Staff IDs in the team (optional, separated by commas)
+                    <input className={input} value={kpiForm.tlMembers} placeholder="e.g. 20011, 20012" onChange={(e) => setKpiForm({ ...kpiForm, tlMembers: e.target.value })} data-staff-kpi-members />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
           {formErr && (
             <div
               role="alert"
@@ -657,6 +792,8 @@ export const StaffAccountsTab: React.FC<{
                   locationLabel={getLocation(a)}
                   onlineInfo={onlineByEmp.get(String(a.empId).trim()) || onlineByEmp.get(a.name.trim().toLowerCase())}
                   editable={isAdmin && canEdit(a)}
+                  mgmt={mgmtIds.has(idKey(a.empId))}
+                  teamLead={teamLeads.get(idKey(a.empId))}
                   onEdit={openEdit}
                   onToggleStatus={handleToggleStatus}
                 />
@@ -771,10 +908,14 @@ const StaffRow = memo(function StaffRow({
   locationLabel,
   onlineInfo,
   editable,
+  mgmt = false,
+  teamLead,
   onEdit,
   onToggleStatus,
 }: {
   a: StaffAccount;
+  mgmt?: boolean;
+  teamLead?: KpiTeamLead;
   no: number;
   branchLabel: string;
   locationLabel: string;
@@ -788,8 +929,20 @@ const StaffRow = memo(function StaffRow({
       <td className="px-3 py-2.5 text-right text-slate-500 tabular-nums">{no}</td>
       <td className="px-3 py-2.5 font-mono font-bold text-slate-900">{a.empId}</td>
       <td className="px-3 py-2.5 font-semibold text-slate-900">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{a.name}</span>
+          {mgmt && (
+            <span title="Management Level: 0 KPI target, non-mandatory" data-badge-mgmt
+              className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Management
+            </span>
+          )}
+          {teamLead && (
+            <span title={`Team lead (Team KPI in the Merchant Visit app): branches ${teamLead.branchIds.join(', ') || '—'}${teamLead.memberIds.length ? ` + ${teamLead.memberIds.length} staff` : ''}${teamLead.active ? '' : ' · switched off'}`} data-badge-tl
+              className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${teamLead.active ? 'bg-[#002F4A]/5 text-[#002F4A] border-[#002F4A]/20' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+              Team lead · {teamLead.branchIds.length} br.
+            </span>
+          )}
           {a.telegramUsername && (
             <span
               title="Configured for Telegram @mention push notifications"

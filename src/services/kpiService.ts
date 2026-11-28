@@ -978,6 +978,8 @@ export interface KpiSyncCandidate {
   category: KpiCategory;
   visits: number;
   lastSeen: string | null;
+  /** (28 Nov 2026) POS & Sound Box forms: the points these records earn today (the new task starts with them) */
+  points?: number;
   deletedAt?: string | null;
   deletedBy?: string | null;
 }
@@ -989,15 +991,20 @@ export interface KpiSyncResult {
   activitiesChecked: number;
   alreadyHaveRule: number;
   rules: KpiPointRule[];
+  source: KpiSyncSource;
 }
+/** (28 Nov 2026) 'mv' = Merchant Visit activities; 'field' = the POS Terminal and Sound Box forms (migration 20261128_01) */
+export type KpiSyncSource = 'mv' | 'field';
 
 /**
  * (22 Nov 2026) Sync KPI tasks from the Merchant Visit app (migration 20261122_02, Super Admin). `apply` false only lists the
  * activities the app has sent that have no KPI task yet; `apply` true adds them (0 pts, inactive - a task deleted before comes
  * back as it was when `includeDeleted`). Tasks you deleted are left out unless `includeDeleted`.
  */
-export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = false): Promise<KpiSyncResult> {
-  const { data, error } = await supabase.rpc('kpi_sync_from_mv', { p: { apply, include_deleted: includeDeleted } });
+export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = false, source: KpiSyncSource = 'mv'): Promise<KpiSyncResult> {
+  const p: Record<string, unknown> = { apply, include_deleted: includeDeleted };
+  if (source === 'field') p.source = 'field';
+  const { data, error } = await supabase.rpc('kpi_sync_from_mv', { p });
   if (error) {
     if (/PGRST202|42883|does not exist|Could not find the function/i.test(error.message)) {
       throw new Error('the server is not updated yet (run SQL 20261122_02)');
@@ -1006,6 +1013,7 @@ export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = 
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d = (data || {}) as any;
+  if (source === 'field' && d.source !== 'field') throw new Error('the server is not updated yet (run SQL 20261128_01)');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cand = (e: any): KpiSyncCandidate => ({
     code: String(e.code || ''),
@@ -1014,6 +1022,7 @@ export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = 
     category: (e.category || 'Merchant Visit') as KpiCategory,
     visits: Number(e.visits) || 0,
     lastSeen: e.last_seen || null,
+    points: e.points != null ? Number(e.points) || 0 : undefined,
     deletedAt: e.deleted_at || null,
     deletedBy: e.deleted_by || null,
   });
@@ -1027,6 +1036,7 @@ export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = 
     activitiesChecked: Number(d.activities_checked) || 0,
     alreadyHaveRule: Number(d.already_have_rule) || 0,
     rules,
+    source: d.source === 'field' ? 'field' : 'mv',
   };
 }
 
