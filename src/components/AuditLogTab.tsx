@@ -624,7 +624,11 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               <div
                 role="tablist"
                 aria-label="Rows per page"
-                className="relative inline-flex items-center p-0.5 rounded-full liquid-glass-track gap-0.5 select-none"
+                className={`relative inline-flex items-center p-0.5 rounded-full border gap-0.5 select-none ${
+                  isLight
+                    ? 'bg-slate-200/75 border-slate-200/90'
+                    : 'bg-slate-800/90 border-slate-700/80'
+                }`}
               >
                 {[50, 100].map((num) => {
                   const active = pageSize === num;

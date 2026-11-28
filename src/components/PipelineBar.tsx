@@ -123,7 +123,11 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
         <div
           role="tablist"
           aria-label="Hardware lifecycle stages"
-          className="inline-flex items-center p-1 rounded-full liquid-glass-track gap-1 min-w-max"
+          className={`inline-flex items-center p-1 rounded-full border gap-1 min-w-max ${
+            isLight
+              ? 'bg-slate-200/75 border-slate-200/90'
+              : 'bg-slate-800/90 border-slate-700/80'
+          }`}
         >
           {visibleStages.map((s) => {
             const Icon = s.icon;

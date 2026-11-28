@@ -4,7 +4,7 @@ import { FilterX } from 'lucide-react';
 /** Shared filter-bar styling tokens for consistent height and compact alignment across Merchant App Review tabs. */
 export const REVIEW_FILTER_BAR_CLS = 'bg-white rounded-2xl border border-slate-200 px-3 py-2 shadow-2xs';
 export const REVIEW_TAB_GROUP_CLS =
-  'relative inline-flex items-center p-0.5 rounded-full liquid-glass-track gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0 select-none';
+  'relative inline-flex items-center p-0.5 rounded-full bg-slate-200/75 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0 select-none';
 export const REVIEW_SELECT_CLS =
   'btn-press appearance-none h-[34px] pl-2.5 pr-6 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer truncate';
 export const REVIEW_INPUT_CLS =

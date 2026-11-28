@@ -8042,7 +8042,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.94 }}
               transition={SPRING}
-              className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 rounded-full p-1 liquid-glass-floating"
+              className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 rounded-full p-1 bg-white/92 backdrop-blur-md border border-slate-200/90 shadow-[0_14px_36px_-8px_rgba(15,23,42,0.22)] ring-1 ring-slate-900/5"
             >
               <div
                 className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}

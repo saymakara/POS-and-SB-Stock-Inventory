@@ -970,7 +970,11 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     <div
       role="tablist"
       aria-label="CSV file selection mode"
-      className="relative inline-flex flex-wrap items-center p-1 rounded-full liquid-glass-track select-none gap-0.5"
+      className={`relative inline-flex flex-wrap items-center p-1 rounded-full border select-none gap-0.5 ${
+        isLight
+          ? 'bg-slate-200/75 border-slate-200/90'
+          : 'bg-slate-900/60 border-slate-800'
+      }`}
     >
       {(
         [
@@ -1019,7 +1023,11 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               <PillMotion
                 layoutId={layoutId}
                 aria-hidden
-                className={CAPSULE_PILL_CLS}
+                className={
+                  isLight
+                    ? CAPSULE_PILL_CLS
+                    : 'absolute inset-0 rounded-full bg-slate-800 border border-slate-700/80 shadow-xs z-0 pointer-events-none'
+                }
                 transition={SPRING_TAB_PILL}
               />
             )}
