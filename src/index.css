@@ -865,10 +865,10 @@ table thead th.col-no { width: 52px; text-align: center; }
 }
 
 .kpi-matrix-table thead th.matrix-day-th {
-  padding: 6px 1px !important;
-  width: 44px !important;
-  min-width: 44px !important;
-  max-width: 44px !important;
+  padding: 6px 2px !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
   box-sizing: border-box !important;
 }
 
