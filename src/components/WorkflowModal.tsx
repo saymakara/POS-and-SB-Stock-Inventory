@@ -1139,15 +1139,15 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                     <p className="text-[11px] text-slate-600 dark:text-slate-300">
                       Merchant details detached and kept in <strong>Merchant History</strong>. Unit returns to stock:
                     </p>
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full border gap-1 ${isLight ? 'bg-slate-200/75 border-slate-200/90' : 'bg-slate-800/90 border-slate-700'}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full liquid-glass-track gap-1">
                       <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                        className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'BRANCH_RESERVE' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
-                        <Building2 className={`w-3 h-3 ${returnTo === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
+                        className={`relative px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'BRANCH_RESERVE' ? 'liquid-glass-pill text-slate-900 dark:text-white font-semibold' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
+                        <Building2 className={`relative z-10 w-3 h-3 ${returnTo === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} /><span className="relative z-10">Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                       </button>
                       {isAdminLike ? (
                         <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                          className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'HQ_STOCK' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
-                          <RotateCcw className={`w-3 h-3 ${returnTo === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} /><span>Admin HQ stock (Code 100)</span>
+                          className={`relative px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${returnTo === 'HQ_STOCK' ? 'liquid-glass-pill text-slate-900 dark:text-white font-semibold' : isLight ? 'text-slate-600 hover:text-slate-900 font-medium' : 'text-slate-300 hover:text-white font-medium'}`}>
+                          <RotateCcw className={`relative z-10 w-3 h-3 ${returnTo === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} /><span className="relative z-10">Admin HQ stock (Code 100)</span>
                         </button>
                       ) : (
                         <span className="px-3 py-1.5 rounded-full text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
@@ -1171,35 +1171,35 @@ const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
                       <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>Where Is the Faulty Unit Held? *</span>
                     </div>
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full border gap-1 ${isLight ? 'bg-slate-200/75 border-slate-200/90' : 'bg-slate-800/90 border-slate-700'}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 p-1 rounded-full liquid-glass-track gap-1">
                       <button
                         type="button"
                         onClick={() => setTerminateDestination('BRANCH_RESERVE')}
-                        className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                        className={`relative px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           terminateDestination === 'BRANCH_RESERVE'
-                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
+                            ? 'liquid-glass-pill text-slate-900 dark:text-white font-semibold'
                             : isLight
                             ? 'text-slate-600 hover:text-slate-900 font-medium'
                             : 'text-slate-300 hover:text-white font-medium'
                         }`}
                       >
-                        <Building2 className={`w-3 h-3 ${terminateDestination === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} />
-                        <span>Held at Branch Code {branchId}</span>
+                        <Building2 className={`relative z-10 w-3 h-3 ${terminateDestination === 'BRANCH_RESERVE' ? 'text-[#004e75]' : 'text-slate-500'}`} />
+                        <span className="relative z-10">Held at Branch Code {branchId}</span>
                       </button>
                       {isAdminLike ? (
                         <button
                           type="button"
                           onClick={() => setTerminateDestination('HQ_STOCK')}
-                          className={`px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          className={`relative px-3 py-1.5 rounded-full text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             terminateDestination === 'HQ_STOCK'
-                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
+                              ? 'liquid-glass-pill text-slate-900 dark:text-white font-semibold'
                               : isLight
                               ? 'text-slate-600 hover:text-slate-900 font-medium'
                               : 'text-slate-300 hover:text-white font-medium'
                           }`}
                         >
-                          <RotateCcw className={`w-3 h-3 ${terminateDestination === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} />
-                          <span>Held at HQ (Code 100)</span>
+                          <RotateCcw className={`relative z-10 w-3 h-3 ${terminateDestination === 'HQ_STOCK' ? 'text-amber-500' : 'text-slate-500'}`} />
+                          <span className="relative z-10">Held at HQ (Code 100)</span>
                         </button>
                       ) : (
                         <button

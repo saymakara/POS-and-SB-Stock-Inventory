@@ -386,7 +386,6 @@ export const FieldReviewTab: React.FC<Props> = ({
   );
   const [reviewedLoading, setReviewedLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(deviceType || 'ALL');
   const [recordTypeFilter, setRecordTypeFilter] = useState<RecordTypeFilter>('ALL');
@@ -555,7 +554,6 @@ export const FieldReviewTab: React.FC<Props> = ({
     // 5 minutes (the number of waiting records on the server) catches anything the feed missed.
     let feedLive = false, feedWasLive = false;
     const unsub = subscribeToFieldEvents((e) => {
-      setLive(true);
       queued.set(e.id, e);
       if (frame === null) frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flushQueued) : (window.setTimeout(flushQueued, 16) as unknown as number);
     }, {
@@ -1114,11 +1112,6 @@ export const FieldReviewTab: React.FC<Props> = ({
                 ? <Volume2 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#4F518C]" aria-hidden />
                 : <Cpu className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#184e77]" aria-hidden />}
               <span>{deviceType || 'Review'}</span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90 tracking-normal"
-                title="New records from the phone app appear here as they are saved">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
-                {live ? 'Live' : 'Connected'}
-              </span>
               {hasDateFilter && (
                 <button
                   type="button"

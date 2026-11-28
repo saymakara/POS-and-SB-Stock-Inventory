@@ -2198,419 +2198,397 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
 
             {/* TWO-COLUMN TELEGRAM DASHBOARD: Bot Config on Left, Regional Groups on Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
               {/* LEFT COLUMN: Telegram Bot Alert Config & Default Group */}
-              <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#002F4A] border border-sky-200 flex items-center justify-center">
-                    <Send className="w-4 h-4 text-sky-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-extrabold text-zinc-900">
-                      Telegram Bot Connection
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      Bot credentials &amp; Default Group for app push alerts
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold uppercase text-slate-600">
-                        1. Telegram Bot Token (@BotFather)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowBotFatherGuide((prev) => !prev)}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#002F4A] hover:underline cursor-pointer"
-                      >
-                        <HelpCircle className="w-3.5 h-3.5" />
-                        {showBotFatherGuide ? 'Hide Token Guide' : 'Where is my Bot Token?'}
-                      </button>
+              <div className="surface-card p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col justify-between gap-5">
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3 pb-3.5 border-b border-slate-100">
+                    <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0">
+                      <Send className="w-4 h-4" />
                     </div>
+                    <div className="min-w-0">
+                      <h3 className="text-[14px] font-bold text-slate-900 leading-tight">
+                        Telegram Bot
+                      </h3>
+                      <p className="text-[12px] text-slate-500 mt-0.5">
+                        Bot credentials and default alert group
+                      </p>
+                    </div>
+                  </div>
 
-                    {showBotFatherGuide && (
-                      <div className="mb-2.5 p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs space-y-2">
-                        <div className="font-bold text-sky-900 flex items-center justify-between">
-                          <span>How to find your Bot Token in Telegram:</span>
-                          <span className="text-[10px] text-sky-600 font-normal">Takes ~30 seconds</span>
-                        </div>
-                        <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed text-slate-700">
-                          <li>
-                            Open Telegram Desktop (or Mobile) and search for{' '}
-                            <strong className="text-zinc-900 font-mono">@BotFather</strong>.
-                          </li>
-                          <li>
-                            Send command{' '}
-                            <code className="px-1.5 py-0.5 rounded bg-white border border-sky-300 font-mono font-bold text-zinc-900">
-                              /mybots
-                            </code>{' '}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard?.writeText('/mybots');
-                                if (onToast) onToast('Copied "/mybots" to clipboard!');
-                              }}
-                              className="px-2 py-0.5 rounded bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[10px] font-bold cursor-pointer inline-flex items-center gap-1 transition"
-                            >
-                              <Copy className="w-3 h-3" />
-                              Copy
-                            </button>
-                          </li>
-                          <li>
-                            Click on your bot: <strong className="text-zinc-900 font-mono">@POS_SoundBox_Config_bot</strong>
-                          </li>
-                          <li>
-                            Click <strong className="text-zinc-900">API Token</strong> to copy the token string.
-                          </li>
-                        </ol>
-                        <div className="pt-1.5 border-t border-sky-200/80 text-[11px] text-slate-600">
-                          <em>Need a new bot?</em> Send <code className="px-1 py-0.5 bg-white rounded border font-mono font-bold">/newbot</code> to @BotFather.
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type={showBotToken ? 'text' : 'password'}
-                          value={tgBotToken}
-                          onChange={(e) => setTgBotToken(e.target.value)}
-                          placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
-                          className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
-                        />
+                  <div className="space-y-4">
+                    {/* Field 1: Bot Token */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-[12px] font-semibold text-slate-700">
+                          Bot Token
+                        </label>
                         <button
                           type="button"
-                          onClick={() => setShowBotToken((prev) => !prev)}
-                          title={showBotToken ? 'Hide Bot Token' : 'Show Bot Token'}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          onClick={() => setShowBotFatherGuide((prev) => !prev)}
+                          className="inline-flex items-center gap-1 text-[11.5px] font-medium text-[#155484] hover:text-[#002F4A] hover:underline cursor-pointer"
                         >
-                          {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          <HelpCircle className="w-3.5 h-3.5" />
+                          <span>{showBotFatherGuide ? 'Hide guide' : 'Token guide'}</span>
                         </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={!tgBotToken.trim() || tgDetecting}
-                        onClick={async () => {
-                          setTgDetecting(true);
-                          setTgDetectError('');
-                          const res = await detectTelegramGroupChats(tgBotToken);
-                          setTgDetecting(false);
-                          if (!res.ok) {
-                            setTgDetectError(res.error || 'Invalid Bot Token.');
-                            if (onToast) onToast(res.error || 'Invalid Bot Token.');
-                            return;
-                          }
-                          setTgBotUsername(res.botUsername);
-                          saveTelegramBotUsername(res.botUsername);
-                          setTgDetectedChats((prev) => {
-                            const map = new Map<string, { id: string; title: string; type: string }>();
-                            res.chats.forEach((c) => map.set(c.id, c));
-                            prev.forEach((c) => {
-                              if (!map.has(c.id)) map.set(c.id, c);
-                            });
-                            const merged = Array.from(map.values());
-                            saveTelegramDetectedChats(merged);
-                            return merged;
-                          });
-                          if (res.chats.length === 0) {
-                            const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
-                            setTgDetectError(
-                              `Bot @${res.botUsername} is verified! Because Telegram hides normal group messages from new bots, please type "${cmd}" inside your Telegram group (or make @${res.botUsername} a group admin), then click Auto-Detect again.`
-                            );
-                            if (onToast) {
-                              onToast(`Bot @${res.botUsername} verified! Send "${cmd}" inside your Telegram group, then click Auto-Detect again.`);
-                            }
-                            return;
-                          }
-                          const picked = res.chats[0];
-                          const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
-                          const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
-                          setTgConfigChatId(picked.id);
-                          setTgWebhookUrl(builtWebhook);
-                          saveTelegramWebhookConfig({
-                            botToken: cleanToken,
-                            configChatId: picked.id,
-                            chatId: picked.id,
-                            webhookUrl: builtWebhook,
-                          });
-                          if (onToast) {
-                            onToast(`Connected to "${picked.title}" (${picked.id}) and sent a confirmation message to Telegram!`);
-                          }
-                        }}
-                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap shadow-2xs"
-                      >
-                        {tgDetecting ? 'Detecting...' : 'Auto-Detect Group ID'}
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Add your bot to the group, send <code>/start</code> in the group (or make bot admin), then click <strong>Auto-Detect Group ID</strong>.
-                    </p>
 
-                    {tgDetectError && (
-                      <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-2">
-                        <div className="font-semibold">{tgDetectError}</div>
-                        {tgBotUsername && (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <code className="px-2 py-1 rounded bg-white border border-amber-300 font-mono font-bold text-zinc-900">
-                              /start@{tgBotUsername}
-                            </code>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
-                                if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] text-[11px] font-bold cursor-pointer transition"
-                            >
-                              Copy Command
-                            </button>
+                      {showBotFatherGuide && (
+                        <div className="p-3.5 rounded-xl bg-sky-50/70 border border-sky-200/80 text-sky-950 text-xs space-y-2">
+                          <div className="font-semibold text-sky-900 flex items-center justify-between">
+                            <span>Get your token from @BotFather</span>
+                            <span className="text-[10.5px] text-sky-700/80 font-normal">~30 sec</span>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          <ol className="list-decimal list-inside space-y-1 text-[11.5px] leading-relaxed text-slate-700">
+                            <li>Open <strong className="text-slate-900 font-mono">@BotFather</strong> in Telegram.</li>
+                            <li>
+                              Send{' '}
+                              <code className="px-1.5 py-0.5 rounded bg-white border border-sky-200 font-mono text-slate-900">
+                                /mybots
+                              </code>{' '}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText('/mybots');
+                                  if (onToast) onToast('Copied "/mybots" to clipboard!');
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-white hover:bg-sky-100/70 text-[#155484] border border-sky-200 text-[10.5px] font-semibold cursor-pointer inline-flex items-center gap-1 transition"
+                              >
+                                <Copy className="w-3 h-3" />
+                                Copy
+                              </button>
+                            </li>
+                            <li>Select your bot and tap <strong className="text-slate-900">API Token</strong>.</li>
+                          </ol>
+                        </div>
+                      )}
 
-                    {tgDetectedChats.length > 0 && (
-                      <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-bold flex items-center gap-1.5 min-w-0 truncate">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span className="truncate">
-                              Connected Bot {tgBotUsername ? `@${tgBotUsername}` : ''} — Detected Telegram Chats ({tgDetectedChats.length}):
-                            </span>
-                          </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type={showBotToken ? 'text' : 'password'}
+                            value={tgBotToken}
+                            onChange={(e) => setTgBotToken(e.target.value)}
+                            placeholder="Paste @BotFather token"
+                            className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50/80 border-slate-200 text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:bg-white focus:border-[#155484] transition"
+                          />
                           <button
                             type="button"
-                            onClick={handleClearAllDetectedChats}
-                            className="text-[11px] font-medium text-slate-500 hover:text-red-600 underline cursor-pointer shrink-0 transition"
-                            title="Remove all detected chats from system"
+                            onClick={() => setShowBotToken((prev) => !prev)}
+                            title={showBotToken ? 'Hide Bot Token' : 'Show Bot Token'}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                           >
-                            Remove All
+                            {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
-                        <div className="flex flex-wrap gap-2 pt-0.5">
-                          {tgDetectedChats.map((c) => {
-                            const isCurrentActive = tgConfigChatId === c.id;
-                            return (
-                              <div
-                                key={c.id}
-                                className={`inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg border transition ${
-                                  isCurrentActive
-                                    ? 'bg-emerald-700 border-emerald-800 text-white shadow-2xs font-semibold'
-                                    : 'bg-white border-emerald-300 text-emerald-900 hover:bg-emerald-100/80'
-                                }`}
+                        <button
+                          type="button"
+                          disabled={!tgBotToken.trim() || tgDetecting}
+                          onClick={async () => {
+                            setTgDetecting(true);
+                            setTgDetectError('');
+                            const res = await detectTelegramGroupChats(tgBotToken);
+                            setTgDetecting(false);
+                            if (!res.ok) {
+                              setTgDetectError(res.error || 'Invalid Bot Token.');
+                              if (onToast) onToast(res.error || 'Invalid Bot Token.');
+                              return;
+                            }
+                            setTgBotUsername(res.botUsername);
+                            saveTelegramBotUsername(res.botUsername);
+                            setTgDetectedChats((prev) => {
+                              const map = new Map<string, { id: string; title: string; type: string }>();
+                              res.chats.forEach((c) => map.set(c.id, c));
+                              prev.forEach((c) => {
+                                if (!map.has(c.id)) map.set(c.id, c);
+                              });
+                              const merged = Array.from(map.values());
+                              saveTelegramDetectedChats(merged);
+                              return merged;
+                            });
+                            if (res.chats.length === 0) {
+                              const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
+                              setTgDetectError(
+                                `Bot @${res.botUsername} verified. Send "${cmd}" in your Telegram group (or make it admin), then click Detect Group again.`
+                              );
+                              if (onToast) {
+                                onToast(`Bot @${res.botUsername} verified! Send "${cmd}" inside your Telegram group, then click Detect Group again.`);
+                              }
+                              return;
+                            }
+                            const picked = res.chats[0];
+                            const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                            const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
+                            setTgConfigChatId(picked.id);
+                            setTgWebhookUrl(builtWebhook);
+                            saveTelegramWebhookConfig({
+                              botToken: cleanToken,
+                              configChatId: picked.id,
+                              chatId: picked.id,
+                              webhookUrl: builtWebhook,
+                            });
+                            if (onToast) {
+                              onToast(`Connected to "${picked.title}" (${picked.id}) and sent a confirmation message to Telegram!`);
+                            }
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#1d5c55] hover:bg-[#164943] text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap shadow-2xs"
+                        >
+                          {tgDetecting ? 'Detecting…' : 'Detect Group'}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Send <code className="text-slate-600">/start</code> in your group, then click Detect Group.
+                      </p>
+
+                      {tgDetectError && (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+                          <div className="font-medium leading-relaxed">{tgDetectError}</div>
+                          {tgBotUsername && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <code className="px-2 py-1 rounded bg-white border border-amber-200 font-mono font-semibold text-slate-900">
+                                /start@{tgBotUsername}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
+                                  if (onToast) onToast(`Copied "/start@${tgBotUsername}"`);
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-200 text-[11px] font-semibold cursor-pointer transition"
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
-                                    const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
-                                    setTgConfigChatId(c.id);
-                                    setTgWebhookUrl(builtWebhook);
-                                    saveTelegramWebhookConfig({
-                                      botToken: cleanToken,
-                                      configChatId: c.id,
-                                      chatId: c.id,
-                                      webhookUrl: builtWebhook,
-                                    });
-                                    if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
-                                  }}
-                                  className="text-left font-mono text-[11px] cursor-pointer flex items-center gap-1.5"
-                                  title="Click to select this group as default"
-                                >
-                                  {isCurrentActive && <Check className="w-3.5 h-3.5 text-white shrink-0" />}
-                                  <span className="truncate max-w-[160px]">{c.title}</span>
-                                  <span className={isCurrentActive ? 'text-emerald-200 text-[10px]' : 'text-slate-500 text-[10px]'}>
-                                    ({c.id})
-                                  </span>
-                                  <span
-                                    className={`text-[9px] px-1 py-0.5 rounded font-sans uppercase ${
-                                      isCurrentActive ? 'bg-emerald-800/80 text-white' : 'bg-slate-100 text-slate-600'
-                                    }`}
-                                  >
-                                    {c.type}
-                                  </span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveDetectedChat(c.id);
-                                  }}
-                                  title={`Remove "${c.title}" (${c.id}) from system`}
-                                  className={`p-1 rounded-md transition cursor-pointer ${
+                                Copy
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {tgDetectedChats.length > 0 && (
+                        <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-emerald-950 text-xs space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-semibold flex items-center gap-1.5 min-w-0 truncate">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate">
+                                {tgBotUsername ? `@${tgBotUsername}` : 'Detected Chats'} ({tgDetectedChats.length})
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleClearAllDetectedChats}
+                              className="text-[11px] font-medium text-slate-500 hover:text-rose-600 cursor-pointer shrink-0 transition"
+                              title="Remove all detected chats from system"
+                            >
+                              Clear all
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tgDetectedChats.map((c) => {
+                              const isCurrentActive = tgConfigChatId === c.id;
+                              return (
+                                <div
+                                  key={c.id}
+                                  className={`inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg border transition ${
                                     isCurrentActive
-                                      ? 'hover:bg-emerald-800 text-emerald-200 hover:text-white'
-                                      : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
+                                      ? 'bg-[#1d5c55] border-[#1d5c55] text-white shadow-2xs font-semibold'
+                                      : 'bg-white border-emerald-200 text-slate-800 hover:bg-emerald-50'
                                   }`}
                                 >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            );
-                          })}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                                      const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
+                                      setTgConfigChatId(c.id);
+                                      setTgWebhookUrl(builtWebhook);
+                                      saveTelegramWebhookConfig({
+                                        botToken: cleanToken,
+                                        configChatId: c.id,
+                                        chatId: c.id,
+                                        webhookUrl: builtWebhook,
+                                      });
+                                      if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
+                                    }}
+                                    className="text-left text-[11px] cursor-pointer flex items-center gap-1.5"
+                                    title="Click to select this group as default"
+                                  >
+                                    {isCurrentActive && <Check className="w-3 h-3 text-white shrink-0" />}
+                                    <span className="truncate max-w-[150px]">{c.title}</span>
+                                    <span className={isCurrentActive ? 'text-emerald-200 font-mono text-[10px]' : 'text-slate-400 font-mono text-[10px]'}>
+                                      {c.id}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveDetectedChat(c.id);
+                                    }}
+                                    title={`Remove "${c.title}" (${c.id})`}
+                                    className={`p-0.5 rounded transition cursor-pointer ${
+                                      isCurrentActive
+                                        ? 'hover:bg-white/15 text-emerald-200 hover:text-white'
+                                        : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'
+                                    }`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold uppercase text-slate-600">
-                        2. Default Staff Telegram Group Chat ID
-                      </label>
-                      <div className="flex items-center gap-2">
+                    {/* Field 2: Default Group Chat ID */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-[12px] font-semibold text-slate-700">
+                          Default Group Chat ID
+                        </label>
+                        <span className="text-[11px] text-slate-400 font-mono tabular-nums">
+                          Fallback: -5428585935
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={tgConfigChatId}
+                          onChange={(e) => setTgConfigChatId(e.target.value)}
+                          placeholder="-5428585935 or -100..."
+                          className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50/80 border-slate-200 text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:bg-white focus:border-[#155484] transition"
+                        />
                         {tgConfigChatId && (
                           <button
                             type="button"
                             onClick={handleClearDefaultGroup}
-                            className="text-[11px] font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer inline-flex items-center gap-0.5 transition"
-                            title="Remove default connected group"
+                            title="Clear group ID"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-600 transition cursor-pointer"
                           >
-                            <X className="w-3 h-3" />
-                            <span>Remove Group</span>
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          Fallback: <strong>-5428585935</strong>
-                        </span>
                       </div>
+                      <p className="text-[11px] text-slate-400">
+                        Used when a branch has no assigned regional group.
+                      </p>
                     </div>
-                    <div className="relative">
+
+                    {/* Field 3: Custom Webhook URL */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[12px] font-semibold text-slate-700">
+                          Custom Webhook URL
+                        </label>
+                        <span className="text-[11px] text-slate-400">Optional</span>
+                      </div>
                       <input
                         type="text"
-                        value={tgConfigChatId}
-                        onChange={(e) => setTgConfigChatId(e.target.value)}
-                        placeholder="e.g. -5428585935 or -1005428585935"
-                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
+                        value={tgWebhookUrl}
+                        onChange={(e) => setTgWebhookUrl(e.target.value)}
+                        placeholder="Leave blank to use Bot Token"
+                        className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50/80 border-slate-200 text-slate-900 placeholder:font-sans placeholder:text-slate-400 focus:bg-white focus:border-[#155484] transition"
                       />
-                      {tgConfigChatId && (
-                        <button
-                          type="button"
-                          onClick={handleClearDefaultGroup}
-                          title="Clear / Remove connected group"
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Used when a device&apos;s branch is not assigned to any regional group on the right. Supports regular (<code>-5428585935</code>) and supergroup (<code>-1005428585935</code>) IDs.
-                    </p>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      3. Optional Custom Webhook URL
-                    </label>
-                    <input
-                      type="text"
-                      value={tgWebhookUrl}
-                      onChange={(e) => setTgWebhookUrl(e.target.value)}
-                      placeholder="Leave blank to use direct Bot Token above"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#002F4A] transition"
-                    />
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={tgTesting || !tgBotToken.trim()}
-                        onClick={async () => {
-                          saveTelegramWebhookConfig({
-                            botToken: tgBotToken,
-                            configChatId: tgConfigChatId,
-                            chatId: tgConfigChatId,
-                            webhookUrl: tgWebhookUrl,
-                          });
-                          setTgTesting(true);
-                          const res = await sendDeviceConfigTelegramAlert({
-                            serial: 'SN-TEST-0001',
-                            type: 'POS Terminal',
-                            model: 'Wizar POS Q2 Pro',
-                            mid: '200000000012345',
-                            tid: 'TID-10001',
-                            merchantName: 'Test Merchant (Default Group)',
-                            branchId: '100',
-                            branchName: 'Head Office',
-                            staff: 'Assigned POS Officer',
-                            actor: 'System Admin',
-                          });
-                          setTgTesting(false);
-                          if (onToast) {
-                            if (res.ok) {
-                              if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
-                                setTgConfigChatId(res.resolvedChatId);
-                              }
-                              onToast(`Sent test alert to Default Group (${res.resolvedChatId || tgConfigChatId})! Check your Telegram.`);
-                            } else {
-                              onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
+                {/* Clean Action Footer */}
+                <div className="pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveTelegramWebhookConfig({
+                          botToken: tgBotToken,
+                          configChatId: tgConfigChatId,
+                          chatId: tgConfigChatId,
+                          webhookUrl: tgWebhookUrl,
+                          regionalGroups,
+                        });
+                        if (tgBotUsername) saveTelegramBotUsername(tgBotUsername);
+                        if (tgDetectedChats.length > 0) saveTelegramDetectedChats(tgDetectedChats);
+                        if (onToast) onToast('Telegram bot configuration saved!');
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#002F4A] hover:bg-[#004063] text-white cursor-pointer transition shadow-2xs inline-flex items-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={tgTesting || !tgBotToken.trim()}
+                      onClick={async () => {
+                        saveTelegramWebhookConfig({
+                          botToken: tgBotToken,
+                          configChatId: tgConfigChatId,
+                          chatId: tgConfigChatId,
+                          webhookUrl: tgWebhookUrl,
+                        });
+                        setTgTesting(true);
+                        const res = await sendDeviceConfigTelegramAlert({
+                          serial: 'SN-TEST-0001',
+                          type: 'POS Terminal',
+                          model: 'Wizar POS Q2 Pro',
+                          mid: '200000000012345',
+                          tid: 'TID-10001',
+                          merchantName: 'Test Merchant (Default Group)',
+                          branchId: '100',
+                          branchName: 'Head Office',
+                          staff: 'Assigned POS Officer',
+                          actor: 'System Admin',
+                        });
+                        setTgTesting(false);
+                        if (onToast) {
+                          if (res.ok) {
+                            if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
+                              setTgConfigChatId(res.resolvedChatId);
                             }
+                            onToast(`Sent test alert to Default Group (${res.resolvedChatId || tgConfigChatId})! Check your Telegram.`);
+                          } else {
+                            onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
                           }
-                        }}
-                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#eaf4f2] hover:bg-[#d5eae6] text-[#1d5c55] hover:text-[#144741] border border-[#c3e0da] hover:border-[#9fd0c7] cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          saveTelegramWebhookConfig({
-                            botToken: tgBotToken,
-                            configChatId: tgConfigChatId,
-                            chatId: tgConfigChatId,
-                            webhookUrl: tgWebhookUrl,
-                            regionalGroups,
-                          });
-                          if (tgBotUsername) saveTelegramBotUsername(tgBotUsername);
-                          if (tgDetectedChats.length > 0) saveTelegramDetectedChats(tgDetectedChats);
-                          if (onToast) onToast('Telegram bot configuration saved!');
-                        }}
-                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition inline-flex items-center gap-1.5"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        <span>Save Bot Config</span>
-                      </button>
-                    </div>
-
-                    {(tgBotToken || tgConfigChatId || tgWebhookUrl || tgDetectedChats.length > 0) && (
-                      <button
-                        type="button"
-                        onClick={() => setIsDeleteConnectionModalOpen(true)}
-                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 cursor-pointer transition inline-flex items-center gap-1.5"
-                        title="Delete Telegram connection and remove all linked groups from system"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Connection</span>
-                      </button>
-                    )}
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer transition disabled:opacity-45 inline-flex items-center gap-1.5"
+                    >
+                      <Send className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{tgTesting ? 'Sending…' : 'Send Test'}</span>
+                    </button>
                   </div>
+
+                  {(tgBotToken || tgConfigChatId || tgWebhookUrl || tgDetectedChats.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeleteConnectionModalOpen(true)}
+                      className="px-3 py-2 rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 cursor-pointer transition inline-flex items-center gap-1.5"
+                      title="Delete Telegram connection and remove all linked groups from system"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Disconnect</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* RIGHT COLUMN: Regional Telegram Groups (Multi-Group Routing) */}
-              <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+              <div className="surface-card p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200/80 flex flex-col gap-5">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
                       <Users className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-extrabold text-zinc-900 truncate">
-                          Regional Telegram Groups
+                        <h3 className="text-[14px] font-bold text-slate-900 truncate leading-tight">
+                          Regional Groups
                         </h3>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
-                          {regionalGroups.length} Active
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-slate-100 text-slate-600 shrink-0 tabular-nums">
+                          {regionalGroups.length} active
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        Multi-Group push routing by branch
+                      <p className="text-[12px] text-slate-500 truncate mt-0.5">
+                        Route alerts by branch
                       </p>
                     </div>
                   </div>
@@ -2624,62 +2602,62 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       setRgBranchCodes([]);
                       setIsRegionalModalOpen(true);
                     }}
-                    className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 transition"
+                    className="px-3.5 py-2 rounded-xl bg-[#1d5c55] hover:bg-[#164943] text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add Regional Group</span>
+                    <span>Add Group</span>
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Assign separate Telegram group chats for different regional teams (e.g. Phnom Penh, Siem Reap, Battambang). Daily high-volume app push alerts (~200 units) will automatically route only to each team&apos;s respective Telegram group!
-                  </p>
-
-                  {/* List of Configured Regional Groups */}
-                  <div className="space-y-2.5">
-                    {regionalGroups.length === 0 ? (
-                      <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 text-center space-y-2 bg-slate-50/50">
-                        <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                        <div className="text-xs font-bold text-slate-700">No Regional Groups Configured</div>
-                        <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                          Alerts will route to your Default Staff Telegram Group ({tgConfigChatId || '-5428585935'}). Add regional groups to route alerts separately to each branch team.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingRegionalGroup(null);
-                            setRgName('');
-                            setRgChatId(tgConfigChatId || '-5428585935');
-                            setRgBranchCodes([]);
-                            setIsRegionalModalOpen(true);
-                          }}
-                          className="mt-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Configure First Regional Group</span>
-                        </button>
+                {/* List of Configured Regional Groups */}
+                <div className="flex-1 flex flex-col">
+                  {regionalGroups.length === 0 ? (
+                    <div className="flex-1 min-h-[240px] p-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/40 flex flex-col items-center justify-center text-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-white border border-slate-200/90 shadow-2xs flex items-center justify-center text-slate-400">
+                        <Users className="w-4.5 h-4.5" />
                       </div>
-                    ) : (
-                      regionalGroups.map((rg) => {
+                      <div className="text-[13px] font-semibold text-slate-800 mt-1">
+                        No regional groups yet
+                      </div>
+                      <p className="text-[12px] text-slate-500 max-w-xs leading-relaxed">
+                        Alerts currently go to the default group (<span className="font-mono text-slate-600">{tgConfigChatId || '-5428585935'}</span>).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRegionalGroup(null);
+                          setRgName('');
+                          setRgChatId(tgConfigChatId || '-5428585935');
+                          setRgBranchCodes([]);
+                          setIsRegionalModalOpen(true);
+                        }}
+                        className="mt-2 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#1d5c55]" />
+                        <span>Add Regional Group</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {regionalGroups.map((rg) => {
                         const assignedBranchNames = (branches || [])
                           .filter((b) => rg.branchCodes.includes(b.code))
-                          .map((b) => `Code ${b.code} (${b.name})`);
+                          .map((b) => `${b.code} · ${b.name}`);
 
                         return (
                           <div
                             key={rg.id}
-                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-slate-300 transition space-y-2 text-zinc-900"
+                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition space-y-2 text-slate-900"
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                               <div className="min-w-0 space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-black text-[#002F4A]">{rg.name}</span>
-                                  <span className="px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
+                                  <span className="text-[13px] font-semibold text-slate-900">{rg.name}</span>
+                                  <span className="px-2 py-0.5 rounded-md font-mono text-[11px] bg-white border border-slate-200 text-slate-600">
                                     {rg.chatId}
                                   </span>
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                    {rg.branchCodes.length} Branch{rg.branchCodes.length === 1 ? '' : 'es'}
+                                  <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                    {rg.branchCodes.length} branch{rg.branchCodes.length === 1 ? '' : 'es'}
                                   </span>
                                 </div>
                               </div>
@@ -2716,7 +2694,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                       }
                                     }
                                   }}
-                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
                                   title={`Send a test notification to ${rg.name}`}
                                 >
                                   <Send className="w-3 h-3 text-[#002F4A]" />
@@ -2775,9 +2753,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

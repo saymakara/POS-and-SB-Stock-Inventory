@@ -1406,7 +1406,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <span>Physical Hardware Return Destination</span>
                       </div>
                       <div
-                        className="relative grid grid-cols-2 p-0.5 rounded-full bg-slate-200/75 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-0.5 select-none"
+                        className="relative grid grid-cols-2 p-0.5 rounded-full liquid-glass-track gap-0.5 select-none"
                         role="tablist"
                         aria-label="Physical hardware return destination"
                       >

@@ -7030,11 +7030,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       >
                                         {hasVal ? (
                                           <span
-                                            className={`inline-flex items-center justify-center min-w-[38px] h-[23px] px-1.5 rounded-md text-[11.5px] font-figure tabular-nums ${
+                                            className={`text-[11.5px] font-figure tabular-nums ${
                                               row.isManagement
-                                                ? 'bg-indigo-50/80 text-indigo-700 font-medium'
+                                                ? 'text-indigo-700 font-medium'
                                                 : paceRatio >= 100
-                                                ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
+                                                ? 'text-[#1d5c55] font-semibold'
                                                 : paceRatio >= 70
                                                 ? 'text-slate-600 font-normal'
                                                 : 'text-slate-400 font-normal'
@@ -7324,11 +7324,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         >
                                           {hasTasks ? (
                                             <span
-                                              className={`inline-flex items-center justify-center min-w-[34px] h-[23px] px-1.5 rounded-md text-[11.5px] tabular-nums ${
+                                              className={`text-[11.5px] tabular-nums ${
                                                 isHol || isWk
-                                                  ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
+                                                  ? 'text-amber-800 font-normal'
                                                   : d.count >= 25
-                                                  ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
+                                                  ? 'text-[#1d5c55] font-semibold'
                                                   : d.count >= 10
                                                   ? 'text-slate-600 font-normal'
                                                   : 'text-slate-400 font-normal'
@@ -7784,11 +7784,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               >
                                 {hasTasks ? (
                                   <span
-                                    className={`inline-flex items-center justify-center min-w-[34px] h-[23px] px-1.5 rounded-md text-[11.5px] tabular-nums ${
+                                    className={`text-[11.5px] tabular-nums ${
                                       isHol || isWk
-                                        ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed font-normal'
+                                        ? 'text-amber-800 font-normal'
                                         : d.count >= 25
-                                        ? 'bg-[#eaf4f2] text-[#1d5c55] font-semibold'
+                                        ? 'text-[#1d5c55] font-semibold'
                                         : d.count >= 10
                                         ? 'text-slate-600 font-normal'
                                         : 'text-slate-400 font-normal'
@@ -8042,7 +8042,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.94 }}
               transition={SPRING}
-              className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 rounded-full p-1 bg-white/92 backdrop-blur-md border border-slate-200/90 shadow-[0_14px_36px_-8px_rgba(15,23,42,0.22)] ring-1 ring-slate-900/5"
+              className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 rounded-full p-1 liquid-glass-floating"
             >
               <div
                 className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}

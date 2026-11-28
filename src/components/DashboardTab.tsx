@@ -19,7 +19,14 @@ import {
   type VelocityChannelKey,
 } from './Charts';
 import { Odometer } from './Odometer';
-import { PillMotion } from './PillMotion';
+import {
+  PillMotion,
+  CAPSULE_TRACK_CLS,
+  CAPSULE_TRACK_COMPACT_CLS,
+  CAPSULE_PILL_CLS,
+  CAPSULE_BTN_NAVY_ACTIVE_CLS,
+  CAPSULE_BTN_INACTIVE_CLS,
+} from './PillMotion';
 import { todayPP, lastMonthsPP } from '../utils/time';
 import { getCambodiaHoliday, isWeekendDay } from '../utils/cambodiaHolidays';
 import { fmtNum } from '../utils/format';
@@ -994,11 +1001,7 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
 
         <div className="flex items-center gap-2.5 shrink-0">
           <div
-            className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
-              isLight
-                ? 'bg-slate-100/90 border-slate-200/90'
-                : 'bg-slate-900/80 border-slate-700'
-            }`}
+            className={CAPSULE_TRACK_COMPACT_CLS}
             role="tablist"
             aria-label="Installation Comparison Horizon"
           >
@@ -1012,22 +1015,14 @@ const MonthlyInstallComparisonCard = React.memo<MonthlyInstallComparisonCardProp
                   aria-selected={active}
                   onClick={() => onChangeHorizon(h)}
                   className={`relative px-2.5 py-1 rounded-full text-[11px] font-figure cursor-pointer transition-colors duration-150 ${
-                    active
-                      ? isLight
-                        ? 'text-[#002F4A] font-bold'
-                        : 'text-white font-bold'
-                      : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                    active ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                   }`}
                 >
                   {active && (
                     <PillMotion
                       layoutId="dash-hw-install-horizon-pill"
                       transition={SPRING_TAB_PILL}
-                      className={`absolute inset-0 rounded-full pointer-events-none ${
-                        isLight
-                          ? 'bg-white shadow-[0_1px_3px_rgba(15,23,42,0.12)]'
-                          : 'bg-slate-800 shadow-2xs'
-                      }`}
+                      className={CAPSULE_PILL_CLS}
                     />
                   )}
                   <span className="relative z-10">{h}</span>
@@ -2947,11 +2942,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-1.5 shrink-0">
             {/* iOS View Mode Switcher: Date / Month (default: current month) / All */}
             <div
-              className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
-                isLight
-                  ? 'bg-slate-200/75 border-slate-200/90'
-                  : 'bg-slate-900/80 border-slate-700'
-              }`}
+              className={CAPSULE_TRACK_CLS}
               role="tablist"
               aria-label="Dashboard Time Period"
             >
@@ -2968,22 +2959,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       if (opt.id !== 'DATE') setDateMenuOpen(false);
                     }}
                     className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
-                      active
-                        ? isLight
-                          ? 'text-[#002F4A] font-bold'
-                          : 'text-white font-bold'
-                        : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                      active ? CAPSULE_BTN_NAVY_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="dash-period-pill"
                         transition={SPRING_TAB_PILL}
-                        className={`absolute inset-0 rounded-full pointer-events-none ${
-                          isLight
-                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.12)]'
-                            : 'bg-slate-800 shadow-2xs'
-                        }`}
+                        className={CAPSULE_PILL_CLS}
                       />
                     )}
                     <span className="relative z-10">{opt.label}</span>
