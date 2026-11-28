@@ -30,9 +30,8 @@ import {
   saveKpiRuleOnServer,
   deleteKpiRuleOnServer,
   saveKpiTargetsOnServer,
-  syncKpiFromMerchantVisit,
+  syncKpiFromMerchantVisitApp,
   type KpiSyncResult,
-  type KpiSyncSource,
 } from '../services/kpiService';
 import { Branch } from '../types';
 import {
@@ -210,7 +209,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const [deleteTarget, setDeleteTarget] = useState<KpiPointRule | null>(null);
   // (22 Nov 2026) Sync from Merchant Visit: the preview, the "also bring back deleted" choice, and the tasks just added
   const [syncPreview, setSyncPreview] = useState<KpiSyncResult | null>(null);
-  const [syncBusy, setSyncBusy] = useState<'' | 'check' | 'check-field' | 'apply'>('');
+  const [syncBusy, setSyncBusy] = useState<'' | 'check' | 'apply'>('');
   const [syncIncludeDeleted, setSyncIncludeDeleted] = useState(false);
   const [newlySynced, setNewlySynced] = useState<Set<string>>(new Set());
   const [showAdd, setShowAdd] = useState(false);
@@ -302,21 +301,20 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
     }
   };
 
-  // (28 Nov 2026) two sources: Merchant Visit activities, or the POS Terminal / Sound Box forms (e.g. Sound Box Maintenance)
-  const srcName = (src: KpiSyncSource) => (src === 'field' ? 'POS & Sound Box' : 'Merchant Visit');
-  const handleSyncCheck = async (src: KpiSyncSource = 'mv') => {
+  // (28 Nov 2026) one Sync for the whole Merchant Visit app: visit activities + POS Terminal / Sound Box forms
+  const handleSyncCheck = async () => {
     if (syncBusy) return;
-    setSyncBusy(src === 'field' ? 'check-field' : 'check');
+    setSyncBusy('check');
     try {
-      const r = await syncKpiFromMerchantVisit(false, false, src);
+      const r = await syncKpiFromMerchantVisitApp(false);
       if (!r.candidates.length && !r.deletedSkipped.length) {
-        toast(`Up to date: all ${r.activitiesChecked} ${srcName(src)} tasks already have a KPI task.`);
+        toast(`Up to date: all ${r.activitiesChecked} Merchant Visit app tasks already have a KPI task.`);
       } else {
         setSyncIncludeDeleted(false);
         setSyncPreview(r);
       }
     } catch (e) {
-      toast(`Could not check ${srcName(src)} tasks: ${e instanceof Error ? e.message : String(e)}`);
+      toast(`Could not check Merchant Visit app tasks: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSyncBusy('');
     }
@@ -326,8 +324,8 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
     if (syncBusy || !syncPreview) return;
     setSyncBusy('apply');
     try {
-      const src = syncPreview.source;
-      const r = await syncKpiFromMerchantVisit(true, syncIncludeDeleted, src);
+      const r = await syncKpiFromMerchantVisitApp(true, syncIncludeDeleted);
+      const fromForms = r.rules.some((x) => x.points > 0 && !x.active);
       r.rules.forEach((rule) => onRuleSaved(rule));
       setNewlySynced((prev) => {
         const next = new Set(prev);
@@ -338,9 +336,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       if (r.rules.length) setCatFilter('ALL');
       toast(
         r.added
-          ? src === 'field'
-            ? `Added ${r.added} KPI task(s) from the POS & Sound Box forms. They start Inactive at the points these visits earn today: check the points, Save, then switch them to Active.`
-            : `Added ${r.added} KPI task(s) from Merchant Visit. New tasks start at 0 pts and Inactive: set the points, Save, then switch them to Active.`
+          ? `Added ${r.added} KPI task(s) from Merchant Visit. They start Inactive${fromForms ? ' (POS & Sound Box tasks at the points these visits earn today, visits at 0 pts)' : ' at 0 pts'}: check the points, Save, then switch them to Active.`
           : 'Nothing to add: the KPI tasks are already up to date.'
       );
     } catch (e) {
@@ -758,25 +754,13 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => handleSyncCheck('mv')}
+                onClick={handleSyncCheck}
                 disabled={Boolean(syncBusy)}
                 data-kpi-sync
-                title="Find Merchant Visit app tasks that have no KPI task yet and add them"
+                title="Find every Merchant Visit app task (visits, POS Terminal and Sound Box forms) that has no KPI task yet and add it"
                 className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check' ? 'animate-spin' : ''}`} /> Sync from Merchant Visit
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => handleSyncCheck('field')}
-                disabled={Boolean(syncBusy)}
-                data-kpi-sync-field
-                title="Find POS Terminal and Sound Box form tasks (e.g. Sound Box Maintenance) that have no KPI task yet and add them"
-                className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer disabled:opacity-60"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncBusy === 'check-field' ? 'animate-spin' : ''}`} /> Sync POS &amp; Sound Box
               </button>
             )}
             {isAdmin && (
@@ -925,7 +909,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   <RefreshCw className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 id="kpi-sync-title" className="text-sm font-bold text-slate-900">Sync KPI tasks from {syncPreview.source === 'field' ? 'POS & Sound Box forms' : 'Merchant Visit'}</h3>
+                  <h3 id="kpi-sync-title" className="text-sm font-bold text-slate-900">Sync KPI tasks from Merchant Visit</h3>
                   <p className="text-[11px] text-slate-500">
                     {syncPreview.activitiesChecked} task type(s) in the app · {syncPreview.alreadyHaveRule} already have a KPI task
                   </p>
@@ -939,24 +923,17 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3 text-xs">
               {syncPreview.candidates.length > 0 ? (
                 <>
-                  {syncPreview.source === 'field' ? (
-                    <p className="text-slate-600">
-                      These POS / Sound Box form tasks have <span className="font-semibold">no KPI task of their own yet</span>: today they count under the
-                      general task (e.g. Sound Box Maintenance under Sound Box Operational Support). They will be added <span className="font-semibold">Inactive,
-                      at the points they earn today</span>: nothing changes until you switch them on, then they count separately.
-                    </p>
-                  ) : (
-                    <p className="text-slate-600">
-                      These Merchant Visit tasks have <span className="font-semibold">no KPI task yet</span>, so they give no points today.
-                      They will be added at <span className="font-semibold">0 pts and Inactive</span>: no KPI total changes until you set the points and switch them on.
-                    </p>
-                  )}
+                  <p className="text-slate-600">
+                    These Merchant Visit app tasks have <span className="font-semibold">no KPI task of their own yet</span>. They will be added
+                    <span className="font-semibold"> Inactive</span>: no KPI total changes until you check the points and switch them on.
+                    Visit activities start at 0 pts; POS Terminal / Sound Box form tasks (e.g. Sound Box Maintenance) start at the points they earn today.
+                  </p>
                   <ul className="rounded-xl border border-slate-200 divide-y divide-slate-100" data-kpi-sync-list>
                     {syncPreview.candidates.map((c) => (
                       <li key={c.code} className="px-3 py-2 flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-900 truncate">{c.subCategory}</div>
-                          <div className="text-[11px] text-slate-500 font-mono truncate">{c.code} · {c.category}</div>
+                          <div className="text-[11px] text-slate-500 font-mono truncate">{c.code} · {c.category}{c.source === 'field' ? ' · POS / SB form' : ''}</div>
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-semibold text-slate-800 tabular-nums">{c.visits.toLocaleString('en-US')} visit(s){c.points != null ? ` · ${c.points} pts` : ''}</div>
@@ -967,7 +944,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   </ul>
                 </>
               ) : (
-                <p className="text-slate-600">Every {syncPreview.source === 'field' ? 'POS & Sound Box' : 'Merchant Visit'} task already has a KPI task, except the ones you deleted.</p>
+                <p className="text-slate-600">Every Merchant Visit app task already has a KPI task, except the ones you deleted.</p>
               )}
               {syncPreview.deletedSkipped.length > 0 && (
                 <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2.5 cursor-pointer">

@@ -3,7 +3,7 @@
 //  * Staff Directory: KPI Role column (Branch Staff / HO Support / Management + Team lead); Edit -> KPI level (kpi_management_set),
 //    Team lead with branches and extra Staff IDs (kpi_team_lead_save), removing a team lead (kpi_team_lead_delete)
 //  * a browser's old Management list (localStorage) is copied to the database once, then removed
-//  * Settings -> KPI Points & Rules: "Sync POS & Sound Box" finds Sound Box Maintenance (kpi_sync_from_mv {source: field})
+//  * Settings -> KPI Points & Rules: the one "Sync from Merchant Visit" also finds Sound Box Maintenance (kpi_sync_from_mv {source: field})
 // Run against a built dist/ (stand-in URL) served on 127.0.0.1:8500 (node tests/e2e/serve-dist.cjs).
 const S = require('./lib/standin.js');
 const { chromium, B, sleep } = S;
@@ -66,13 +66,14 @@ async function api(route) {
   await p.getByText('KPI Points & Rules').first().click().catch(() => {}); await sleep(1500);
   ok(!(await p.locator('section[aria-label="Management Level KPI Exemption"]').count()) && !(await p.locator('section[aria-label="KPI team leads"]').count()), 'Settings -> KPI: no Management Level card, no Team leads card');
   ok(await p.locator('[data-kpi-roles-moved]').isVisible() && /set in Staff Directory/.test(await p.locator('[data-kpi-roles-moved]').innerText()), 'a one-line pointer to the Staff Directory');
-  await p.locator('[data-kpi-sync-field]').click(); await sleep(1200);
+  ok(await p.locator('[data-kpi-sync]').count() === 1 && await p.locator('[data-kpi-sync-field]').count() === 0, 'one Sync button only ("Sync from Merchant Visit")');
+  await p.locator('[data-kpi-sync]').click(); await sleep(1200);
   const list = await p.locator('[data-kpi-sync-list]').innerText().catch(() => '');
-  ok(/Sync KPI tasks from POS & Sound Box forms/.test(await text()) && /Sound Box Maintenance/.test(list) && /680 visit\(s\) · 2 pts/.test(list), 'Sync POS & Sound Box: lists Sound Box Maintenance, 680 visits, 2 pts', list);
-  ok(calls.some((c) => c[0] === 'sync' && c[1].source === 'field' && !c[1].apply), 'kpi_sync_from_mv is asked with source "field"');
+  ok(/Sync KPI tasks from Merchant Visit/.test(await text()) && /Sound Box Maintenance/.test(list) && /680 visit\(s\) · 2 pts/.test(list) && /POS \/ SB form/.test(list), 'Sync from Merchant Visit: also lists Sound Box Maintenance (POS / SB form), 680 visits, 2 pts', list);
+  ok(calls.some((c) => c[0] === 'sync' && c[1].source === 'field' && !c[1].apply) && calls.some((c) => c[0] === 'sync' && !c[1].source && !c[1].apply), 'the one button checks both: visit activities and the POS / Sound Box forms');
   await p.locator('[data-kpi-sync-apply]').click(); await sleep(1500);
-  ok(calls.some((c) => c[0] === 'sync' && c[1].source === 'field' && c[1].apply), 'Add: applied with source "field"');
-  ok(/Sound Box Maintenance/.test(await text()) && /points these visits earn today/.test(await text()), 'the new task is listed; the message says it starts at today\'s points, Inactive');
+  ok(calls.some((c) => c[0] === 'sync' && c[1].source === 'field' && c[1].apply), 'Add: applied for the POS / Sound Box forms too');
+  ok(/Sound Box Maintenance/.test(await text()) && /points these visits earn today/.test(await text()), 'the new task is listed; the message says form tasks start at today\'s points, Inactive');
 
   // ---- Staff Directory
   await p.locator('aside').first().getByRole('button', { name: /Staff Directory/ }).first().click(); await sleep(1800);
