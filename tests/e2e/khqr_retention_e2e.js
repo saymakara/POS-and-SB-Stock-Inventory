@@ -126,7 +126,9 @@ async function api(route) {
     if (m.current) return json(400, { message: 'The current month cannot be deleted.' });
     const take = Math.min(m.entries, body.p.max || 5000); m.entries -= take;
     const att = m.entries === 0 ? m.attempts : 0; m.attempts -= att; m.summary_entries += take;
-    return json(200, { entries_removed: take, attempts_removed: att, remaining: m.entries + m.attempts, month: m.month });
+    const remaining = m.entries + m.attempts;
+    if (!remaining) { m.summary_entries = 0; state.ret.months = state.ret.months.filter((x) => x !== m); }   // (28 Nov 2026) totals go too: the month is gone
+    return json(200, { entries_removed: take, attempts_removed: att, remaining, month: m.month });
   }
   if (path === '/rest/v1/rpc/field_approve') {
     state.approve = body; const e = state.events.find(x => x.id === body.p_id);
@@ -166,16 +168,17 @@ async function api(route) {
   ok(await sec.locator('select[aria-label="Months of KHQR details kept"]').inputValue() === '6', 'kept: 6 months (default)');
   ok(/From June 2026/.test(t) && /23 MB/.test(t), 'shows from which month details are kept and their size');
   ok(/November 2026 12,000 90 This month/.test(r) && /October 2026 7,000 30 Kept/.test(r) && /April 2026 — — Totals only/.test(r), 'month list: counts and status - ' + r);
-  ok(await sec.locator('button[aria-label="Delete KHQR details of November 2026"]').count() === 0 && await sec.locator('button[aria-label="Delete KHQR details of April 2026"]').count() === 0,
-    'no Delete for the current month, nor for a month already reduced to totals');
-  // delete October: confirm, done in parts until nothing is left
-  await sec.locator('button[aria-label="Delete KHQR details of October 2026"]').click(); await sleep(2500);
-  ok(dialogs.some((d) => /Delete the KHQR Installation details of October 2026 \(7,030 records\)/.test(d) && /KPI Performance and dashboard totals for October 2026 stay/.test(d)), 'asks to confirm, saying KPI totals stay');
+  ok(await sec.locator('button[aria-label="Delete all KHQR data of November 2026"]').count() === 0, 'no Delete for the current month');
+  ok(/Delete totals/.test(await sec.locator('button[aria-label="Delete all KHQR data of April 2026"]').innerText().catch(() => '')), '(28 Nov 2026) a month reduced to totals by the night clean-up can have its totals deleted');
+  // delete October: confirm, done in parts until nothing is left; the totals go too
+  await sec.locator('button[aria-label="Delete all KHQR data of October 2026"]').click(); await sleep(2500);
+  ok(dialogs.some((d) => /Delete ALL KHQR Installation data of October 2026 \(7,030 records\)/.test(d) && /count 0 KHQR on the KHQR page, in KPI Performance and on the Dashboard/.test(d) && /cannot be undone/.test(d)),
+    'asks to confirm, saying the month will count 0 everywhere and cannot be undone');
   ok((state.delCalls || []).length === 2 && state.delCalls.every((c) => c.month === '2026-10' && c.max === 5000), 'deleted in parts (2 calls of up to 5,000) - ' + JSON.stringify(state.delCalls));
   r = await rows();
-  ok(/October 2026 — — Totals only \(details deleted\)/.test(r), 'October now shows "Totals only (details deleted)" - ' + r);
+  ok(!/October 2026/.test(r), 'October is gone from the list (no details, no totals) - ' + r);
   const msg = await p.textContent('[role=status]').catch(() => '');
-  ok(/October 2026:? ?7,030 KHQR records deleted · KPI and dashboard totals kept/.test(msg), 'message: records deleted, KPI totals kept [' + msg + ']');
+  ok(/October 2026:? ?KHQR data deleted \(7,030 records\) · totals removed too/.test(msg), 'message: data and totals deleted [' + msg + ']');
   // keep 3 months instead of 6: confirm (shorter), saved
   await sec.locator('select[aria-label="Months of KHQR details kept"]').selectOption('3'); await sec.getByRole('button', { name: /Save/ }).click(); await sleep(1500);
   ok(state.retSet && state.retSet.keep_months === 3 && dialogs.some((d) => /Keep KHQR details for 3 month\(s\) instead of 6/.test(d)), 'keep 3 months: confirmed and saved');

@@ -5,7 +5,7 @@ import { KhqrRetention, deleteKhqrMonth, fetchKhqrRetention, setKhqrKeepMonths }
 /**
  * (21 Nov 2026, owner) Settings > Data: KHQR Installation data kept on the server. The details are kept N months (default 6);
  * older months are deleted at night. A Super Admin chooses N and can delete one month's details now. KPI Performance and the
- * dashboards keep their totals for every month (daily summaries), so deleting details never changes a KPI.
+ * dashboards keep their totals after the night clean-up. (28 Nov 2026) The Delete button removes a month completely, totals included.
  */
 interface Props { isSuperAdmin: boolean; toast: (m: string) => void }
 const MONTHS = Array.from({ length: 24 }, (_, i) => i + 1);
@@ -36,11 +36,12 @@ export const KhqrRetentionSection = memo(function KhqrRetentionSection({ isSuper
     finally { setBusy(''); }
   };
   const remove = async (ym: string, n: number) => {
-    if (!window.confirm(`Delete the KHQR Installation details of ${label(ym)} (${fmt(n)} records)?\n\nThe entries, merchant names, photos links and GPS of that month are removed for good. KPI Performance and dashboard totals for ${label(ym)} stay the same.`)) return;
+    // (28 Nov 2026, owner) a deleted month is deleted completely: details AND totals
+    if (!window.confirm(`Delete ALL KHQR Installation data of ${label(ym)}${n ? ` (${fmt(n)} records)` : ' (totals)'}?\n\nThe entries, merchant names, photo links, GPS and the month's totals are removed for good. ${label(ym)} will count 0 KHQR on the KHQR page, in KPI Performance and on the Dashboard.\n\nThis cannot be undone.`)) return;
     setBusy(ym); setProgress('');
     try {
       const done = await deleteKhqrMonth(ym, (removed, left) => setProgress(left > 0 ? `${fmt(removed)} deleted · ${fmt(left)} to go…` : ''));
-      toast(`${label(ym)}: ${fmt(done)} KHQR records deleted · KPI and dashboard totals kept.`);
+      toast(`${label(ym)}: KHQR data deleted${done ? ` (${fmt(done)} records)` : ''} · totals removed too: the month now counts 0 in KHQR, KPI Performance and Dashboard.`);
       await load();
     } catch (e) { toast(`Not deleted: ${e instanceof Error ? e.message : String(e)}`); await load(); }
     finally { setBusy(''); setProgress(''); }
@@ -52,7 +53,7 @@ export const KhqrRetentionSection = memo(function KhqrRetentionSection({ isSuper
         <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center"><Database className="w-4 h-4" /></div>
         <div className="min-w-0">
           <h3 className="text-sm font-extrabold text-zinc-900">KHQR Installation data kept</h3>
-          <p className="text-[11px] text-slate-500">Details are kept on the server for the months below; older months are deleted at night. KPI Performance and dashboard totals are kept for every month.</p>
+          <p className="text-[11px] text-slate-500">Details are kept on the server for the months below; older months are deleted at night. The night clean-up keeps the totals (KPI Performance, Dashboard); <strong>Delete</strong> removes a month completely, totals included.</p>
         </div>
       </div>
       {err ? <p className="text-xs text-rose-600" role="alert">{err}</p> : !info ? (
@@ -89,7 +90,7 @@ export const KhqrRetentionSection = memo(function KhqrRetentionSection({ isSuper
               </thead>
               <tbody>
                 {info.months.map((m) => {
-                  const has = m.entries + m.attempts > 0;
+                  const has = m.entries + m.attempts > 0, totals = m.summaryEntries > 0;
                   const status = m.current ? 'This month' : !has ? 'Totals only (details deleted)' : m.autoDelete ? 'Deleted tonight (totals kept)' : 'Kept';
                   return (
                     <tr key={m.month} className="border-b border-slate-50 last:border-0">
@@ -100,11 +101,11 @@ export const KhqrRetentionSection = memo(function KhqrRetentionSection({ isSuper
                         {busy === m.month && progress ? progress : status}
                       </td>
                       <td className="py-2 text-right">
-                        {isSuperAdmin && has && !m.current && (
+                        {isSuperAdmin && (has || totals) && !m.current && (
                           <button type="button" onClick={() => remove(m.month, m.entries + m.attempts)} disabled={!!busy}
-                            aria-label={`Delete KHQR details of ${label(m.month)}`}
+                            aria-label={`Delete all KHQR data of ${label(m.month)}`} title="Deletes the details and the totals of the month (counts 0 in KPI and Dashboard)"
                             className="px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
-                            {busy === m.month ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Delete details
+                            {busy === m.month ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} {has ? 'Delete month' : 'Delete totals'}
                           </button>
                         )}
                       </td>
