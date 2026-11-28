@@ -699,10 +699,22 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
       </section>
 
       {/* (28 Nov 2026) Management Level and Team leads are set in the Staff Directory (Edit a staff member) */}
-      <p className="text-[12px] text-slate-600 px-1 -my-1" data-kpi-roles-moved>
-        <Users className="w-3.5 h-3.5 inline -mt-0.5 mr-1 text-[#1e5b88]" aria-hidden />
-        Management Level (0 target) and Team leads (Team KPI in the Merchant Visit app) are set in <strong>Staff Directory</strong>: open a staff member and use <em>KPI role</em>.
-      </p>
+      <div
+        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-2xs text-xs text-slate-600"
+        data-kpi-roles-moved
+      >
+        <span
+          className="w-7 h-7 rounded-lg bg-sky-50 border border-sky-100 text-[#1e5b88] flex items-center justify-center shrink-0"
+          aria-hidden
+        >
+          <Users className="w-3.5 h-3.5" />
+        </span>
+        <p className="leading-relaxed">
+          Management Level (0 target) and Team leads (Team KPI in the Merchant Visit app) are set in{' '}
+          <strong className="font-semibold text-slate-800">Staff Directory</strong>: open a staff member and use{' '}
+          <em className="not-italic font-medium text-slate-700">KPI role</em>.
+        </p>
+      </div>
 
       {/* ───────────── 4. KPI Point Matrix ───────────── */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="KPI Point Matrix">
