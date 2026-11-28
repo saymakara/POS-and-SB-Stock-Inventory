@@ -16,7 +16,7 @@ import { usePager } from '../utils/usePager';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv } from '../utils/exportCsv';
-import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT, loadManagementList, watchManagementList } from '../utils/kpiManagementUtils';
+import { getHoSupportSet, getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT, loadManagementList, watchManagementList } from '../utils/kpiManagementUtils';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import type { StaffAccount } from '../services/supabaseService';
 import { normalizeStaffName } from '../utils/staffUtils';
@@ -1143,6 +1143,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return () => window.removeEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, handler);
   }, []);
   const exemptSet = useMemo(() => getManagementExemptSet(), [exemptVersion]);
+  // (28 Nov 2026) HO Support (Staff Directory -> KPI level): full target, shown as "HO Support"
+  const hoSet = useMemo(() => getHoSupportSet(), [exemptVersion]);
 
   const handleViewChange = useCallback((newView: KpiView) => {
     setSelectedCard(null);
@@ -1358,7 +1360,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         empId,
         name,
         branchId,
-        position: String(positionRaw || '').trim() || (isManagement ? 'Management' : 'MS Officer'),
+        position: isStaffManagementExempt(empId, name, hoSet) ? 'HO Support' : String(positionRaw || '').trim() || (isManagement ? 'Management' : 'MS Officer'),
         role: String(roleRaw || 'BRANCH'),
         isManagement,
       };
@@ -1415,14 +1417,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         empId: idKey,
         name: rawName || idKey,
         branchId: fbId,
-        position: isManagement ? 'Management' : 'MS Officer',
+        position: isManagement ? 'Management' : isStaffManagementExempt(idKey, rawName, hoSet) ? 'HO Support' : 'MS Officer',
         role: 'BRANCH',
         isManagement,
       };
     };
 
     return { hasDirectory, members, byEmpId, byName, matchPpStaff };
-  }, [cachedStaff, users, branches, exemptSet]);
+  }, [cachedStaff, users, branches, exemptSet, hoSet]);
 
   const staffMetaMap = useMemo(() => {
     const map = new Map<string, { position: string; role: string; isManagement: boolean; name: string }>();
@@ -1433,7 +1435,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         (b.staffDetails || []).forEach((u) => {
           const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
           const entry = {
-            position: u.position || (isMgt ? 'Management' : 'MS Officer'),
+            position: isStaffManagementExempt(u.empId, u.name, hoSet) ? 'HO Support' : u.position || (isMgt ? 'Management' : 'MS Officer'),
             role: u.accessRole || 'BRANCH',
             isManagement: isMgt,
             name: u.name,
@@ -1456,7 +1458,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     });
 
     return map;
-  }, [branches, exemptSet, ppDirectoryScope]);
+  }, [branches, exemptSet, hoSet, ppDirectoryScope]);
 
   const ruleMap = useMemo(() => {
     const m = new Map<string, KpiPointRule>();
