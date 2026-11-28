@@ -196,7 +196,8 @@ function fmtShortDate(ymd: string): string {
 }
 
 const NF_PTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });   // reused (same text as toLocaleString)
-const fmtPts = (n: number) => NF_PTS.format(n);
+const round2 = (n: number): number => Math.round((Number(n) || 0) * 100) / 100;
+const fmtPts = (n: number) => NF_PTS.format(round2(n));
 const NF_INT = new Intl.NumberFormat('en-US');
 const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const fmtInt = (n: number) => NF_INT.format(n);
@@ -2441,7 +2442,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       const days = matrixDays.map((d) => {
         const item = dailyBranchMap.get(`${b.branchId}__${d.isoDay}`);
+<<<<<<< Updated upstream
         const count = isTaskMode ? (item?.totalTasks ?? 0) : Math.round((Number(item?.totalPts) || 0) * 100) / 100;
+=======
+        const count = round2(item?.totalTasks ?? 0);
+>>>>>>> Stashed changes
         allDaysTotal += count;
         if (d.isWorkDay) {
           monthTotal += count;
@@ -2459,6 +2464,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           holidayName: d.holidayName,
         };
       });
+
+      monthTotal = round2(monthTotal);
+      allDaysTotal = round2(allDaysTotal);
+      weekendHolidayTasks = round2(weekendHolidayTasks);
 
       // Branch target dynamically follows Individual Target multiplied by number of staff in branch
       const staffCount = Math.max(1, b.staffCount);
@@ -2506,6 +2515,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         totalsByDay[d.dayNum] += d.count;
       }
     }
+
+    for (const d of matrixDays) {
+      totalsByDay[d.dayNum] = round2(totalsByDay[d.dayNum]);
+    }
+    allGrandTotal = round2(allGrandTotal);
 
     const workDays = monthWorkDaysSummary.workDays > 0 ? monthWorkDaysSummary.workDays : (data?.targets?.workDaysInMonth ?? 21);
     const avgDailyTotal = workDays > 0 ? Math.round((allGrandTotal / workDays) * 10) / 10 : 0;
@@ -2623,7 +2637,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       const days = matrixDays.map((d) => {
         const item = dailyStaffMap.get(`${s.staffId}__${d.isoDay}`);
+<<<<<<< Updated upstream
         const count = isTaskMode ? (item?.totalTasks ?? 0) : Math.round((Number(item?.totalPts) || 0) * 100) / 100;
+=======
+        const count = round2(item?.totalTasks ?? 0);
+>>>>>>> Stashed changes
         allDaysTotal += count;
         if (d.isWorkDay) {
           monthTotal += count;
@@ -2641,6 +2659,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           holidayName: d.holidayName,
         };
       });
+
+      monthTotal = round2(monthTotal);
+      allDaysTotal = round2(allDaysTotal);
+      weekendHolidayTasks = round2(weekendHolidayTasks);
 
       const isManagement = s.isManagement;
       const dailyAvg = workDays > 0 ? Math.round((monthTotal / workDays) * 10) / 10 : 0;
@@ -2687,6 +2709,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         totalsByDay[d.dayNum] += d.count;
       }
     }
+
+    for (const d of matrixDays) {
+      totalsByDay[d.dayNum] = round2(totalsByDay[d.dayNum]);
+    }
+    allGrandTotal = round2(allGrandTotal);
 
     const workDays = monthWorkDaysSummary.workDays > 0 ? monthWorkDaysSummary.workDays : (data?.targets?.workDaysInMonth ?? 21);
     const avgDailyTotal = workDays > 0 ? Math.round((allGrandTotal / workDays) * 10) / 10 : 0;
@@ -5910,7 +5937,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <div className="text-xs font-medium text-slate-600 flex flex-wrap items-center gap-2">
                   <span>Work Days: <strong className="text-slate-800 font-semibold">{monthWorkDaysSummary.workDays} days</strong> ({monthWorkDaysSummary.daysInMonth}d total − {monthWorkDaysSummary.weekendDays} weekend − {monthWorkDaysSummary.weekdayHolidays} Cambodian hol.)</span>
                   <span className="text-slate-300">·</span>
+<<<<<<< Updated upstream
                   <span>{isTaskMode ? 'Month Tasks' : 'Month Points'}: <strong className="text-slate-800 font-semibold">{fmtDay(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} {dayUnit}</strong></span>
+=======
+                  <span>Month Tasks: <strong className="text-slate-800 font-semibold">{fmtPts(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} tasks</strong></span>
+>>>>>>> Stashed changes
                   <span className="text-slate-300">·</span>
                   <span>Daily Avg: <strong className="text-slate-800 font-semibold">{tableMode === 'staff' ? matrixStaffDayTotals.avgDailyTotal : matrixDayTotals.avgDailyTotal} {dayUnit}/day</strong></span>
                   {loadingOlderDays && (
@@ -6501,7 +6532,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       setDailySortDir((dir) => (dailySortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                                     }}
                                     title={titleText}
-                                    className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                                    className={`matrix-day-th px-0.5 py-1.5 text-center w-[44px] min-w-[44px] max-w-[44px] cursor-pointer select-none transition-colors border-b border-white/20 ${
                                       isHol || isWk
                                         ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
                                         : 'text-white hover:bg-white/10'
@@ -6623,7 +6654,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       return (
                                         <td
                                           key={d.dayNum}
-                                          className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
+                                          className={`px-0.5 py-1 text-center w-[44px] min-w-[44px] max-w-[44px] transition-colors ${
                                             isHol || isWk
                                               ? 'bg-amber-50/40 border-r border-slate-100'
                                               : 'border-r border-slate-100'
@@ -6642,7 +6673,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                                   : 'text-slate-400 font-normal'
                                               }`}
                                             >
+<<<<<<< Updated upstream
                                               {fmtDay(d.count)}
+=======
+                                              {fmtPts(d.count)}
+>>>>>>> Stashed changes
                                             </span>
                                           ) : (
                                             <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
@@ -6653,7 +6688,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                     {/* Summary Columns */}
                                     <td className="px-3 py-2 text-center tabular-nums font-normal text-slate-900 border-l border-slate-200/60">
+<<<<<<< Updated upstream
                                       {fmtDay(row.monthTotalTasks)}
+=======
+                                      {fmtPts(row.monthTotalTasks)}
+>>>>>>> Stashed changes
                                     </td>
                                     <td className="px-2 py-2 text-center tabular-nums font-normal text-slate-700">
                                       {row.dailyAvg}
@@ -6685,23 +6724,34 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                 {matrixDays.map((d) => {
                                   const count = matrixDayTotals.totalsByDay[d.dayNum] || 0;
+                                  const countLabel = count > 0 ? fmtPts(count) : '·';
                                   return (
                                     <td
                                       key={d.dayNum}
-                                      className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
+                                      className={`px-0.5 py-2 text-center w-[44px] min-w-[44px] max-w-[44px] tabular-nums text-[10.5px] whitespace-nowrap ${
                                         d.isHoliday || d.isWeekend
                                           ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
                                           : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                                       }`}
+<<<<<<< Updated upstream
                                       title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtDay(count)} ${dayUnit}`}
                                     >
                                       {count > 0 ? fmtDay(count) : '·'}
+=======
+                                      title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtPts(count)} tasks`}
+                                    >
+                                      {countLabel}
+>>>>>>> Stashed changes
                                     </td>
                                   );
                                 })}
 
                                 <td className="px-3 py-2.5 text-center tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
+<<<<<<< Updated upstream
                                   {fmtDay(matrixDayTotals.allGrandTotal)}
+=======
+                                  {fmtPts(matrixDayTotals.allGrandTotal)}
+>>>>>>> Stashed changes
                                 </td>
                                 <td className="px-2 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                                   {matrixDayTotals.avgDailyTotal}
@@ -6893,7 +6943,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             setDailyStaffSortDir((dir) => (dailyStaffSortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                           }}
                           title={titleText}
-                          className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                          className={`matrix-day-th px-0.5 py-1.5 text-center w-[44px] min-w-[44px] max-w-[44px] cursor-pointer select-none transition-colors border-b border-white/20 ${
                             isHol || isWk
                                         ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
                                         : 'text-white hover:bg-white/10'
@@ -7027,7 +7077,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             return (
                               <td
                                 key={d.dayNum}
-                                className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
+                                className={`px-0.5 py-1 text-center w-[44px] min-w-[44px] max-w-[44px] transition-colors ${
                                   isHol || isWk
                                               ? 'bg-amber-50/40 border-r border-slate-100'
                                               : 'border-r border-slate-100'
@@ -7046,7 +7096,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         : 'text-slate-400 font-normal'
                                     }`}
                                   >
+<<<<<<< Updated upstream
                                     {fmtDay(d.count)}
+=======
+                                    {fmtPts(d.count)}
+>>>>>>> Stashed changes
                                   </span>
                                 ) : (
                                   <span className="text-slate-300 text-xs font-light select-none" title={isHol ? (dayMeta?.holidayName || 'Holiday') : undefined}>·</span>
@@ -7057,7 +7111,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                           {/* Summary Columns */}
                           <td className="px-3 py-2 text-center tabular-nums font-normal text-slate-900 border-l border-slate-200/60">
+<<<<<<< Updated upstream
                             {fmtDay(row.monthTotalTasks)}
+=======
+                            {fmtPts(row.monthTotalTasks)}
+>>>>>>> Stashed changes
                           </td>
                           <td className="px-2 py-2 text-center tabular-nums font-normal text-slate-700">
                             {row.dailyAvg}
@@ -7098,23 +7156,32 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                       {matrixDays.map((d) => {
                         const count = matrixStaffDayTotals.totalsByDay[d.dayNum] || 0;
+                        const countLabel = count > 0 ? fmtPts(count) : '·';
                         return (
                           <td
                             key={d.dayNum}
-                            className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
+                            className={`px-0.5 py-2 text-center w-[44px] min-w-[44px] max-w-[44px] tabular-nums text-[10.5px] whitespace-nowrap ${
                               d.isHoliday || d.isWeekend
                                           ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
                                           : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                             }`}
+<<<<<<< Updated upstream
                             title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtDay(count)} ${dayUnit}`}
+=======
+                            title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${fmtPts(count)} tasks`}
+>>>>>>> Stashed changes
                           >
-                            {count > 0 ? count : '·' }
+                            {countLabel}
                           </td>
                         );
                       })}
 
                       <td className="px-3 py-2.5 text-center tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
+<<<<<<< Updated upstream
                         {fmtDay(matrixStaffDayTotals.allGrandTotal)}
+=======
+                        {fmtPts(matrixStaffDayTotals.allGrandTotal)}
+>>>>>>> Stashed changes
                       </td>
                       <td className="px-2 py-2.5 text-center tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                         {matrixStaffDayTotals.avgDailyTotal}
