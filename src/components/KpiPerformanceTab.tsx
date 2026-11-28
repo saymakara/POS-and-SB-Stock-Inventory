@@ -1,4 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { buildAnnularArcPath } from './Charts';
 import {
@@ -492,10 +493,10 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 568;
-const KT_VB_H = 342;
-const KT_CX = 284;
-const KT_CY = 171;
+const KT_VB_W = 620;
+const KT_VB_H = 360;
+const KT_CX = 310;
+const KT_CY = 180;
 const KT_R_INNER = 88;
 const KT_R_OUTER = 104;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
@@ -714,10 +715,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       return { spec, sx, sy, side, targetY };
     });
 
-    const CALLOUT_H = 42;
-    const MIN_GAP = 56;
-    const Y_MIN = 30;
-    const Y_MAX = KT_VB_H - 30;
+    const CALLOUT_H = 54;
+    const MIN_GAP = 70;
+    const Y_MIN = 36;
+    const Y_MAX = KT_VB_H - 36;
 
     const placeSide = (side: 'left' | 'right') => {
       const group = items
@@ -758,8 +759,8 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.max(g.sx + 28, KT_CX + clearDx + 24);
         const ex =
           side === 'left'
-            ? Math.max(156, Math.min(KT_CX - 28, rawEx))
-            : Math.min(KT_VB_W - 144, Math.max(KT_CX + 28, rawEx));
+            ? Math.max(180, Math.min(KT_CX - 28, rawEx))
+            : Math.min(KT_VB_W - 180, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 10)
@@ -836,7 +837,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[568px] aspect-[568/342] flex items-center justify-center"
+          className="relative w-full max-w-[620px] aspect-[620/360] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -1018,17 +1019,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-1.5 py-0.5 @[440px]:px-2.5 @[440px]:py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+                className={`absolute px-2.5 py-1.5 @[380px]:px-3.5 @[380px]:py-2.5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col items-start justify-center gap-0.5 @[380px]:gap-1 text-left leading-snug min-w-[126px] @[440px]:min-w-[154px] ${
                   isActive
                     ? 'shadow-sm'
-                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
+                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1 @[440px]:gap-1.5 text-[7.5px] @[340px]:text-[8.5px] @[440px]:text-[10.5px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-1.5 h-1.5 @[440px]:w-2 @[440px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1.5 @[440px]:gap-2 text-[9px] @[360px]:text-[10.5px] @[440px]:text-[12px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-2 h-2 @[440px]:w-2.5 @[440px]:h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[7px] @[340px]:text-[8px] @[440px]:text-[10px] font-figure font-semibold tabular-nums whitespace-nowrap pl-2.5 @[440px]:pl-3 text-slate-500">
+                <span className="text-[8.5px] @[360px]:text-[10px] @[440px]:text-[11.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3.5 @[440px]:pl-4.5 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -1131,6 +1132,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [dailyStaffSortDir, setDailyStaffSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const heroMetricToggleRef = useRef<HTMLDivElement>(null);
+  const [showFloatingMetricToggle, setShowFloatingMetricToggle] = useState(false);
+
+  useEffect(() => {
+    const el = heroMetricToggleRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const rect = entry.boundingClientRect;
+        setShowFloatingMetricToggle(!entry.isIntersecting && rect.height > 0 && rect.bottom < 0);
+      },
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Management KPI Exemption reactive synchronization
   const [exemptVersion, setExemptVersion] = useState(0);
@@ -4126,6 +4145,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <div
+              ref={heroMetricToggleRef}
               className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}
               role="tablist"
               aria-label="KPI metric mode"
@@ -5059,14 +5079,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
               {([
                 { cat: 'KHQR' as KpiViewCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
                 { cat: 'Sound Box' as KpiViewCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(Number(totals.raw.extra?.['SB_MAINTENANCE']) || 0)} maint · ${fmtInt(totals.raw.sbMaint)} op. support` },
                 { cat: 'Credit Card' as KpiViewCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
                 { cat: 'POS Terminal' as KpiViewCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(Number(totals.raw.extra?.['POS_MAINT']) || Number(totals.raw.posMaint) || 0)} op. support` },
                 { cat: 'Merchant Visit' as KpiViewCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
-                { cat: 'Booth Event' as KpiViewCategory, tasks: totals.boothTasks, pts: totals.boothPoints, extra: `${fmtInt(Number(totals.raw.extra?.['MV_BOOTH_EVENT_FULL_DAY']) || 0)} full day · ${fmtInt(Number(totals.raw.extra?.['MV_BOOTH_EVENT_HALF_DAY']) || 0)} half day` },
               ]).map((item) => {
                 const volShare = totals.totalTasks > 0 ? Math.round((item.tasks / totals.totalTasks) * 100) : 0;
                 const ptShare = totals.totalPoints > 0 ? Math.round((item.pts / totals.totalPoints) * 100) : 0;
@@ -8020,7 +8039,58 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   </section>
       </div>
 
-
+      {/* Floating bottom-right By Points / Task Count switch shown once scrolled past top header */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showFloatingMetricToggle && (
+            <motion.div
+              key="kpi-floating-metric-toggle"
+              initial={{ opacity: 0, y: 16, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.94 }}
+              transition={SPRING}
+              className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 rounded-full p-1 bg-white/92 backdrop-blur-md border border-slate-200/90 shadow-[0_14px_36px_-8px_rgba(15,23,42,0.22)] ring-1 ring-slate-900/5"
+            >
+              <div
+                className={`${CAPSULE_TRACK_CLS} shrink-0 whitespace-nowrap`}
+                role="tablist"
+                aria-label="KPI metric mode quick switch"
+              >
+                {([
+                  { m: 'points' as const, label: 'By Points', Icon: Award, accent: 'text-amber-500' },
+                  { m: 'tasks' as const, label: 'Task Count', Icon: CheckSquare, accent: 'text-emerald-600' },
+                ]).map(({ m, label, Icon, accent }) => {
+                  const active = metricMode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => handleMetricModeChange(m)}
+                      className={`relative px-3 py-1.5 rounded-full text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
+                        active ? CAPSULE_BTN_ACTIVE_CLS : CAPSULE_BTN_INACTIVE_CLS
+                      }`}
+                    >
+                      {active && (
+                        <PillMotion
+                          layoutId="kpi-metric-mode-pill-floating"
+                          aria-hidden
+                          transition={SPRING}
+                          className={CAPSULE_PILL_CLS}
+                        />
+                      )}
+                      <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${accent}`} aria-hidden />
+                      <span className="relative z-10">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
