@@ -4397,7 +4397,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ) : (
             <>
               {(() => {
-                const leadBranch = isTaskMode ? totals.topTaskBranch : totals.topBranch;
+                const elapsedDays = Math.max(1, pacingInfo.elapsedWorkDays);
+                const totalDays = Math.max(1, pacingInfo.totalWorkDays);
+                const dailyRunRatePts = Math.round((totals.totalPoints / elapsedDays) * 10) / 10;
+                const dailyRunRateTasks = Math.round((totals.totalTasks / elapsedDays) * 10) / 10;
+                const targetPerDayPts = totals.totalBranchTargetPoints > 0
+                  ? Math.round((totals.totalBranchTargetPoints / totalDays) * 10) / 10
+                  : 0;
+                const dailyTasksPerStaff = totals.activeStaffCount > 0
+                  ? Math.round((dailyRunRateTasks / totals.activeStaffCount) * 10) / 10
+                  : 0;
                 const boothFullDays = Number(totals.raw.extra?.['MV_BOOTH_EVENT_FULL_DAY']) || 0;
                 const boothHalfDays = Number(totals.raw.extra?.['MV_BOOTH_EVENT_HALF_DAY']) || 0;
                 const boothStaffCount = enrichedStaff.filter((s) => s.boothTasks > 0).length;
@@ -4442,14 +4451,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       staggerIndex={1}
                     />
                     <BigKpiCard
-                      label="Leading Branch"
-                      value={leadBranch ? (isTaskMode ? `${fmtInt(leadBranch.totalTasks)} tasks` : `${fmtPts(leadBranch.totalPoints)} pts`) : '—'}
-                      sub={leadBranch ? fmtBranchLabel(leadBranch.branchId, leadBranch.branchName, true) : 'No branch activity'}
-                      icon={Award}
+                      label="Daily Run Rate"
+                      value={isTaskMode ? `${fmtPts(dailyRunRateTasks)} / day` : `${fmtPts(dailyRunRatePts)} / day`}
+                      sub={
+                        isTaskMode
+                          ? `Avg ${fmtPts(dailyTasksPerStaff)} tasks / staff`
+                          : (targetPerDayPts > 0 ? `Target ${fmtPts(targetPerDayPts)} pts / day` : 'Daily point pace')
+                      }
+                      icon={TrendingUp}
                       accentColor="emerald"
-                      badge={leadBranch ? `${leadBranch.staffCount} staff` : undefined}
-                      onClick={() => handleCardClick('leading-branch', 'all', 'branch')}
-                      active={selectedCard === 'leading-branch'}
+                      badge={`Day ${elapsedDays}/${totalDays}`}
+                      onClick={() => handleCardClick('daily-run-rate', 'timeline')}
+                      active={selectedCard === 'daily-run-rate'}
                       staggerIndex={2}
                     />
                     <BigKpiCard
