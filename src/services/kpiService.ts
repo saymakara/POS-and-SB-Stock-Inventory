@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { unpackKpiLists } from '../utils/kpiPack';
-import { todayPP } from '../utils/time';
+import { todayPP, addDaysYmd, diffDaysYmd } from '../utils/time';
 import { emitPortalSync, registerPortalCacheInvalidator } from '../utils/portalSync';
 import { clearOnUserChange, cacheOwner } from '../utils/userScopedCache';
 import { persistGet, persistPut } from '../utils/persistCache';
@@ -16,7 +16,8 @@ export type KpiPeriod =
   | 'LAST'
   | 'BOTH'
   | 'QUARTER'
-  | 'LAST_QUARTER';
+  | 'LAST_QUARTER'
+  | 'CUSTOM';
 
 export const KPI_PERIOD_LABEL: Record<KpiPeriod, string> = {
   ALL: 'All time',
@@ -28,11 +29,34 @@ export const KPI_PERIOD_LABEL: Record<KpiPeriod, string> = {
   BOTH: 'Last 2 months',
   QUARTER: 'This quarter (Quarterly)',
   LAST_QUARTER: 'Last quarter',
+  CUSTOM: 'Selected date',
 };
+
+/** Half-open Phnom Penh (+07:00) ISO range for any single date or inclusive date range. */
+export function kpiCustomRange(
+  fromYmd: string,
+  toYmd?: string | null,
+): { from: string | null; to: string | null; targetKind: 'daily' | 'weekly' | 'monthly' | 'quarterly' } {
+  const start = (fromYmd || todayPP()).slice(0, 10);
+  const rawEnd = (toYmd || start).slice(0, 10);
+  const lo = start <= rawEnd ? start : rawEnd;
+  const hi = start <= rawEnd ? rawEnd : start;
+  const startOf = (ymd: string) => new Date(`${ymd}T00:00:00+07:00`);
+  const nextDay = addDaysYmd(hi, 1);
+  const spanDays = Math.max(1, diffDaysYmd(lo, hi) + 1);
+  const targetKind: 'daily' | 'weekly' | 'monthly' | 'quarterly' =
+    spanDays <= 1 ? 'daily' : spanDays <= 10 ? 'weekly' : spanDays <= 45 ? 'monthly' : 'quarterly';
+  return {
+    from: startOf(lo).toISOString(),
+    to: startOf(nextDay).toISOString(),
+    targetKind,
+  };
+}
 
 export function kpiPeriodRange(p: KpiPeriod): { from: string | null; to: string | null; targetKind: 'daily' | 'weekly' | 'monthly' | 'quarterly' } {
   if (p === 'ALL') return { from: null, to: null, targetKind: 'monthly' };
   const today = todayPP();
+  if (p === 'CUSTOM') return kpiCustomRange(today, today);
   const startOf = (ymd: string) => new Date(`${ymd}T00:00:00+07:00`);
   if (p === 'TODAY') return { from: startOf(today).toISOString(), to: null, targetKind: 'daily' };
   if (p === '7D') return { from: new Date(startOf(today).getTime() - 6 * 86400000).toISOString(), to: null, targetKind: 'weekly' };
@@ -722,7 +746,7 @@ function mapRawCounts(r: any): KpiRawCounts {
 
 const kpiInflight = new Map<string, Promise<KpiDashboardData>>();
 /** Phnom Penh calendar day of an ISO time ("2026-10-31T17:00:00.000Z" -> "2026-11-01"). */
-const ppYmdOf = (iso: string): string => { const t = Date.parse(iso); return Number.isFinite(t) ? todayPP(new Date(t)) : iso.slice(0, 10); };
+export const ppYmdOf = (iso: string): string => { const t = Date.parse(iso); return Number.isFinite(t) ? todayPP(new Date(t)) : iso.slice(0, 10); };
 
 /**
  * (26 Nov 2026) Day-by-day rows before `before` (the first day a summary holds), from `fromYmd` on - read only when a

@@ -42,3 +42,54 @@ export function lastMonthsPP(n: number, d: Date = new Date()): { key: string; la
   for (let i = 0; i < n; i++) { out.unshift({ key: `${y}-${String(m).padStart(2, '0')}`, label: `${names[m - 1]} ${y}` }); m--; if (!m) { m = 12; y--; } }
   return out;
 }
+
+const SHORT_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** Shift a "YYYY-MM-DD" calendar day by `delta` days. */
+export function addDaysYmd(ymd: string, delta: number): string {
+  const t = Date.parse(`${ymd}T00:00:00Z`);
+  if (Number.isNaN(t)) return ymd;
+  return new Date(t + delta * 86400000).toISOString().slice(0, 10);
+}
+
+/** Signed calendar day difference (`toYmd - fromYmd`). */
+export function diffDaysYmd(fromYmd: string, toYmd: string): number {
+  const a = Date.parse(`${fromYmd}T00:00:00Z`);
+  const b = Date.parse(`${toYmd}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
+
+function fmtShortDayLabel(ymd: string): string {
+  const [yy, mm, dd] = ymd.split('-').map(Number);
+  if (!yy || !mm || !dd || mm < 1 || mm > 12) return ymd;
+  return `${SHORT_MONTH_NAMES[mm - 1]} ${dd}`;
+}
+
+function fmtFullDayLabel(ymd: string): string {
+  const [yy, mm, dd] = ymd.split('-').map(Number);
+  if (!yy || !mm || !dd || mm < 1 || mm > 12) return ymd;
+  return `${SHORT_MONTH_NAMES[mm - 1]} ${dd}, ${yy}`;
+}
+
+/** Human label for a single calendar date or inclusive "YYYY-MM-DD" date range. */
+export function formatRangeLabelPP(fromYmd: string, toYmd: string, todayYmd: string = todayPP()): string {
+  const a = fromYmd || todayYmd;
+  const b = toYmd || a;
+  const lo = a <= b ? a : b;
+  const hi = a <= b ? b : a;
+  if (lo === hi) {
+    if (lo === todayYmd) return `Today · ${fmtShortDayLabel(lo)}`;
+    if (lo === addDaysYmd(todayYmd, -1)) return `Yesterday · ${fmtShortDayLabel(lo)}`;
+    return fmtFullDayLabel(lo);
+  }
+  if (lo.slice(0, 7) === hi.slice(0, 7)) {
+    const [, mm, d1] = lo.split('-').map(Number);
+    const [yy, , d2] = hi.split('-').map(Number);
+    if (yy && mm >= 1 && mm <= 12) return `${SHORT_MONTH_NAMES[mm - 1]} ${d1} – ${d2}, ${yy}`;
+  }
+  if (lo.slice(0, 4) === hi.slice(0, 4)) {
+    return `${fmtShortDayLabel(lo)} – ${fmtFullDayLabel(hi)}`;
+  }
+  return `${fmtFullDayLabel(lo)} – ${fmtFullDayLabel(hi)}`;
+}

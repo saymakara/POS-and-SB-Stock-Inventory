@@ -22,12 +22,12 @@ import type { StaffAccount } from '../services/supabaseService';
 import { normalizeStaffName } from '../utils/staffUtils';
 import { isPhnomPenhBranch } from '../utils/fieldScope';
 import {
-  KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
+  KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, kpiCustomRange, ppYmdOf, KpiPointRule, KpiDashboardData,
   KpiRawCounts, computeKpiPoints, isBoothEventCode, addExtraCounts, rulePts, fetchKpiSummary, fetchKpiOlderDays, getCachedKpiSummary,
   KpiDailyBranchRaw, KpiDailyStaffRaw, KpiTimeBucketRaw,
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary, isWeekendDay } from '../utils/cambodiaHolidays';
-import { todayPP } from '../utils/time';
+import { todayPP, addDaysYmd, diffDaysYmd, formatRangeLabelPP } from '../utils/time';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS, ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import {
   PillMotion,
@@ -251,7 +251,7 @@ function buildDailyContiguousSeries(
   // Determine start date
   let startIso: string;
   if (range.from) {
-    startIso = range.from.split('T')[0];
+    startIso = ppYmdOf(range.from);
   } else if (minRecorded) {
     startIso = minRecorded;
   } else {
@@ -265,10 +265,8 @@ function buildDailyContiguousSeries(
   // Determine end date
   let endIso: string;
   if (range.to) {
-    // range.to is an exclusive boundary; subtract 1 day
-    const toDate = new Date(range.to);
-    toDate.setUTCDate(toDate.getUTCDate() - 1);
-    endIso = toDate.toISOString().split('T')[0];
+    // range.to is an exclusive midnight (+07:00) boundary; subtract 1 calendar day
+    endIso = addDaysYmd(ppYmdOf(range.to), -1);
   } else if (period === 'WEEK') {
     // Show entire week Monday through Sunday
     const [sy, sm, sd] = startIso.split('-').map(Number);
@@ -912,6 +910,28 @@ interface Props {
 export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branches, users = [], triggerToast }) => {
   const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const [period, setPeriod] = useState<KpiPeriod>('ALL');
+  const [customFrom, setCustomFrom] = useState<string>(() => todayPP());
+  const [customTo, setCustomTo] = useState<string>(() => todayPP());
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const periodMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!periodMenuOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (periodMenuRef.current && !periodMenuRef.current.contains(e.target as Node)) {
+        setPeriodMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPeriodMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [periodMenuOpen]);
   const [metricMode, setMetricMode] = useState<KpiMetricMode>('points');
   const isTaskMode = metricMode === 'tasks';
   // (27 Nov 2026) Staff / Branch Daily views follow the By Points / Task Count switch
@@ -1050,7 +1070,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     });
   }, []);
 
-  const range = useMemo(() => kpiPeriodRange(period), [period]);
+  const today = todayPP();
+  const range = useMemo(
+    () => (period === 'CUSTOM' ? kpiCustomRange(customFrom, customTo) : kpiPeriodRange(period)),
+    [period, customFrom, customTo],
+  );
+  const activePeriodLabel = useMemo(
+    () => (period === 'CUSTOM' ? formatRangeLabelPP(customFrom, customTo, today) : KPI_PERIOD_LABEL[period]),
+    [period, customFrom, customTo, today],
+  );
   const [baseData, setData] = useState<KpiDashboardData | null>(() => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null);
   // (26 Nov 2026) the KPI answer holds about 3 months of day-by-day rows (months and totals stay complete). The daily
   // table of an older month reads that month's days once, on demand, and they are added here.
@@ -2051,10 +2079,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         boothTasks: number;
       }>();
 
+      const rangeFromYmd = range.from ? ppYmdOf(range.from) : '';
+      const rangeToYmd = range.to ? ppYmdOf(range.to) : '';
       for (const ds of data.dailyStaff) {
         if (!ds.day) continue;
-        if (range.from && ds.day < range.from.slice(0, 10)) continue;
-        if (range.to && ds.day >= range.to.slice(0, 10)) continue;
+        if (rangeFromYmd && ds.day < rangeFromYmd) continue;
+        if (rangeToYmd && ds.day >= rangeToYmd) continue;
         const dir = ppDirectoryScope.matchPpStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
         if (!dir) continue;
         if (!isAdmin && userBranchId && dir.branchId !== userBranchId) continue;
@@ -3523,12 +3553,57 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return sortedMonthlyRows.length;
   };
 
-  const branchPg = usePager(statusFilteredBranches.length, [period, branchFilter, categoryFilter, deferredQuery, statusFilter]);
-  const staffPg = usePager(statusFilteredStaff.length, [period, branchFilter, categoryFilter, deferredQuery, staffLevelFilter, statusFilter]);
+  const branchPg = usePager(statusFilteredBranches.length, [period, customFrom, customTo, branchFilter, categoryFilter, deferredQuery, statusFilter]);
+  const staffPg = usePager(statusFilteredStaff.length, [period, customFrom, customTo, branchFilter, categoryFilter, deferredQuery, staffLevelFilter, statusFilter]);
+
+  const effCustomLo = customFrom <= customTo ? customFrom : customTo;
+  const effCustomHi = customFrom <= customTo ? customTo : customFrom;
+  const isSingleCustomDate = period === 'CUSTOM' && effCustomLo === effCustomHi;
+  const customStepDays = isSingleCustomDate ? 1 : Math.max(1, diffDaysYmd(effCustomLo, effCustomHi) + 1);
+  const canStepCustomForward = isSingleCustomDate
+    ? effCustomHi < today
+    : addDaysYmd(effCustomLo, customStepDays) <= today;
+
+  const applyCustomDates = (nextFrom: string, nextTo?: string) => {
+    const rawFrom = (nextFrom || today).slice(0, 10);
+    const rawTo = (nextTo ?? rawFrom).slice(0, 10);
+    const lo = rawFrom <= rawTo ? rawFrom : rawTo;
+    const hi = rawFrom <= rawTo ? rawTo : rawFrom;
+    const clampedLo = lo > today ? today : lo;
+    const clampedHi = hi > today ? today : hi;
+    startMatrixTransition(() => {
+      setCustomFrom(clampedLo);
+      setCustomTo(clampedHi);
+      setPeriod('CUSTOM');
+      setSelectedTopMonth('ALL');
+      if (clampedLo.slice(0, 7) === clampedHi.slice(0, 7)) {
+        setDailyMatrixMonth(clampedLo.slice(0, 7));
+      }
+    });
+  };
+
+  const selectPresetPeriod = (p: Exclude<KpiPeriod, 'CUSTOM'>) => {
+    startMatrixTransition(() => {
+      setPeriod(p);
+      setSelectedTopMonth('ALL');
+    });
+    setPeriodMenuOpen(false);
+  };
+
+  const stepCustomPeriod = (dir: -1 | 1) => {
+    const delta = dir * customStepDays;
+    const nextFrom = addDaysYmd(effCustomLo, delta);
+    const nextTo = addDaysYmd(effCustomHi, delta);
+    if (dir > 0 && nextFrom > today) return;
+    applyCustomDates(nextFrom, nextTo > today ? today : nextTo);
+  };
 
   const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query || statusFilter !== 'ALL';
   const clearAll = () => {
     setPeriod('ALL');
+    setCustomFrom(today);
+    setCustomTo(today);
+    setPeriodMenuOpen(false);
     setBranchFilter('');
     setCategoryFilter('ALL');
     setStatusFilter('ALL');
@@ -3537,7 +3612,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const exportBranchCsv = async () => {
     if (!statusFilteredBranches.length) return 0;
-    const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
+    const pTag = activePeriodLabel.replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Branch_Performance_${pTag}`,
       ['Rank', 'Branch Name', 'Branch Code', 'Active Staff', 'POS Tasks', 'POS Points', 'Sound Box Tasks', 'Sound Box Points',
@@ -3552,7 +3627,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const exportStaffCsv = async () => {
     if (!statusFilteredStaff.length) return 0;
-    const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
+    const pTag = activePeriodLabel.replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Individual_Staff_${pTag}`,
       ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Operational Support', 'POS Points',
@@ -3683,7 +3758,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     <div className="flex flex-col gap-6 sm:gap-7 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
       <section
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900"
+        className={`relative ${periodMenuOpen ? 'z-30' : 'overflow-hidden'} rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900`}
         aria-label="KPI Performance statistics"
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -3738,19 +3813,209 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 );
               })}
             </div>
-            <select
-              aria-label="Period"
-              value={period}
-              onChange={(e) => {
-                const v = e.target.value as KpiPeriod;
-                startMatrixTransition(() => setPeriod(v));
-              }}
-              className="btn-press px-3.5 py-2 rounded-xl text-xs sm:text-sm font-normal border bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
-            >
-              {(Object.keys(KPI_PERIOD_LABEL) as KpiPeriod[]).map((p) => (
-                <option key={p} value={p}>{KPI_PERIOD_LABEL[p]}</option>
-              ))}
-            </select>
+            <div ref={periodMenuRef} className="relative">
+              {period === 'CUSTOM' ? (
+                <div className="inline-flex items-center p-0.5 rounded-xl border bg-[#eaf4f2] border-[#c3e0da] text-[#1d5c55] shadow-2xs gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => stepCustomPeriod(-1)}
+                    aria-label={isSingleCustomDate ? 'Previous day' : 'Previous date range'}
+                    title={isSingleCustomDate ? 'Previous day' : 'Previous date range'}
+                    className="btn-press p-1.5 rounded-lg text-[#1d5c55] hover:bg-white/80 cursor-pointer transition-colors"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Period and custom date filter"
+                    aria-expanded={periodMenuOpen}
+                    aria-haspopup="dialog"
+                    onClick={() => setPeriodMenuOpen((o) => !o)}
+                    className="btn-press inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-[#1d5c55] hover:bg-white/80 cursor-pointer transition-colors"
+                  >
+                    <Calendar className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    <span className="whitespace-nowrap">{activePeriodLabel}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${periodMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepCustomPeriod(1)}
+                    disabled={!canStepCustomForward}
+                    aria-label={isSingleCustomDate ? 'Next day' : 'Next date range'}
+                    title={isSingleCustomDate ? 'Next day' : 'Next date range'}
+                    className="btn-press p-1.5 rounded-lg text-[#1d5c55] hover:bg-white/80 disabled:opacity-35 disabled:pointer-events-none cursor-pointer transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Period and custom date filter"
+                  aria-expanded={periodMenuOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => setPeriodMenuOpen((o) => !o)}
+                  className={`btn-press inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm border shadow-2xs cursor-pointer transition-colors ${
+                    period !== 'ALL'
+                      ? 'bg-[#eaf4f2] hover:bg-[#e1efec] text-[#1d5c55] border-[#c3e0da] font-semibold'
+                      : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 font-normal'
+                  }`}
+                >
+                  <Calendar className={`w-3.5 h-3.5 shrink-0 ${period !== 'ALL' ? 'text-[#1d5c55]' : 'text-slate-500'}`} aria-hidden />
+                  <span className="whitespace-nowrap">{activePeriodLabel}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${periodMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
+                </button>
+              )}
+
+              {periodMenuOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Filter KPI view by date or period"
+                  className="absolute right-0 mt-2 w-[330px] sm:w-[376px] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.22)] p-3.5 space-y-3 z-50"
+                >
+                  {/* 1. Specific Single Date */}
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Select Any Date
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { applyCustomDates(today, today); setPeriodMenuOpen(false); }}
+                          className={`btn-press px-2 py-0.5 rounded-md text-[11px] font-semibold border cursor-pointer transition-colors ${
+                            period === 'CUSTOM' && effCustomLo === today && effCustomHi === today
+                              ? 'bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da]'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          Today
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { const y = addDaysYmd(today, -1); applyCustomDates(y, y); setPeriodMenuOpen(false); }}
+                          className={`btn-press px-2 py-0.5 rounded-md text-[11px] font-semibold border cursor-pointer transition-colors ${
+                            period === 'CUSTOM' && effCustomLo === addDaysYmd(today, -1) && effCustomHi === addDaysYmd(today, -1)
+                              ? 'bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da]'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          Yesterday
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="date"
+                      aria-label="Select specific date"
+                      max={today}
+                      value={effCustomLo}
+                      style={{ colorScheme: 'light' }}
+                      onChange={(e) => {
+                        if (e.target.value) applyCustomDates(e.target.value, e.target.value);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:border-[#155484] text-xs font-medium text-slate-800 outline-none tabular-nums"
+                    />
+                  </div>
+
+                  {/* 2. Custom Date Range */}
+                  <div className="pt-2.5 border-t border-slate-100">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Custom Date Range
+                      </span>
+                      {period === 'CUSTOM' && effCustomLo !== effCustomHi && (
+                        <span className="text-[11px] font-semibold text-[#1d5c55] tabular-nums">
+                          {Math.max(1, diffDaysYmd(effCustomLo, effCustomHi) + 1)} days
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block space-y-1">
+                        <span className="block text-[10px] font-semibold text-slate-500">From</span>
+                        <input
+                          type="date"
+                          aria-label="Custom start date"
+                          max={today}
+                          value={effCustomLo}
+                          style={{ colorScheme: 'light' }}
+                          onChange={(e) => {
+                            if (e.target.value) applyCustomDates(e.target.value, effCustomHi < e.target.value ? e.target.value : effCustomHi);
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white focus:border-[#155484] text-xs font-medium text-slate-800 outline-none tabular-nums"
+                        />
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="block text-[10px] font-semibold text-slate-500">To</span>
+                        <input
+                          type="date"
+                          aria-label="Custom end date"
+                          max={today}
+                          value={effCustomHi}
+                          style={{ colorScheme: 'light' }}
+                          onChange={(e) => {
+                            if (e.target.value) applyCustomDates(effCustomLo > e.target.value ? e.target.value : effCustomLo, e.target.value);
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 focus:bg-white focus:border-[#155484] text-xs font-medium text-slate-800 outline-none tabular-nums"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 3. Standard Period Presets */}
+                  <div className="pt-2.5 border-t border-slate-100">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      Quick Periods
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(Object.keys(KPI_PERIOD_LABEL) as KpiPeriod[])
+                        .filter((p): p is Exclude<KpiPeriod, 'CUSTOM'> => p !== 'CUSTOM')
+                        .map((p) => {
+                          const isActive = period === p;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => selectPresetPeriod(p)}
+                              className={`btn-press px-2.5 py-1.5 rounded-lg text-[11px] text-left border cursor-pointer transition-colors ${
+                                isActive
+                                  ? 'bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da] font-semibold'
+                                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/80 font-medium'
+                              }`}
+                            >
+                              {KPI_PERIOD_LABEL[p]}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 truncate">
+                      {activePeriodLabel} · {activeTargets.label}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {period !== 'ALL' && (
+                        <button
+                          type="button"
+                          onClick={() => selectPresetPeriod('ALL')}
+                          className="btn-press px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                        >
+                          Reset
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPeriodMenuOpen(false)}
+                        className="btn-press px-3 py-1 rounded-lg text-[11px] font-semibold bg-[#eaf4f2] hover:bg-[#e1efec] text-[#1d5c55] border border-[#c3e0da] cursor-pointer transition-colors"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={forceReload}
@@ -3795,7 +4060,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       sub={isTaskMode ? `Avg ${fmtPts(totals.avgBranchTasks)} tasks / branch` : `Avg ${fmtPts(totals.avgBranchPts)} pts / branch`}
                       icon={Trophy}
                       accentColor="blue"
-                      badge={KPI_PERIOD_LABEL[period]}
+                      badge={activePeriodLabel}
                       onClick={() => handleCardClick('points', 'all')}
                       active={selectedCard === 'points'}
                       staggerIndex={0}
@@ -4370,7 +4635,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             {/* Chart 2 (5 cols): Monthly Target vs Actual Achievement & Pace Donut */}
             <KpiTargetComparisonDonut
-              periodLabel={KPI_PERIOD_LABEL[period]}
+              periodLabel={activePeriodLabel}
               targetLabel={activeTargets.label}
               actualPoints={totals.totalPoints}
               targetPoints={totals.totalBranchTargetPoints}
@@ -5282,7 +5547,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className={CAPSULE_PILL_CLS}
                     />
                   )}
-                  <span className="relative z-10">{KPI_PERIOD_LABEL[period]}</span>
+                  <span className="relative z-10">{activePeriodLabel}</span>
                 </button>
                 {availableMonths.slice(0, 6).map((m) => (
                   <button
@@ -5317,12 +5582,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {leaderboardMode === 'staff' ? (
                   <>
                     <Users className="w-4 h-4 text-[#002F4A]" />
-                    <span>Top 10 Individual Performers · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
+                    <span>Top 10 Individual Performers · {selectedTopMonth === 'ALL' ? activePeriodLabel : fmtMonth(selectedTopMonth)}</span>
                   </>
                 ) : (
                   <>
                     <Building2 className="w-4 h-4 text-[#002F4A]" />
-                    <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
+                    <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? activePeriodLabel : fmtMonth(selectedTopMonth)}</span>
                   </>
                 )}
               </span>
