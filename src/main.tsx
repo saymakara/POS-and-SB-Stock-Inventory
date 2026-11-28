@@ -97,31 +97,31 @@ if (framed) {
 function AppLoading() {
   return (
     <div className="min-h-[100dvh] flex items-start bg-[#f4f7fa]" role="status" aria-label="Loading">
-      {/* Crisp Porcelain White Sidebar Skeleton matching Overview + Merchant App Review sub-tree + Operations */}
-      <div className="hidden md:flex flex-col w-[244px] shrink-0 min-h-[100dvh] bg-white border-r border-slate-200 px-3.5 py-4" aria-hidden="true">
-        <div className="flex items-center gap-2.5 px-1.5 pb-4 mb-3 border-b border-slate-200/80">
-          <div className="skeleton w-9 h-9 rounded-xl shrink-0" />
+      {/* Real #002F4A Sidebar Skeleton matching Overview + Merchant App Review sub-tree + Operations */}
+      <div className="hidden md:flex flex-col w-[248px] shrink-0 min-h-[100dvh] bg-[#002F4A] px-3.5 py-4" aria-hidden="true">
+        <div className="flex items-center gap-2.5 px-1.5 pb-4 mb-3 border-b border-white/10">
+          <div className="skeleton-dark w-9 h-9 rounded-xl shrink-0" />
           <div className="space-y-1.5 flex-1">
-            <div className="skeleton h-3 w-32 rounded" />
-            <div className="skeleton h-2.5 w-20 rounded opacity-70" />
+            <div className="skeleton-dark h-3 w-32 rounded" />
+            <div className="skeleton-dark h-2.5 w-20 rounded opacity-70" />
           </div>
         </div>
-        <div className="skeleton h-2.5 w-16 rounded ml-2 mb-2 opacity-60" />
+        <div className="skeleton-dark h-2.5 w-16 rounded ml-2 mb-2 opacity-60" />
         <div className="space-y-1.5 mb-1.5">
-          <div className="h-9 rounded-xl bg-[#edf4fa] border border-[#cde0f2] px-2.5 flex items-center gap-2.5">
-            <div className="skeleton w-5 h-5 rounded-md" />
-            <div className="skeleton h-3 w-24 rounded" />
+          <div className="h-9 rounded-xl bg-white/12 border border-white/15 px-2.5 flex items-center gap-2.5">
+            <div className="skeleton-dark w-5 h-5 rounded-md" />
+            <div className="skeleton-dark h-3 w-24 rounded" />
           </div>
           <div className="h-8 px-2.5 flex items-center gap-2.5">
-            <div className="skeleton w-5 h-5 rounded-md opacity-75" />
-            <div className="skeleton h-3 w-28 rounded opacity-75" />
+            <div className="skeleton-dark w-5 h-5 rounded-md opacity-75" />
+            <div className="skeleton-dark h-3 w-28 rounded opacity-75" />
           </div>
           <div className="h-8 px-2.5 flex items-center gap-2.5">
-            <div className="skeleton w-5 h-5 rounded-md opacity-75" />
-            <div className="skeleton h-3 w-32 rounded opacity-75" />
+            <div className="skeleton-dark w-5 h-5 rounded-md opacity-75" />
+            <div className="skeleton-dark h-3 w-32 rounded opacity-75" />
           </div>
           {/* Sub-tree under Merchant App Review */}
-          <div className="ml-5 pl-3 border-l border-slate-200 space-y-1.5 py-1">
+          <div className="ml-5 pl-3 border-l border-white/12 space-y-1.5 py-1">
             {[
               { w: 'w-20', badge: true },
               { w: 'w-18', badge: true },
@@ -131,25 +131,25 @@ function AppLoading() {
             ].map((it, idx) => (
               <div key={idx} className="h-6 flex items-center justify-between pr-1">
                 <div className="flex items-center gap-2">
-                  <div className="skeleton w-3.5 h-3.5 rounded opacity-65" />
-                  <div className={`skeleton h-2.5 ${it.w} rounded opacity-70`} />
+                  <div className="skeleton-dark w-3.5 h-3.5 rounded opacity-65" />
+                  <div className={`skeleton-dark h-2.5 ${it.w} rounded opacity-70`} />
                 </div>
-                {it.badge && <div className="skeleton h-4 w-9 rounded-full opacity-70" />}
+                {it.badge && <div className="skeleton-dark h-4 w-9 rounded-full opacity-70" />}
               </div>
             ))}
           </div>
         </div>
-        <div className="skeleton h-2.5 w-28 rounded ml-2 mt-3 mb-2 opacity-60" />
+        <div className="skeleton-dark h-2.5 w-28 rounded ml-2 mt-3 mb-2 opacity-60" />
         <div className="space-y-1.5 flex-1">
           {['w-28', 'w-24', 'w-26', 'w-24', 'w-22', 'w-24', 'w-20', 'w-16'].map((w, i) => (
             <div key={i} className="h-8 px-2.5 flex items-center gap-2.5">
-              <div className="skeleton w-5 h-5 rounded-md opacity-70" />
-              <div className={`skeleton h-3 ${w} rounded opacity-70`} />
+              <div className="skeleton-dark w-5 h-5 rounded-md opacity-70" />
+              <div className={`skeleton-dark h-3 ${w} rounded opacity-70`} />
             </div>
           ))}
         </div>
-        <div className="mt-4 pt-3 border-t border-slate-200/80">
-          <div className="skeleton h-9 w-full rounded-xl opacity-75" />
+        <div className="mt-4 pt-3 border-t border-white/10">
+          <div className="skeleton-dark h-9 w-full rounded-xl opacity-75" />
         </div>
       </div>
 

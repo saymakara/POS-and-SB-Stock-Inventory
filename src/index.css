@@ -186,12 +186,13 @@
   background-color: #f3f4f6;
 }
 
-/* Crisp Porcelain White Sidebar (#FFFFFF) — unified with light cards and #155484 corporate blue headers */
+/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
+   (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
 .sb-sidebar-gradient {
-  background-color: #ffffff;
+  background-color: #002F4A;   /* signature solid sidebar navy blue */
   background-image: none;
-  border-right: 1px solid #e2e8f0;
-  box-shadow: 1px 0 12px -4px rgba(15, 23, 42, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
