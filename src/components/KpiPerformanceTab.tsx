@@ -1951,29 +1951,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'Credit Card' && b.ccTasks === 0) return false;
       if (categoryFilter === 'Merchant Visit' && b.mvTasks === 0) return false;
       if (categoryFilter === 'Booth Event' && b.boothTasks === 0) return false;
-      if (taskFilter !== 'ALL' && getTaskMetric(b.raw, taskFilter, ruleMap).count <= 0) return false;
       if (q && !`${b.branchId} ${b.branchName}`.toLowerCase().includes(q)) return false;
       return true;
     });
 
-    const effectiveSortKey =
-      taskFilter !== 'ALL' && branchSortKey === 'totalPoints' ? 'selectedTask' : branchSortKey;
-
     return [...list].sort((a, b) => {
       let av: string | number = 0;
       let bv: string | number = 0;
-      switch (effectiveSortKey) {
-        case 'selectedTask': {
-          const ma = getTaskMetric(a.raw, taskFilter, ruleMap);
-          const mb = getTaskMetric(b.raw, taskFilter, ruleMap);
-          av = isTaskMode ? ma.count : ma.points;
-          bv = isTaskMode ? mb.count : mb.points;
-          if (av === bv) {
-            av = isTaskMode ? ma.points : ma.count;
-            bv = isTaskMode ? mb.points : mb.count;
-          }
-          break;
-        }
+      switch (branchSortKey) {
         case 'branchId':
           av = a.branchId;
           bv = b.branchId;
@@ -2064,7 +2049,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return branchSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [branchRows, branchFilter, categoryFilter, taskFilter, ruleMap, isTaskMode, deferredQuery, branchSortKey, branchSortDir]);
+  }, [branchRows, branchFilter, categoryFilter, deferredQuery, branchSortKey, branchSortDir]);
 
   const filteredStaff = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -2079,29 +2064,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'Credit Card' && s.ccTasks === 0) return false;
       if (categoryFilter === 'Merchant Visit' && s.mvTasks === 0) return false;
       if (categoryFilter === 'Booth Event' && s.boothTasks === 0) return false;
-      if (taskFilter !== 'ALL' && getTaskMetric(s, taskFilter, ruleMap).count <= 0) return false;
       if (q && !`${s.staffId} ${s.staffName} ${s.branchId} ${s.branchName} ${s.position || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
 
-    const effectiveSortKey =
-      taskFilter !== 'ALL' && staffSortKey === 'totalPoints' ? 'selectedTask' : staffSortKey;
-
     return [...list].sort((a, b) => {
       let av: string | number = 0;
       let bv: string | number = 0;
-      switch (effectiveSortKey) {
-        case 'selectedTask': {
-          const ma = getTaskMetric(a, taskFilter, ruleMap);
-          const mb = getTaskMetric(b, taskFilter, ruleMap);
-          av = isTaskMode ? ma.count : ma.points;
-          bv = isTaskMode ? mb.count : mb.points;
-          if (av === bv) {
-            av = isTaskMode ? ma.points : ma.count;
-            bv = isTaskMode ? mb.points : mb.count;
-          }
-          break;
-        }
+      switch (staffSortKey) {
         case 'staffId':
           av = a.staffId;
           bv = b.staffId;
@@ -2192,16 +2162,46 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return staffSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [enrichedStaff, isAdmin, userBranchId, branchFilter, categoryFilter, taskFilter, ruleMap, isTaskMode, deferredQuery, staffSortKey, staffSortDir, staffLevelFilter]);
+  }, [enrichedStaff, isAdmin, userBranchId, branchFilter, categoryFilter, deferredQuery, staffSortKey, staffSortDir, staffLevelFilter]);
+
+  const matrixTaskBranches = useMemo(() => {
+    if (taskFilter === 'ALL') return filteredBranches;
+    const matching = filteredBranches.filter((b) => getTaskMetric(b.raw, taskFilter, ruleMap).count > 0);
+    if (branchSortKey !== 'totalPoints' && branchSortKey !== 'selectedTask') return matching;
+    const dirMul = branchSortKey === 'selectedTask' && branchSortDir === 'asc' ? 1 : -1;
+    return [...matching].sort((a, b) => {
+      const ma = getTaskMetric(a.raw, taskFilter, ruleMap);
+      const mb = getTaskMetric(b.raw, taskFilter, ruleMap);
+      const va = isTaskMode ? ma.count : ma.points;
+      const vb = isTaskMode ? mb.count : mb.points;
+      if (va !== vb) return (va - vb) * dirMul;
+      return ((isTaskMode ? ma.points : ma.count) - (isTaskMode ? mb.points : mb.count)) * dirMul;
+    });
+  }, [filteredBranches, taskFilter, ruleMap, branchSortKey, branchSortDir, isTaskMode]);
+
+  const matrixTaskStaff = useMemo(() => {
+    if (taskFilter === 'ALL') return filteredStaff;
+    const matching = filteredStaff.filter((s) => getTaskMetric(s, taskFilter, ruleMap).count > 0);
+    if (staffSortKey !== 'totalPoints' && staffSortKey !== 'selectedTask') return matching;
+    const dirMul = staffSortKey === 'selectedTask' && staffSortDir === 'asc' ? 1 : -1;
+    return [...matching].sort((a, b) => {
+      const ma = getTaskMetric(a, taskFilter, ruleMap);
+      const mb = getTaskMetric(b, taskFilter, ruleMap);
+      const va = isTaskMode ? ma.count : ma.points;
+      const vb = isTaskMode ? mb.count : mb.points;
+      if (va !== vb) return (va - vb) * dirMul;
+      return ((isTaskMode ? ma.points : ma.count) - (isTaskMode ? mb.points : mb.count)) * dirMul;
+    });
+  }, [filteredStaff, taskFilter, ruleMap, staffSortKey, staffSortDir, isTaskMode]);
 
   const statusFilteredBranches = useMemo(
-    () => (statusFilter === 'ALL' ? filteredBranches : filteredBranches.filter((b) => b.rating === statusFilter)),
-    [filteredBranches, statusFilter]
+    () => (statusFilter === 'ALL' ? matrixTaskBranches : matrixTaskBranches.filter((b) => b.rating === statusFilter)),
+    [matrixTaskBranches, statusFilter]
   );
 
   const statusFilteredStaff = useMemo(
-    () => (statusFilter === 'ALL' ? filteredStaff : filteredStaff.filter((s) => s.rating === statusFilter)),
-    [filteredStaff, statusFilter]
+    () => (statusFilter === 'ALL' ? matrixTaskStaff : matrixTaskStaff.filter((s) => s.rating === statusFilter)),
+    [matrixTaskStaff, statusFilter]
   );
 
   const totals = useMemo(() => {
@@ -2280,57 +2280,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     };
   }, [filteredBranches, filteredStaff, ruleMap, activeTargets]);
 
-  const activeTaskTotals = useMemo(() => {
-    if (taskFilter === 'ALL') return null;
-    let totalCount = 0;
-    let totalPoints = 0;
-    for (const s of filteredStaff) {
-      const m = getTaskMetric(s, taskFilter, ruleMap);
-      totalCount += m.count;
-      totalPoints += m.points;
-    }
-    totalPoints = round2(totalPoints);
-    const branchRanked = [...filteredBranches]
-      .map((b) => {
-        const involvedStaff = b.staffList.filter((s) => getTaskMetric(s, taskFilter, ruleMap).count > 0).length;
-        return { b, involvedStaff, m: getTaskMetric(b.raw, taskFilter, ruleMap) };
-      })
-      .sort((x, y) =>
-        isTaskMode
-          ? (y.m.count - x.m.count || y.m.points - x.m.points)
-          : (y.m.points - x.m.points || y.m.count - x.m.count)
-      );
-    const staffRanked = [...filteredStaff]
-      .map((s) => ({ s, m: getTaskMetric(s, taskFilter, ruleMap) }))
-      .sort((x, y) =>
-        isTaskMode
-          ? (y.m.count - x.m.count || y.m.points - x.m.points)
-          : (y.m.points - x.m.points || y.m.count - x.m.count)
-      );
-    return {
-      totalCount,
-      totalPoints,
-      branchCount: filteredBranches.length,
-      staffCount: filteredStaff.length,
-      avgBranchCount: filteredBranches.length > 0 ? Math.round((totalCount / filteredBranches.length) * 10) / 10 : 0,
-      avgBranchPts: filteredBranches.length > 0 ? Math.round((totalPoints / filteredBranches.length) * 10) / 10 : 0,
-      avgStaffCount: filteredStaff.length > 0 ? Math.round((totalCount / filteredStaff.length) * 10) / 10 : 0,
-      avgStaffPts: filteredStaff.length > 0 ? Math.round((totalPoints / filteredStaff.length) * 10) / 10 : 0,
-      topBranch: branchRanked[0] || null,
-      topStaff: staffRanked[0] || null,
-    };
-  }, [taskFilter, filteredStaff, filteredBranches, ruleMap, isTaskMode]);
-
-  const involvedStaffKeySet = useMemo(() => {
-    if (taskFilter === 'ALL') return null;
-    const set = new Set<string>();
-    for (const s of filteredStaff) {
-      if (s.staffId) set.add(s.staffId);
-      if (s.staffName) set.add(s.staffName.toLowerCase());
-    }
-    return set;
-  }, [taskFilter, filteredStaff]);
-
   const timeSeries = useMemo(() => {
     if (!data) return [];
 
@@ -2379,82 +2328,49 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     let enriched: SeriesBucket[] = [];
 
     if ((granularity === 'monthly' || granularity === 'quarterly') && Array.isArray(data.monthlyStaff) && data.monthlyStaff.length > 0) {
-      const buckets = new Map<string, { raw: KpiTimeBucketRaw; branches: Set<string>; staff: Set<string>; taskCount: number; taskPoints: number }>();
+      const buckets = new Map<string, { raw: KpiTimeBucketRaw; branches: Set<string>; staff: Set<string> }>();
       for (const ms of data.monthlyStaff) {
         const dir = ppDirectoryScope.matchPpStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
         if (!dir) continue;
         if (!isAdmin && userBranchId && dir.branchId !== userBranchId) continue;
         if (branchFilter && dir.branchId !== branchFilter) continue;
-        const tm = taskFilter !== 'ALL' ? getTaskMetric(ms, taskFilter, ruleMap) : null;
-        if (tm && tm.count <= 0) continue;
         const pKey = granularity === 'quarterly' ? quarterOfMonth(ms.month) : ms.month;
         let b = buckets.get(pKey);
         if (!b) {
-          b = { raw: emptyRawBucket(pKey), branches: new Set(), staff: new Set(), taskCount: 0, taskPoints: 0 };
+          b = { raw: emptyRawBucket(pKey), branches: new Set(), staff: new Set() };
           buckets.set(pKey, b);
         }
         b.branches.add(dir.branchId);
         b.staff.add(dir.empId || dir.name.toLowerCase());
-        if (tm) {
-          b.taskCount += tm.count;
-          b.taskPoints += tm.points;
-        } else {
-          b.raw.posInstall += ms.posInstall;
-          b.raw.posReplace += ms.posReplace;
-          b.raw.posBattery += ms.posBattery;
-          b.raw.sbInstall += ms.sbInstall;
-          b.raw.sbReplace += ms.sbReplace;
-          b.raw.sbMaint += ms.sbMaint;
-          b.raw.sbReturn += ms.sbReturn;
-          b.raw.khqrInstall += ms.khqrInstall;
-          b.raw.khqrReplace += ms.khqrReplace;
-          b.raw.khqrMaterials += ms.khqrMaterials;
-          b.raw.ccPrimary += ms.ccPrimary;
-          b.raw.ccSupp += ms.ccSupp;
-          b.raw.adjPts = (b.raw.adjPts || 0) + (ms.adjPts || 0);
-          b.raw.adjBooth = (b.raw.adjBooth || 0) + (ms.adjBooth || 0);
-          b.raw.boPos = (b.raw.boPos || 0) + (ms.boPos || 0);
-          b.raw.boSb = (b.raw.boSb || 0) + (ms.boSb || 0);
-          b.raw.boKhqr = (b.raw.boKhqr || 0) + (ms.boKhqr || 0);
-          b.raw.boCc = (b.raw.boCc || 0) + (ms.boCc || 0);
-          b.raw.boMv = (b.raw.boMv || 0) + (ms.boMv || 0);
-          addExtraCounts(b.raw, ms);
-        }
+        b.raw.posInstall += ms.posInstall;
+        b.raw.posReplace += ms.posReplace;
+        b.raw.posBattery += ms.posBattery;
+        b.raw.sbInstall += ms.sbInstall;
+        b.raw.sbReplace += ms.sbReplace;
+        b.raw.sbMaint += ms.sbMaint;
+        b.raw.sbReturn += ms.sbReturn;
+        b.raw.khqrInstall += ms.khqrInstall;
+        b.raw.khqrReplace += ms.khqrReplace;
+        b.raw.khqrMaterials += ms.khqrMaterials;
+        b.raw.ccPrimary += ms.ccPrimary;
+        b.raw.ccSupp += ms.ccSupp;
+        b.raw.adjPts = (b.raw.adjPts || 0) + (ms.adjPts || 0);
+        b.raw.adjBooth = (b.raw.adjBooth || 0) + (ms.adjBooth || 0);
+        b.raw.boPos = (b.raw.boPos || 0) + (ms.boPos || 0);
+        b.raw.boSb = (b.raw.boSb || 0) + (ms.boSb || 0);
+        b.raw.boKhqr = (b.raw.boKhqr || 0) + (ms.boKhqr || 0);
+        b.raw.boCc = (b.raw.boCc || 0) + (ms.boCc || 0);
+        b.raw.boMv = (b.raw.boMv || 0) + (ms.boMv || 0);
+        addExtraCounts(b.raw, ms);
       }
-      const taskCat = taskFilter !== 'ALL' ? resolveTaskRuleCategory(taskFilter, ruleMap) : null;
       enriched = Array.from(buckets.values())
         .sort((a, b) => b.raw.period.localeCompare(a.raw.period))
-        .map(({ raw, branches: bSet, staff: sSet, taskCount, taskPoints }) => {
-          if (!taskCat) {
-            return {
-              ...raw,
-              activeBranches: bSet.size,
-              activeStaff: sSet.size,
-              ...computeKpiPoints(raw, ruleMap, SPLIT_BOOTH),
-            };
-          }
-          const tPts = round2(taskPoints);
-          return {
-            ...raw,
-            activeBranches: bSet.size,
-            activeStaff: sSet.size,
-            posTasks: taskCat === 'POS Terminal' ? taskCount : 0,
-            posPoints: taskCat === 'POS Terminal' ? tPts : 0,
-            sbTasks: taskCat === 'Sound Box' ? taskCount : 0,
-            sbPoints: taskCat === 'Sound Box' ? tPts : 0,
-            khqrTasks: taskCat === 'KHQR' ? taskCount : 0,
-            khqrMaterials: 0,
-            khqrPoints: taskCat === 'KHQR' ? tPts : 0,
-            ccTasks: taskCat === 'Credit Card' ? taskCount : 0,
-            ccPoints: taskCat === 'Credit Card' ? tPts : 0,
-            mvTasks: taskCat === 'Merchant Visit' ? taskCount : 0,
-            mvPoints: taskCat === 'Merchant Visit' ? tPts : 0,
-            boothTasks: taskCat === 'Booth Event' ? taskCount : 0,
-            boothPoints: taskCat === 'Booth Event' ? tPts : 0,
-            totalTasks: taskCount,
-            totalPoints: tPts,
-          };
-        });
+        .map(({ raw, branches: bSet, staff: sSet }) => ({
+          ...raw,
+          activeBranches: bSet.size,
+          activeStaff: sSet.size,
+          ...computeKpiPoints(raw, ruleMap, SPLIT_BOOTH),
+        }));
     } else if ((granularity === 'daily' || granularity === 'weekly') && Array.isArray(data.dailyStaff) && data.dailyStaff.length > 0) {
       const posRate = totals.posTasks > 0 ? totals.posPoints / totals.posTasks : (rulePts(ruleMap, 'POS_INSTALL') || 2);
       const sbRate = totals.sbTasks > 0 ? totals.sbPoints / totals.sbTasks : (rulePts(ruleMap, 'SB_INSTALL') || 1);
@@ -2485,7 +2401,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         if (!dir) continue;
         if (!isAdmin && userBranchId && dir.branchId !== userBranchId) continue;
         if (branchFilter && dir.branchId !== branchFilter) continue;
-        if (involvedStaffKeySet && !involvedStaffKeySet.has(dir.empId) && !involvedStaffKeySet.has(dir.name.toLowerCase())) continue;
         const pKey = granularity === 'weekly' ? weekStartIso(ds.day) : ds.day;
         let b = buckets.get(pKey);
         if (!b) {
@@ -2699,7 +2614,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return timelineSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [data, granularity, period, range, ruleMap, timelineSortKey, timelineSortDir, ppDirectoryScope, totals, isAdmin, userBranchId, branchFilter, taskFilter, involvedStaffKeySet, isTaskMode]);
+  }, [data, granularity, period, range, ruleMap, timelineSortKey, timelineSortDir, ppDirectoryScope, totals, isAdmin, userBranchId, branchFilter, isTaskMode]);
 
   const subCategoryBreakdown = useMemo(
     () => buildSubCategoryItems(totals.raw, ruleMap, true),
@@ -2795,7 +2710,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const staffDailyTarget = data?.targets?.staffDailyTarget ?? 5;
     const staffMonthlyTarget = Math.round(staffDailyTarget * workDays);
 
-    return filteredBranches.map((b) => {
+    return matrixTaskBranches.map((b) => {
       let monthTotal = 0; // KPI eligible tasks (only on official work days)
       let allDaysTotal = 0; // raw sum of all calendar days
       let weekendHolidayTasks = 0;
@@ -2855,7 +2770,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         rating,
       };
     });
-  }, [tableMode, branchSubView, filteredBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
+  }, [tableMode, branchSubView, matrixTaskBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
 
   const matrixDayTotals = useMemo(() => {
     if (dailyBranchRows.length === 0) {
@@ -2922,7 +2837,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   };
 
   const exportDailyBranchCsv = async () => {
-    if (!filteredBranches.length) return 0;
+    if (!matrixTaskBranches.length) return 0;
     const header = [
       'No.',
       'Branch Name',
@@ -2966,7 +2881,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     ]);
 
     downloadCsv(`KPI_Daily_Tasks_Branch_${dailyMatrixMonth}`, header, rows);
-    return filteredBranches.length;
+    return matrixTaskBranches.length;
   };
 
   const dailyStaffMap = useMemo(() => {
@@ -2986,7 +2901,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const staffDailyTarget = data?.targets?.staffDailyTarget ?? 5;
     const monthlyTarget = Math.round(staffDailyTarget * workDays);
 
-    return filteredStaff.map((s) => {
+    return matrixTaskStaff.map((s) => {
       let monthTotal = 0;
       let allDaysTotal = 0;
       let weekendHolidayTasks = 0;
@@ -3045,7 +2960,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         rating,
       };
     });
-  }, [tableMode, staffSubView, filteredStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
+  }, [tableMode, staffSubView, matrixTaskStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary, pacingInfo, isTaskMode]);
 
   const matrixStaffDayTotals = useMemo(() => {
     if (dailyStaffRows.length === 0) {
@@ -3105,7 +3020,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const dailyStaffPg = usePager(sortedDailyStaffRows.length, [dailyMatrixMonth, branchFilter, categoryFilter, taskFilter, deferredQuery]);
 
   const exportDailyStaffCsv = async () => {
-    if (!filteredStaff.length) return 0;
+    if (!matrixTaskStaff.length) return 0;
     const header = [
       'No.',
       'Staff Name',
@@ -3161,33 +3076,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     ]);
 
     downloadCsv(`KPI_Daily_Tasks_Staff_${dailyMatrixMonth}`, header, rows);
-    return filteredStaff.length;
+    return matrixTaskStaff.length;
   };
 
   const top10Data = useMemo(() => {
     const rankCompare = (a: { totalPoints: number; totalTasks: number }, b: { totalPoints: number; totalTasks: number }) =>
       isTaskMode ? (b.totalTasks - a.totalTasks || b.totalPoints - a.totalPoints) : (b.totalPoints - a.totalPoints || b.totalTasks - a.totalTasks);
 
-    const rankTaskCompare = (a: KpiRawCounts & { totalPoints: number; totalTasks: number }, b: KpiRawCounts & { totalPoints: number; totalTasks: number }) => {
-      const ma = getTaskMetric(a, taskFilter, ruleMap);
-      const mb = getTaskMetric(b, taskFilter, ruleMap);
-      return isTaskMode
-        ? (mb.count - ma.count || mb.points - ma.points || b.totalPoints - a.totalPoints)
-        : (mb.points - ma.points || mb.count - ma.count || b.totalTasks - a.totalTasks);
-    };
-
     if (selectedTopMonth === 'ALL' || !data) {
-      if (taskFilter !== 'ALL') {
-        const topBranches = branchRows
-          .filter((b) => getTaskMetric(b.raw, taskFilter, ruleMap).count > 0)
-          .sort((a, b) => rankTaskCompare({ ...a.raw, totalPoints: a.totalPoints, totalTasks: a.totalTasks }, { ...b.raw, totalPoints: b.totalPoints, totalTasks: b.totalTasks }))
-          .slice(0, 10);
-        const topStaff = enrichedStaff
-          .filter((s) => getTaskMetric(s, taskFilter, ruleMap).count > 0)
-          .sort(rankTaskCompare)
-          .slice(0, 10);
-        return { branches: topBranches, staff: topStaff };
-      }
       const topBranches = isTaskMode ? [...branchRows].sort(rankCompare).slice(0, 10) : branchRows.slice(0, 10);
       const fieldOnly = enrichedStaff.filter((s) => !s.isManagement);
       const topStaff = isTaskMode ? [...fieldOnly].sort(rankCompare).slice(0, 10) : fieldOnly.slice(0, 10);
@@ -3213,14 +3109,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ...pts,
         };
       })
-      .filter((ms): ms is NonNullable<typeof ms> =>
-        ms !== null && (
-          taskFilter !== 'ALL'
-            ? getTaskMetric(ms, taskFilter, ruleMap).count > 0
-            : (ms.totalTasks > 0 && !ms.isManagement)
-        )
-      )
-      .sort(taskFilter !== 'ALL' ? rankTaskCompare : rankCompare);
+      .filter((ms): ms is NonNullable<typeof ms> => ms !== null && ms.totalTasks > 0 && !ms.isManagement)
+      .sort(rankCompare);
 
     const bMap = new Map<string, { branchId: string; branchName: string; staffCount: number; raw: KpiRawCounts }>();
     monthStaff.forEach((s) => {
@@ -3273,17 +3163,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           tasksPerStaff: b.staffCount > 0 ? Math.round((pts.totalTasks / b.staffCount) * 10) / 10 : 0,
         };
       })
-      .sort((a, b) =>
-        taskFilter !== 'ALL'
-          ? rankTaskCompare({ ...a.raw, totalPoints: a.totalPoints, totalTasks: a.totalTasks }, { ...b.raw, totalPoints: b.totalPoints, totalTasks: b.totalTasks })
-          : rankCompare(a, b)
-      );
+      .sort(rankCompare);
 
     return {
       branches: monthBranches.slice(0, 10),
       staff: monthStaff.slice(0, 10),
     };
-  }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap, ppDirectoryScope, isTaskMode, taskFilter]);
+  }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap, ppDirectoryScope, isTaskMode]);
 
   // ── Monthly KPI Matrix (12 calendar months Jan–Dec for the selected year, defaulting to current year) ──
   const availableMatrixYears = useMemo(() => {
@@ -3758,8 +3644,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const base = isMonthlyView
       ? activeMonthlyBaseRows
       : tableMode === 'branch'
-      ? filteredBranches
-      : filteredStaff;
+      ? matrixTaskBranches
+      : matrixTaskStaff;
     const counts: Record<'ALL' | KpiRating, number> = {
       ALL: base.length,
       Outstanding: 0,
@@ -3772,7 +3658,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       counts[row.rating] = (counts[row.rating] || 0) + 1;
     }
     return counts;
-  }, [tableMode, branchSubView, staffSubView, activeMonthlyBaseRows, filteredBranches, filteredStaff]);
+  }, [tableMode, branchSubView, staffSubView, activeMonthlyBaseRows, matrixTaskBranches, matrixTaskStaff]);
 
   const statusFilteredMonthlyRows = useMemo(
     () => (statusFilter === 'ALL' ? activeMonthlyBaseRows : activeMonthlyBaseRows.filter((r) => r.rating === statusFilter)),
@@ -3976,7 +3862,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     applyCustomDates(nextFrom, nextTo > today ? today : nextTo);
   };
 
-  const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || taskFilter !== 'ALL' || !!query || statusFilter !== 'ALL';
+  const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query || statusFilter !== 'ALL';
   const clearAll = () => {
     setPeriod('ALL');
     setCustomFrom(today);
@@ -3988,6 +3874,51 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     setStatusFilter('ALL');
     setQuery('');
   };
+
+  const tableTaskFilterEl = (
+    <div className="inline-flex items-center gap-1.5">
+      <span className="text-[11px] text-slate-500 font-medium">Task:</span>
+      <select
+        aria-label="Filter table by task sub-category"
+        value={taskFilter}
+        onChange={(e) => handleSelectTaskFilter(e.target.value, false)}
+        title="Filter this table by specific task (sub-category) to view involved staff and branches"
+        className={`text-xs rounded-xl border px-2.5 py-1 cursor-pointer max-w-[230px] font-medium outline-none transition ${
+          taskFilter !== 'ALL'
+            ? 'border-[#c3e0da] bg-[#eaf4f2] text-[#1d5c55] font-semibold'
+            : 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700'
+        }`}
+      >
+        <option value="ALL">All Tasks</option>
+        {(['POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit', 'Booth Event', 'Other'] as KpiViewCategory[])
+          .filter((cat) => categoryFilter === 'ALL' || categoryFilter === cat)
+          .map((cat) => {
+            const catItems = taskCatalog.list.filter((it) => it.category === cat);
+            if (!catItems.length) return null;
+            return (
+              <optgroup key={cat} label={cat}>
+                {catItems.map((it) => (
+                  <option key={it.code} value={it.code}>
+                    {it.label} ({fmtInt(it.count)} · {it.staffCount} staff)
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+      </select>
+      {taskFilter !== 'ALL' && (
+        <button
+          type="button"
+          onClick={() => handleSelectTaskFilter('ALL', false)}
+          title="Clear task filter"
+          aria-label="Clear task filter"
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+        >
+          <X className="w-3.5 h-3.5" aria-hidden />
+        </button>
+      )}
+    </div>
+  );
 
   const exportBranchCsv = async () => {
     if (!statusFilteredBranches.length) return 0;
@@ -4444,87 +4375,64 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               {(() => {
                 const leadBranch = isTaskMode ? totals.topTaskBranch : totals.topBranch;
                 const leadStaff = isTaskMode ? totals.topTaskStaff : totals.topStaff;
-                const tSum = activeTaskTotals;
-                const tTopBr = tSum?.topBranch;
-                const tTopSt = tSum?.topStaff;
                 return (
                   <>
                     <BigKpiCard
-                      label={tSum ? (isTaskMode ? 'Filtered Task Volume' : 'Filtered Task Points') : (isTaskMode ? 'Total KPI Tasks' : 'Total KPI Points')}
-                      value={tSum
-                        ? (isTaskMode ? fmtInt(tSum.totalCount) : fmtPts(tSum.totalPoints))
-                        : (isTaskMode ? fmtInt(totals.totalTasks) : fmtPts(totals.totalPoints))}
-                      sub={tSum
-                        ? `${fmtInt(tSum.totalCount)} ${activeTaskMeta?.unit || 'tasks'} · ${fmtPts(tSum.totalPoints)} pts`
-                        : (isTaskMode ? `Avg ${fmtPts(totals.avgBranchTasks)} tasks / branch` : `Avg ${fmtPts(totals.avgBranchPts)} pts / branch`)}
+                      label={isTaskMode ? 'Total KPI Tasks' : 'Total KPI Points'}
+                      value={isTaskMode ? fmtInt(totals.totalTasks) : fmtPts(totals.totalPoints)}
+                      sub={isTaskMode ? `Avg ${fmtPts(totals.avgBranchTasks)} tasks / branch` : `Avg ${fmtPts(totals.avgBranchPts)} pts / branch`}
                       icon={Trophy}
                       accentColor="blue"
-                      badge={tSum && activeTaskMeta ? activeTaskMeta.label : activePeriodLabel}
-                      onClick={() => handleCardClick('points', tSum ? 'staff' : 'all', tSum ? 'staff' : undefined)}
+                      badge={activePeriodLabel}
+                      onClick={() => handleCardClick('points', 'all')}
                       active={selectedCard === 'points'}
                       staggerIndex={0}
                     />
                     <BigKpiCard
-                      label={tSum ? 'Involved Branches & Staff' : 'Branches & Staff'}
+                      label="Branches & Staff"
                       valueNode={
                         <span className="inline-flex items-center gap-3.5 sm:gap-4">
                           <span className="inline-flex flex-col">
-                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(tSum ? tSum.branchCount : totals.activeBranchCount)}</span>
+                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(totals.activeBranchCount)}</span>
                             <span className="text-[10.5px] font-medium text-slate-500 tracking-normal mt-1">Branches</span>
                           </span>
                           <span className="h-8 w-px bg-slate-200/90 shrink-0" aria-hidden="true" />
                           <span className="inline-flex flex-col">
-                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(tSum ? tSum.staffCount : totals.activeStaffCount)}</span>
+                            <span className="text-[24px] xl:text-[26px] leading-none">{fmtInt(totals.activeStaffCount)}</span>
                             <span className="text-[10.5px] font-medium text-slate-500 tracking-normal mt-1">Staff</span>
                           </span>
                         </span>
                       }
                       sub={
-                        tSum
-                          ? (isTaskMode
-                              ? `Avg ${fmtPts(tSum.avgStaffCount)} ${activeTaskMeta?.unit || 'tasks'}/involved staff`
-                              : `Avg ${fmtPts(tSum.avgStaffPts)} pts/involved staff`)
-                          : (isTaskMode
-                              ? (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffTasks)} tasks/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffTasks)} tasks/st`)
-                              : (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffPts)} pts/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffPts)} pts/staff`))
+                        isTaskMode
+                          ? (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffTasks)} tasks/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffTasks)} tasks/st`)
+                          : (totals.mgtStaffCount > 0 ? `Avg ${fmtPts(totals.avgStaffPts)} pts/field (${totals.mgtStaffCount} mgt)` : `Avg ${fmtPts(totals.avgStaffPts)} pts/staff`)
                       }
                       icon={Users}
                       accentColor="violet"
-                      badge={tSum ? activePeriodLabel : `${totals.staffOnTarget} on target`}
+                      badge={`${totals.staffOnTarget} on target`}
                       onClick={() => handleCardClick('staff', 'all', 'staff')}
                       active={selectedCard === 'staff' || selectedCard === 'branches'}
                       staggerIndex={1}
                     />
                     <BigKpiCard
                       label="Leading Branch"
-                      value={tSum
-                        ? (tTopBr ? (isTaskMode ? `${fmtInt(tTopBr.m.count)} tasks` : `${fmtPts(tTopBr.m.points)} pts`) : '—')
-                        : (leadBranch ? (isTaskMode ? `${fmtInt(leadBranch.totalTasks)} tasks` : `${fmtPts(leadBranch.totalPoints)} pts`) : '—')}
-                      sub={tSum
-                        ? (tTopBr ? fmtBranchLabel(tTopBr.b.branchId, tTopBr.b.branchName, true) : 'No branch activity')
-                        : (leadBranch ? fmtBranchLabel(leadBranch.branchId, leadBranch.branchName, true) : 'No branch activity')}
+                      value={leadBranch ? (isTaskMode ? `${fmtInt(leadBranch.totalTasks)} tasks` : `${fmtPts(leadBranch.totalPoints)} pts`) : '—'}
+                      sub={leadBranch ? fmtBranchLabel(leadBranch.branchId, leadBranch.branchName, true) : 'No branch activity'}
                       icon={Award}
                       accentColor="emerald"
-                      badge={tSum
-                        ? (tTopBr ? `${tTopBr.involvedStaff} involved` : undefined)
-                        : (leadBranch ? `${leadBranch.staffCount} staff` : undefined)}
+                      badge={leadBranch ? `${leadBranch.staffCount} staff` : undefined}
                       onClick={() => handleCardClick('leading-branch', 'all', 'branch')}
                       active={selectedCard === 'leading-branch'}
                       staggerIndex={2}
                     />
                     <BigKpiCard
                       label="Top Performer"
-                      value={tSum
-                        ? (tTopSt ? (isTaskMode ? `${fmtInt(tTopSt.m.count)} tasks` : `${fmtPts(tTopSt.m.points)} pts`) : '—')
-                        : (leadStaff ? (isTaskMode ? `${fmtInt(leadStaff.totalTasks)} tasks` : `${fmtPts(leadStaff.totalPoints)} pts`) : '—')}
-                      sub={tSum
-                        ? (tTopSt ? `${tTopSt.s.staffName} (${tTopSt.s.staffId})` : 'No staff activity')
-                        : (leadStaff ? `${leadStaff.staffName} (${leadStaff.staffId})` : 'No staff activity')}
+                      value={leadStaff ? (isTaskMode ? `${fmtInt(leadStaff.totalTasks)} tasks` : `${fmtPts(leadStaff.totalPoints)} pts`) : '—'}
+                      sub={leadStaff ? `${leadStaff.staffName} (${leadStaff.staffId})` : 'No staff activity'}
                       icon={Award}
                       accentColor="blue"
-                      badge={tSum
-                        ? (tTopSt ? cleanBranchName(tTopSt.s.branchName) : undefined)
-                        : (leadStaff ? cleanBranchName(leadStaff.branchName) : undefined)}
+                      badge={leadStaff ? cleanBranchName(leadStaff.branchName) : undefined}
                       onClick={() => handleCardClick('top-performer', 'top10')}
                       active={selectedCard === 'top-performer'}
                       staggerIndex={3}
@@ -4628,11 +4536,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   const v = e.target.value as 'ALL' | KpiViewCategory;
                   handleCategoryChange(v);
                 }}
-                className={`text-xs rounded-xl border px-2.5 py-1.5 cursor-pointer outline-none focus:border-slate-400 transition ${
-                  categoryFilter !== 'ALL'
-                    ? 'bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da] font-semibold'
-                    : 'border-slate-200/90 bg-slate-50/70 hover:bg-white text-slate-800 font-normal'
-                }`}
+                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
               >
                 <option value="ALL">All KPI types</option>
                 <option value="POS Terminal">POS Terminal</option>
@@ -4641,35 +4545,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <option value="Credit Card">Credit Card</option>
                 <option value="Merchant Visit">Merchant Visit</option>
                 <option value="Booth Event">Booth Event</option>
-              </select>
-
-              <select
-                aria-label="Task sub-category filter"
-                value={taskFilter}
-                onChange={(e) => handleSelectTaskFilter(e.target.value, false)}
-                title="Filter by specific task (sub-category) to view staff and branches involved"
-                className={`text-xs rounded-xl border px-2.5 py-1.5 cursor-pointer max-w-full sm:max-w-[235px] outline-none focus:border-slate-400 transition ${
-                  taskFilter !== 'ALL'
-                    ? 'bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da] font-semibold'
-                    : 'border-slate-200/90 bg-slate-50/70 hover:bg-white text-slate-800 font-normal'
-                }`}
-              >
-                <option value="ALL">All tasks (sub-categories)</option>
-                {(['POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit', 'Booth Event', 'Other'] as KpiViewCategory[])
-                  .filter((cat) => categoryFilter === 'ALL' || categoryFilter === cat)
-                  .map((cat) => {
-                    const catItems = taskCatalog.list.filter((it) => it.category === cat);
-                    if (!catItems.length) return null;
-                    return (
-                      <optgroup key={cat} label={cat}>
-                        {catItems.map((it) => (
-                          <option key={it.code} value={it.code}>
-                            {it.label} ({fmtInt(it.count)} · {it.staffCount} staff)
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
               </select>
 
               <div className="relative flex-1 min-w-[170px] max-w-[240px]">
@@ -4685,41 +4560,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               {filtersActive && <ClearFiltersButton active={filtersActive} onClear={clearAll} />}
             </div>
         </div>
-        {activeTaskMeta && (
-          <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex flex-wrap items-center gap-2 text-slate-600">
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${CAT_COLORS[activeTaskMeta.category].badge}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${CAT_COLORS[activeTaskMeta.category].dot}`} />
-                <span>Task: {activeTaskMeta.label}</span>
-              </span>
-              <span className="font-medium text-slate-700 tabular-nums">
-                Showing <strong className="text-[#1d5c55]">{filteredStaff.length}</strong> involved staff across{' '}
-                <strong className="text-slate-900">{filteredBranches.length}</strong> branches
-                {activeTaskTotals ? ` · ${fmtInt(activeTaskTotals.totalCount)} ${activeTaskMeta.unit} (${fmtPts(activeTaskTotals.totalPoints)} pts)` : ''}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {view !== 'staff' && (
-                <button
-                  type="button"
-                  onClick={() => handleViewChange('staff')}
-                  className="btn-press inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#eaf4f2] hover:bg-[#e1efec] text-[#1d5c55] border border-[#c3e0da] cursor-pointer transition-colors"
-                >
-                  <Users className="w-3 h-3" aria-hidden />
-                  <span>View Staff List ({filteredStaff.length})</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => handleSelectTaskFilter('ALL', false)}
-                className="btn-press inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer transition-colors"
-              >
-                <X className="w-3 h-3" aria-hidden />
-                <span>Clear task</span>
-              </button>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* ───────────── Executive Graphs & Charts (Push Configuring Hub Backdrop Style) ───────────── */}
@@ -5262,19 +5102,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               </button>
                             </span>
                           )}
-                          {activeTaskMeta && (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-[#eaf4f2] text-[#1d5c55] border-[#c3e0da]">
-                              <span>Task: {activeTaskMeta.label} ({activeTaskMeta.staffCount} staff)</span>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectTaskFilter('ALL', false)}
-                                className="hover:opacity-75 cursor-pointer ml-0.5 inline-flex items-center"
-                                title="Clear task filter"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          )}
                         </div>
 
                         {/* View Options & Active Filter */}
@@ -5627,25 +5454,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     const isTop = i === 0 && !isZero;
                                     const isHovered = hoveredSubCatCode === sc.code;
                                     const isHighlighted = !isZero && (isHovered || (isTop && !hoveredSubCatCode));
-                                    const isClickableTask = sc.code !== 'BOOTH_ADJ' && sc.code !== 'BOOTH_STANDBY_ADJ';
-                                    const isSelectedTask = taskFilter === sc.code;
-                                    const taskStaffCount = taskCatalog.byCode.get(sc.code)?.staffCount ?? 0;
 
                                     return (
                                       <div
                                         key={sc.code}
                                         tabIndex={0}
                                         role="listitem"
-                                        aria-label={`${i + 1} ${sc.label}, ${sc.category}, ${fmtInt(sc.count)} ${sc.unit}, ${taskStaffCount} staff, ${
+                                        aria-label={`${i + 1} ${sc.label}, ${sc.category}, ${fmtInt(sc.count)} ${sc.unit}, ${
                                           isTaskRank
                                             ? `${fmtInt(metricVal)} tasks (${pctDisplay} task share)`
                                             : `${fmtPts(sc.points)} points (${pctDisplay} point share)`
                                         }`}
-                                        title={`${sc.label} (${sc.category}) — ${fmtInt(sc.count)} ${sc.unit} × ${sc.unitPts} pt = ${fmtPts(sc.points)} pts · ${taskStaffCount} staff involved${
+                                        title={`${sc.label} (${sc.category}) — ${fmtInt(sc.count)} ${sc.unit} × ${sc.unitPts} pt = ${fmtPts(sc.points)} pts${
                                           isBonusOnly ? ' (bonus multiplier — not counted as separate task)' : ''
-                                        }${isClickableTask ? ' · Click to view involved staff' : ''}`}
-                                        onClick={isClickableTask ? () => handleSelectTaskFilter(isSelectedTask ? 'ALL' : sc.code, !isSelectedTask) : undefined}
-                                        onKeyDown={isClickableTask ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectTaskFilter(isSelectedTask ? 'ALL' : sc.code, !isSelectedTask); } } : undefined}
+                                        }`}
                                         onMouseEnter={() => setHoveredSubCatCode(sc.code)}
                                         onMouseLeave={() =>
                                           setHoveredSubCatCode((cur) => (cur === sc.code ? null : cur))
@@ -5654,13 +5476,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         onBlur={() =>
                                           setHoveredSubCatCode((cur) => (cur === sc.code ? null : cur))
                                         }
-                                        className={`group flex items-center rounded-md py-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
-                                          isClickableTask ? 'cursor-pointer' : ''
-                                        } ${
-                                          isSelectedTask
-                                            ? 'bg-[#eaf4f2] ring-1 ring-[#c3e0da]'
-                                            : 'hover:bg-sky-50/45'
-                                        }`}
+                                        className="group flex items-center rounded-md py-0.5 transition-colors hover:bg-sky-50/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                                       >
                                         {/* Y-Axis Label (Aligned rank column + aligned category dot + clean left-aligned task name) */}
                                         <div className="w-[132px] sm:w-[238px] md:w-[266px] shrink-0 pl-1 sm:pl-1.5 pr-2.5 sm:pr-3.5 flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -5779,7 +5595,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <th className="py-2.5 px-2.5 w-10 text-center">#</th>
                                 <th className="py-2.5 px-2.5 whitespace-nowrap">Sub-Category Task</th>
                                 <th className="py-2.5 px-2.5 whitespace-nowrap">Category</th>
-                                <th className="py-2.5 px-2.5 text-center whitespace-nowrap">Staff Involved</th>
                                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Recorded Volume</th>
                                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap">Weight</th>
                                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap">
@@ -5805,18 +5620,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 const taskPctDisplay = formatSubCatSharePct(taskPct);
                                 const catStyle = CAT_COLORS[sc.category];
                                 const isZero = sc.points === 0 && sc.count === 0;
-                                const isFilterable = sc.code !== 'BOOTH_ADJ' && sc.code !== 'BOOTH_STANDBY_ADJ';
-                                const isSelectedTask = taskFilter === sc.code;
-                                const involvedCount = taskCatalog.byCode.get(sc.code)?.staffCount ?? 0;
 
                                 return (
-                                  <tr
-                                    key={sc.code}
-                                    onClick={isFilterable && involvedCount > 0 ? () => handleSelectTaskFilter(isSelectedTask ? 'ALL' : sc.code, !isSelectedTask) : undefined}
-                                    className={`transition-colors ${
-                                      isSelectedTask ? 'bg-[#eaf4f2]/70' : 'hover:bg-slate-50/80'
-                                    } ${isFilterable && involvedCount > 0 ? 'cursor-pointer' : ''} ${isZero ? 'opacity-50' : ''}`}
-                                  >
+                                  <tr key={sc.code} className={`hover:bg-slate-50/80 transition-colors ${isZero ? 'opacity-50' : ''}`}>
                                     <td className="py-3 px-2.5 text-center font-mono text-[13px] text-slate-400 tabular-nums whitespace-nowrap">
                                       {i + 1}
                                     </td>
@@ -5825,31 +5631,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     </td>
                                     <td className="py-3 px-2.5 text-slate-600 whitespace-nowrap">
                                       {sc.category}
-                                    </td>
-                                    <td className="py-3 px-2.5 text-center whitespace-nowrap">
-                                      {isFilterable ? (
-                                        <button
-                                          type="button"
-                                          disabled={involvedCount === 0}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleSelectTaskFilter(isSelectedTask ? 'ALL' : sc.code, !isSelectedTask);
-                                          }}
-                                          title={involvedCount > 0 ? `View ${involvedCount} staff who completed ${sc.label}` : 'No staff involved'}
-                                          className={`btn-press inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border tabular-nums transition-colors ${
-                                            isSelectedTask
-                                              ? 'bg-[#1d5c55] text-white border-[#1d5c55] cursor-pointer'
-                                              : involvedCount > 0
-                                              ? 'bg-[#eaf4f2] hover:bg-[#dceee9] text-[#1d5c55] border-[#c3e0da] cursor-pointer'
-                                              : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
-                                          }`}
-                                        >
-                                          <Users className="w-3 h-3 shrink-0" aria-hidden />
-                                          <span>{involvedCount} staff</span>
-                                        </button>
-                                      ) : (
-                                        <span className="text-slate-400 font-normal">—</span>
-                                      )}
                                     </td>
                                     <td className="py-3 px-2.5 text-right font-medium text-slate-700 tabular-nums whitespace-nowrap">
                                       {fmtInt(sc.count)} <span className="text-slate-400 font-normal">{sc.unit}</span>
@@ -5910,7 +5691,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               return (
                                 <tfoot>
                                   <tr className="bg-slate-50/95 border-t-2 border-slate-300 text-[13px] font-semibold text-slate-800 whitespace-nowrap">
-                                    <td colSpan={4} className="py-3 px-2.5 text-slate-900">
+                                    <td colSpan={3} className="py-3 px-2.5 text-slate-900">
                                       Total
                                       <span className="ml-1.5 font-normal text-slate-500">
                                         ({displayedSubCategories.length} sub-categories)
@@ -6215,14 +5996,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
                                   {s.staffName}
                                 </span>
-                                {activeTaskMeta && (() => {
-                                  const tm = getTaskMetric(s, activeTaskMeta.code, ruleMap);
-                                  return (
-                                    <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#eaf4f2] text-[#1d5c55] border border-[#c3e0da] tabular-nums">
-                                      {activeTaskMeta.label}: {fmtInt(tm.count)} ({fmtPts(tm.points)} pts)
-                                    </span>
-                                  );
-                                })()}
                               </td>
                               <td className="py-2.5 px-1.5 text-center">
                                 <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums whitespace-nowrap">
@@ -6290,14 +6063,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <span className="font-semibold text-slate-900 text-[13px] block truncate" title={cleanBranchName(b.branchName)}>
                                 {cleanBranchName(b.branchName)}
                               </span>
-                              {activeTaskMeta && (() => {
-                                const tm = getTaskMetric(b.raw, activeTaskMeta.code, ruleMap);
-                                return (
-                                  <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#eaf4f2] text-[#1d5c55] border border-[#c3e0da] tabular-nums">
-                                    {activeTaskMeta.label}: {fmtInt(tm.count)} ({fmtPts(tm.points)} pts)
-                                  </span>
-                                );
-                              })()}
                             </td>
                             <td className="py-2.5 px-1.5 text-center">
                               <span
@@ -6763,6 +6528,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   {olderDaysError && needsOlderDays && !olderCovered && (
                     <span className="text-rose-600" role="alert">This month's days could not be loaded. {olderDaysError}</span>
                   )}
+                  <span className="ml-1">{tableTaskFilterEl}</span>
                 </div>
               </div>
             ) : (
@@ -6835,7 +6601,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   {tableMode === 'branch' ? (
                     <>
                       <strong className="font-semibold text-slate-800 tabular-nums">{statusFilteredBranches.length}</strong> branches
-                      {statusFilter !== 'ALL' && (
+                      {(statusFilter !== 'ALL' || taskFilter !== 'ALL') && (
                         <span className="text-slate-400 font-normal"> of {filteredBranches.length}</span>
                       )}
                       <span className="mx-1.5 text-slate-300">·</span>
@@ -6845,7 +6611,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   ) : (
                     <>
                       <strong className="font-semibold text-slate-800 tabular-nums">{statusFilteredStaff.length}</strong> staff
-                      {statusFilter !== 'ALL' && (
+                      {(statusFilter !== 'ALL' || taskFilter !== 'ALL') && (
                         <span className="text-slate-400 font-normal"> of {filteredStaff.length}</span>
                       )}
                       <span className="mx-1.5 text-slate-300">·</span>
@@ -6856,6 +6622,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </span>
                 )}
                 <div className="flex flex-wrap items-center gap-2.5">
+                  {tableTaskFilterEl}
                   <div className="inline-flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-500 font-medium">Status:</span>
                     <select
@@ -6891,9 +6658,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   </div>
                   {tableMode === 'staff' && (() => {
                     const isMon = staffSubView === 'monthly';
-                    const allLvlCount = isMon ? monthlyMatrixData.levelCounts.all : enrichedStaff.length;
-                    const fldLvlCount = isMon ? monthlyMatrixData.levelCounts.field : enrichedStaff.filter((s) => !s.isManagement).length;
-                    const mgtLvlCount = isMon ? monthlyMatrixData.levelCounts.management : enrichedStaff.filter((s) => s.isManagement).length;
+                    const taskScopedStaff = taskFilter === 'ALL'
+                      ? enrichedStaff
+                      : enrichedStaff.filter((s) => getTaskMetric(s, taskFilter, ruleMap).count > 0);
+                    const allLvlCount = isMon ? monthlyMatrixData.levelCounts.all : taskScopedStaff.length;
+                    const fldLvlCount = isMon ? monthlyMatrixData.levelCounts.field : taskScopedStaff.filter((s) => !s.isManagement).length;
+                    const mgtLvlCount = isMon ? monthlyMatrixData.levelCounts.management : taskScopedStaff.filter((s) => s.isManagement).length;
                     return (
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] text-slate-500 font-medium">Level:</span>
