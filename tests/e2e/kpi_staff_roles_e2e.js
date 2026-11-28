@@ -86,6 +86,15 @@ async function api(route) {
   ok(/Team lead · 2 br\./.test(await rowOf('20011').innerText()), 'badge: Team lead · 2 branches', await rowOf('20011').innerText());
   await search.fill('20012'); await sleep(600);
   ok(/Management/.test(await rowOf('20012').innerText()), 'badge: Management', await rowOf('20012').innerText());
+  ok(await p.locator('main thead').getByText('KPI Role', { exact: true }).count() === 1, 'the table has a KPI Role column');
+  ok(/Management/.test(await rowOf('20012').locator('[data-kpi-role-cell]').innerText()) && !/Management/.test(await rowOf('20012').locator('td').nth(2).innerText()), 'Management is shown in the KPI Role column, not next to the name');
+  await search.fill(''); await sleep(600);
+  await p.locator('main thead').getByText('KPI Role', { exact: true }).click(); await sleep(500);
+  const firstRoles = await p.locator('main tbody tr [data-kpi-role-cell]').evaluateAll((els) => els.slice(0, 5).map((e) => e.innerText.trim()));
+  const rank = (t) => (/Management/.test(t) ? 0 : /Team lead/.test(t) ? 1 : 2);
+  ok(firstRoles.length === 5 && firstRoles.every((t, i) => i === 0 || rank(firstRoles[i - 1]) <= rank(t)) && rank(firstRoles[0]) === 0 && firstRoles.some((t) => rank(t) === 1),
+    'sorting by KPI Role: Management first, then Team leads, then the rest', firstRoles);
+  if (process.env.SHOT_TABLE) await p.screenshot({ path: process.env.SHOT_TABLE });
   await search.fill('team lead'); await sleep(600);
   ok(await p.locator('main tr').filter({ hasText: '20011' }).count() === 1, 'search "team lead" finds the team leads');
 

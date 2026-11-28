@@ -187,6 +187,8 @@ export const StaffAccountsTab: React.FC<{
   const { sorted: shown, sort: stSort, toggle: stToggle } = useSort<StaffAccount>(matched, {
     emp: (a) => Number(a.empId) || a.empId,
     name: (a) => a.name,
+    // (28 Nov 2026) KPI Role column: Management first, then Team leads, then frontline staff
+    kpi: (a) => (mgmtIds.has(idKey(a.empId)) ? 0 : 2) + (teamLeads.has(idKey(a.empId)) ? 0 : 1),
     online: (a) => (isStaffOnline(a) ? 0 : 1),
     role: (a) => ROLE_LABEL[a.role],
     branch: (a) => Number(a.branchId) || a.branchId,
@@ -765,6 +767,9 @@ export const StaffAccountsTab: React.FC<{
                 <SortTh k="name" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   Staff Name
                 </SortTh>
+                <SortTh k="kpi" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
+                  KPI Role
+                </SortTh>
                 <SortTh k="online" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   Live Status
                 </SortTh>
@@ -800,7 +805,7 @@ export const StaffAccountsTab: React.FC<{
               ))}
               {list && shown.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500">
                     No accounts match the search.
                   </td>
                 </tr>
@@ -931,18 +936,6 @@ const StaffRow = memo(function StaffRow({
       <td className="px-3 py-2.5 font-semibold text-slate-900">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{a.name}</span>
-          {mgmt && (
-            <span title="Management Level: 0 KPI target, non-mandatory" data-badge-mgmt
-              className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              Management
-            </span>
-          )}
-          {teamLead && (
-            <span title={`Team lead (Team KPI in the Merchant Visit app): branches ${teamLead.branchIds.join(', ') || '—'}${teamLead.memberIds.length ? ` + ${teamLead.memberIds.length} staff` : ''}${teamLead.active ? '' : ' · switched off'}`} data-badge-tl
-              className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${teamLead.active ? 'bg-[#002F4A]/5 text-[#002F4A] border-[#002F4A]/20' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
-              Team lead · {teamLead.branchIds.length} br.
-            </span>
-          )}
           {a.telegramUsername && (
             <span
               title="Configured for Telegram @mention push notifications"
@@ -951,6 +944,23 @@ const StaffRow = memo(function StaffRow({
               @{a.telegramUsername.replace(/^@/, '')}
             </span>
           )}
+        </div>
+      </td>
+      <td className="px-3 py-2.5" data-kpi-role-cell>
+        <div className="flex flex-wrap items-center gap-1">
+          {mgmt && (
+            <span title="Management Level: 0 KPI target, non-mandatory" data-badge-mgmt
+              className="inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Management
+            </span>
+          )}
+          {teamLead && (
+            <span title={`Team lead (Team KPI in the Merchant Visit app): branches ${teamLead.branchIds.join(', ') || '—'}${teamLead.memberIds.length ? ` + ${teamLead.memberIds.length} staff` : ''}${teamLead.active ? '' : ' · switched off'}`} data-badge-tl
+              className={`inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${teamLead.active ? 'bg-[#002F4A]/5 text-[#002F4A] border-[#002F4A]/20' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+              Team lead · {teamLead.branchIds.length} br.
+            </span>
+          )}
+          {!mgmt && !teamLead && <span className="text-slate-400">—</span>}
         </div>
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap">
