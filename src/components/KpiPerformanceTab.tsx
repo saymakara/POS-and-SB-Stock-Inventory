@@ -2641,7 +2641,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   }, [data, granularity, period, range, ruleMap, timelineSortKey, timelineSortDir, ppDirectoryScope, totals, isAdmin, userBranchId, branchFilter, isTaskMode]);
 
   const subCategoryBreakdown = useMemo(
-    () => buildSubCategoryItems(totals.raw, ruleMap, true),
+    () => buildSubCategoryItems(totals.raw, ruleMap, false),
     [totals.raw, ruleMap]
   );
 
@@ -6208,13 +6208,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 leading-snug">Overall Performance Timeline</h3>
-                  <span className="text-[11.5px] text-slate-500 font-medium hidden sm:inline">
-                    · {granularity === 'daily'
-                      ? (timeSeries.length > 10 && !timelineExpanded
-                        ? `Daily (${Math.min(10, timeSeries.length)} of ${timeSeries.length} days)`
-                        : `Daily (last ${Math.min(30, timeSeries.length)} days)`)
-                      : granularity === 'weekly' ? 'Weekly (last 12 weeks)' : granularity === 'quarterly' ? 'Quarterly (last 8 quarters)' : 'Monthly (last 12 months)'}
-                  </span>
                 </div>
                 <p className="text-[11.5px] text-slate-500 font-medium">
                   {isTaskMode
