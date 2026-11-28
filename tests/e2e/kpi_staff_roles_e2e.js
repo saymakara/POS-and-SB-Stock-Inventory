@@ -1,6 +1,6 @@
 // (28 Nov 2026) KPI roles live in the Staff Directory, against the stand-in Supabase API (never touches live data):
 //  * Settings -> KPI no longer has the Management Level and Team leads cards (a one-line pointer instead)
-//  * Staff Directory: "Management" / "Team lead" badges; Edit -> KPI role: Management Level on/off (kpi_management_set),
+//  * Staff Directory: KPI Role column (Branch Staff / HO Support / Management + Team lead); Edit -> KPI level (kpi_management_set),
 //    Team lead with branches and extra Staff IDs (kpi_team_lead_save), removing a team lead (kpi_team_lead_delete)
 //  * a browser's old Management list (localStorage) is copied to the database once, then removed
 //  * Settings -> KPI Points & Rules: "Sync POS & Sound Box" finds Sound Box Maintenance (kpi_sync_from_mv {source: field})
@@ -10,7 +10,7 @@ const { chromium, B, sleep } = S;
 let fails = 0; const ok = (c, m, x) => { console.log((c ? 'PASS ' : 'FAIL ') + m + (!c && x !== undefined ? ' ' + JSON.stringify(x).slice(0, 300) : '')); if (!c) fails++; };
 const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_TUNNEL|net::ERR/;
 let leads = [{ staff_id: '20011', staff_name: 'STAFF Number11', branch_ids: ['101', '102'], member_ids: [], active: true }];
-let mgmt = [{ staff_id: '20012', staff_name: 'STAFF Number12' }];
+let mgmt = [{ staff_id: '20012', staff_name: 'STAFF Number12', level: 'MANAGEMENT' }];
 let rules = [{ code: 'SB_MAINT', category: 'Sound Box', sub_category: 'Sound Box Operational Support', description: '', points: 2, unit: 'per visit', active: true, is_system: true, sort_order: 60 }];
 const calls = [];
 const json = (route, code, o) => route.fulfill({ status: code, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range' }, body: JSON.stringify(o) });
@@ -22,8 +22,8 @@ async function api(route) {
   if (path === '/rest/v1/rpc/kpi_management_list') return json(route, 200, mgmt);
   if (path === '/rest/v1/rpc/kpi_management_set') {
     calls.push(['mgmt_set', body.p]);
-    for (const i of body.p.items) { mgmt = mgmt.filter((m) => m.staff_id !== i.staff_id); if (i.on) mgmt.push({ staff_id: i.staff_id, staff_name: i.staff_name }); }
-    return json(route, 200, { ok: true });
+    for (const i of body.p.items) { mgmt = mgmt.filter((m) => m.staff_id !== i.staff_id); if (i.on) mgmt.push({ staff_id: i.staff_id, staff_name: i.staff_name, level: i.level || 'MANAGEMENT' }); }
+    return json(route, 200, { ok: true, levels: true });
   }
   if (path === '/rest/v1/rpc/admin_save_staff') {
     calls.push(['staff_save', body.p]);
@@ -91,10 +91,11 @@ async function api(route) {
   await search.fill(''); await sleep(600);
   await p.locator('main thead').getByText('KPI Role', { exact: true }).click(); await sleep(500);
   const firstRoles = await p.locator('main tbody tr [data-kpi-role-cell]').evaluateAll((els) => els.slice(0, 5).map((e) => e.innerText.trim()));
-  const rank = (t) => (/Management/.test(t) ? 0 : /Team lead/.test(t) ? 1 : 2);
-  ok(firstRoles.length === 5 && firstRoles.every((t, i) => i === 0 || rank(firstRoles[i - 1]) <= rank(t)) && rank(firstRoles[0]) === 0 && firstRoles.some((t) => rank(t) === 1),
+  const rank = (t) => (/Management/.test(t) ? 0 : /HO Support/.test(t) ? 1 : /Team lead/.test(t) ? 2 : 3);
+  ok(firstRoles.length === 5 && firstRoles.every((t, i) => i === 0 || rank(firstRoles[i - 1]) <= rank(t)) && rank(firstRoles[0]) === 0 && firstRoles.some((t) => rank(t) === 2),
     'sorting by KPI Role: Management first, then Team leads, then the rest', firstRoles);
   if (process.env.SHOT_TABLE) await p.screenshot({ path: process.env.SHOT_TABLE });
+  ok(/^Branch Staff$/.test(firstRoles[4] || '') , 'staff without a KPI level show "Branch Staff"', firstRoles);
   await search.fill('team lead'); await sleep(600);
   ok(await p.locator('main tr').filter({ hasText: '20011' }).count() === 1, 'search "team lead" finds the team leads');
 
@@ -102,8 +103,10 @@ async function api(route) {
   const openEdit = async (emp) => { await search.fill(emp); await sleep(600); await rowOf(emp).getByRole('button', { name: 'Edit', exact: true }).click(); await sleep(500); };
   await openEdit('20010');
   const panel = p.locator('[data-staff-kpi-role]');
-  ok(await panel.isVisible() && !(await p.locator('[data-staff-kpi-mgmt]').isChecked()) && !(await p.locator('[data-staff-kpi-tl]').isChecked()), 'Edit: KPI role panel, both off');
-  await p.locator('[data-staff-kpi-mgmt]').check(); await p.locator('[data-staff-kpi-tl]').check(); await sleep(200);
+  ok(await panel.isVisible() && await p.locator('[data-staff-kpi-level] [data-level="BRANCH_STAFF"]').getAttribute('aria-checked') === 'true' && !(await p.locator('[data-staff-kpi-tl]').isChecked()),
+    'Edit: KPI level Branch Staff (default), Team lead off');
+  ok(/HO Support/.test(await p.locator('[data-staff-kpi-level]').innerText()) && /Management Level/.test(await p.locator('[data-staff-kpi-level]').innerText()), 'the KPI level offers Branch Staff, HO Support, Management Level');
+  await p.locator('[data-staff-kpi-level] [data-level="HO_SUPPORT"]').click(); await p.locator('[data-staff-kpi-tl]').check(); await sleep(200);
   await p.getByRole('button', { name: /^Save/ }).first().click(); await sleep(800);
   ok(/choose at least one branch/i.test(await text()) && !calls.some((c) => c[0] === 'staff_save'), 'Team lead without branches or Staff IDs: asked to choose, nothing saved');
   await p.locator('[data-staff-kpi-branches] button').filter({ hasText: /^101 · / }).click();
@@ -111,14 +114,23 @@ async function api(route) {
   await p.locator('[data-staff-kpi-members]').fill('27121, 10386');
   await p.getByRole('button', { name: /^Save/ }).first().click(); await sleep(1500);
   const ms = calls.filter((c) => c[0] === 'mgmt_set').pop();
-  ok(ms && ms[1].items[0].staff_id === '20010' && ms[1].items[0].on === true, 'Save: Management Level on (kpi_management_set)', ms);
+  ok(ms && ms[1].items[0].staff_id === '20010' && ms[1].items[0].on === true && ms[1].items[0].level === 'HO_SUPPORT', 'Save: KPI level HO Support (kpi_management_set)', ms);
   const ts = calls.filter((c) => c[0] === 'tl_save').pop();
   ok(ts && ts[1].staff_id === '20010' && JSON.stringify([...ts[1].branch_ids].sort()) === '["101","105"]' && JSON.stringify(ts[1].member_ids) === '["27121","10386"]' && ts[1].active === true,
     'Save: team lead with branches 101, 105 and two Staff IDs (kpi_team_lead_save)', ts && ts[1]);
-  ok(/Management Level on/.test(await text()) && /Team lead saved/.test(await text()), 'the message names both changes');
+  ok(/HO Support \(KPI level\)/.test(await text()) && /Team lead saved/.test(await text()), 'the message names both changes', (await text()).split('\n').filter((l) => /20010|KPI level|Team lead/.test(l)).slice(0, 6));
   await search.fill('20010'); await sleep(700);
   const r10 = await rowOf('20010').innerText();
-  ok(/Management/.test(r10) && /Team lead · 2 br\./.test(r10), 'badges shown on the row', r10);
+  ok(/HO Support/.test(r10) && /Team lead · 2 br\./.test(r10), 'badges shown on the row: HO Support + Team lead', r10);
+  // 20012: Management back to Branch Staff
+  await openEdit('20012');
+  ok(await p.locator('[data-staff-kpi-level] [data-level="MANAGEMENT"]').getAttribute('aria-checked') === 'true', 'Edit a Management staff member: Management Level selected');
+  await p.locator('[data-staff-kpi-level] [data-level="BRANCH_STAFF"]').click();
+  await p.getByRole('button', { name: /^Save/ }).first().click(); await sleep(1500);
+  const back = calls.filter((c) => c[0] === 'mgmt_set').pop();
+  ok(back && back[1].items[0].staff_id === '20012' && back[1].items[0].on === false, 'Save: back to Branch Staff (removed from the list)', back);
+  await search.fill('20012'); await sleep(700);
+  ok(/Branch Staff/.test(await rowOf('20012').locator('[data-kpi-role-cell]').innerText()), 'the row now shows Branch Staff');
 
   // edit 20011: remove the team lead; nothing else changes
   const before = calls.length;

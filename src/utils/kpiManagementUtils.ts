@@ -11,9 +11,15 @@ import { emitPortalSync, onPortalSync } from './portalSync';
  * by an administrator (see migrateLegacyManagementList).
  */
 
+/** (28 Nov 2026) KPI level set in the Staff Directory. Branch Staff is the default and is not stored. */
+export type StaffKpiLevel = 'BRANCH_STAFF' | 'HO_SUPPORT' | 'MANAGEMENT';
+export const KPI_LEVEL_LABEL: Record<StaffKpiLevel, string> = { BRANCH_STAFF: 'Branch Staff', HO_SUPPORT: 'HO Support', MANAGEMENT: 'Management' };
+
 export interface ManagementExemptStaff {
   staffId: string;
   staffName: string;
+  /** MANAGEMENT (0 target) or HO_SUPPORT (full target); lists from before 20261128_02 are all MANAGEMENT */
+  level: Exclude<StaffKpiLevel, 'BRANCH_STAFF'>;
   updatedBy?: string | null;
   updatedAt?: string | null;
 }
@@ -29,21 +35,24 @@ const readJson = (key: string): unknown => {
 const clean = (x: unknown): ManagementExemptStaff[] =>
   (Array.isArray(x) ? x : [])
     .map((r: any) => ({ staffId: String(r?.staffId ?? r?.staff_id ?? '').trim(), staffName: String(r?.staffName ?? r?.staff_name ?? '').trim(),
+      level: (String(r?.level || '').toUpperCase() === 'HO_SUPPORT' ? 'HO_SUPPORT' : 'MANAGEMENT') as ManagementExemptStaff['level'],
       updatedBy: r?.updatedBy ?? r?.updated_by ?? null, updatedAt: r?.updatedAt ?? r?.updated_at ?? null }))
     .filter((r) => r.staffId || r.staffName);
 
 let list: ManagementExemptStaff[] = clean(readJson(CACHE_KEY));
 let loadedFromServer = false;
 let serverMissing = false;     // the database update is not run yet: keep using the old per-browser list
+let serverHasLevels = false;   // 20261128_02 is run: the list carries a level (HO Support can be stored)
 
 const publish = (next: ManagementExemptStaff[]) => {
   list = next;
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(next.map((s) => ({ staffId: s.staffId, staffName: s.staffName })))); } catch { /* blocked: fine */ }
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(next.map((s) => ({ staffId: s.staffId, staffName: s.staffName, level: s.level })))); } catch { /* blocked: fine */ }
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(KPI_MANAGEMENT_EXEMPT_EVENT, { detail: next }));
 };
 
 const isMissing = (m: string) => /kpi_management|PGRST202|does not exist|schema cache|Could not find the function/i.test(m);
 export const MANAGEMENT_SETUP_MSG = 'The database needs the update 20261128_01_sb_maintenance_and_staff_roles.sql first.';
+export const LEVEL_SETUP_MSG = 'HO Support needs the database update 20261128_02_staff_kpi_level.sql first.';
 
 /** The current list (memory). Call loadManagementList() to refresh it from the server. */
 export function getManagementExemptStaff(): ManagementExemptStaff[] {
@@ -67,17 +76,38 @@ export function loadManagementList(force = false): Promise<ManagementExemptStaff
       throw new Error(error.message);
     }
     serverMissing = false; loadedFromServer = true; loadedAt = Date.now();
+    serverHasLevels = Array.isArray(data) && (data.length === 0 ? serverHasLevels : data.some((r: any) => r && 'level' in r));
     publish(clean(data));
     return list;
   })().finally(() => { inflight = null; });
   return inflight;
 }
 
-/** Admin HQ: switch Management Level on/off for one or more staff (by Staff ID). */
-export async function setManagementLevel(items: Array<{ staffId: string; staffName?: string; on: boolean }>): Promise<void> {
+/** The KPI level of a staff member (Branch Staff when not in the list). */
+export function getStaffKpiLevel(staffId?: string | null, staffName?: string | null): StaffKpiLevel {
+  const id = String(staffId || '').trim().toLowerCase(), nm = String(staffName || '').trim().toLowerCase();
+  const hit = getManagementExemptStaff().find((s) => (id && s.staffId.toLowerCase() === id) || (!s.staffId && nm && s.staffName.toLowerCase() === nm));
+  return hit ? hit.level : 'BRANCH_STAFF';
+}
+
+/**
+ * Admin HQ: set the KPI level of one or more staff (by Staff ID). `on: false` or level BRANCH_STAFF = back to Branch Staff.
+ * HO Support needs 20261128_02 (an older server would store it as Management, so it is refused here first).
+ */
+export async function setManagementLevel(items: Array<{ staffId: string; staffName?: string; on: boolean; level?: StaffKpiLevel }>): Promise<void> {
   if (!items.length) return;
+  if (items.some((i) => i.on && i.level === 'HO_SUPPORT') && !serverHasLevels) {
+    await loadManagementList(true).catch(() => undefined);
+    if (!serverHasLevels) {
+      // an empty list says nothing about the server version: ask the function itself with an empty change
+      const probe = await supabase.rpc('kpi_management_set', { p: { items: [] } });
+      if (probe.error || !(probe.data && (probe.data as any).levels)) throw new Error(LEVEL_SETUP_MSG);
+      serverHasLevels = true;
+    }
+  }
   const { error } = await supabase.rpc('kpi_management_set', {
-    p: { items: items.map((i) => ({ staff_id: i.staffId.trim(), staff_name: (i.staffName || '').trim(), on: i.on })) },
+    p: { items: items.map((i) => ({ staff_id: i.staffId.trim(), staff_name: (i.staffName || '').trim(),
+      on: i.on && i.level !== 'BRANCH_STAFF', level: i.level && i.level !== 'BRANCH_STAFF' ? i.level : 'MANAGEMENT' })) },
   });
   if (error) throw new Error(isMissing(error.message) ? MANAGEMENT_SETUP_MSG : error.message);
   await loadManagementList(true).catch(() => undefined);
@@ -93,7 +123,7 @@ export async function migrateLegacyManagementList(): Promise<{ copied: number; s
   if (!old.length) return { copied: 0, skipped: [] };
   const withId = old.filter((s) => /^[A-Za-z0-9._-]{1,40}$/.test(s.staffId));
   const skipped = old.filter((s) => !withId.includes(s)).map((s) => s.staffName || s.staffId);
-  if (withId.length) await setManagementLevel(withId.map((s) => ({ staffId: s.staffId, staffName: s.staffName, on: true })));
+  if (withId.length) await setManagementLevel(withId.map((s) => ({ staffId: s.staffId, staffName: s.staffName, on: true, level: 'MANAGEMENT' as const })));
   try { localStorage.removeItem(KPI_MANAGEMENT_EXEMPT_STORAGE_KEY); } catch { /* blocked: fine */ }
   return { copied: withId.length, skipped };
 }
@@ -110,8 +140,15 @@ export function watchManagementList(): void {
  * Returns a Set of lower-cased staff IDs and names for O(1) exemption checks.
  */
 export function getManagementExemptSet(): Set<string> {
+  return levelSet('MANAGEMENT');
+}
+/** (28 Nov 2026) HO Support staff: full KPI target, shown as "HO Support" on the KPI page. */
+export function getHoSupportSet(): Set<string> {
+  return levelSet('HO_SUPPORT');
+}
+function levelSet(level: ManagementExemptStaff['level']): Set<string> {
   const set = new Set<string>();
-  getManagementExemptStaff().forEach((s) => {
+  getManagementExemptStaff().filter((s) => s.level === level).forEach((s) => {
     if (s.staffId) set.add(s.staffId.trim().toLowerCase());
     if (s.staffName) set.add(s.staffName.trim().toLowerCase());
   });

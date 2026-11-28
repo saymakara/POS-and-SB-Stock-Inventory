@@ -8,7 +8,7 @@ import { Branch, UserRole } from '../types';
 import { StaffAccount, saveStaffAccount, deleteStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
 import { getCachedStaff, loadStaff, onStaffList, setCachedStaff } from '../services/staffCache';
 import { saveStaffAlias } from '../utils/staffUtils';
-import { KPI_MANAGEMENT_EXEMPT_EVENT, getManagementExemptStaff, loadManagementList, migrateLegacyManagementList, setManagementLevel } from '../utils/kpiManagementUtils';
+import { KPI_LEVEL_LABEL, KPI_MANAGEMENT_EXEMPT_EVENT, StaffKpiLevel, getManagementExemptStaff, loadManagementList, migrateLegacyManagementList, setManagementLevel } from '../utils/kpiManagementUtils';
 import { KpiTeamLead, deleteTeamLead, fetchTeamLeads, saveTeamLead } from '../services/kpiTeamLeadService';
 import { onPortalSync } from '../utils/portalSync';
 
@@ -20,8 +20,19 @@ import { onPortalSync } from '../utils/portalSync';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin (HQ)', BRANCH: 'Branch staff' };
 /** (28 Nov 2026) KPI role of a staff member, set here instead of Settings -> KPI: Management Level (0 target) and Team lead. */
-type KpiRoleForm = { mgmt: boolean; tl: boolean; tlBranches: string[]; tlMembers: string; tlActive: boolean };
-const blankKpi: KpiRoleForm = { mgmt: false, tl: false, tlBranches: [], tlMembers: '', tlActive: true };
+type KpiRoleForm = { level: StaffKpiLevel; tl: boolean; tlBranches: string[]; tlMembers: string; tlActive: boolean };
+const blankKpi: KpiRoleForm = { level: 'BRANCH_STAFF', tl: false, tlBranches: [], tlMembers: '', tlActive: true };
+const LEVEL_OPTIONS: Array<{ v: StaffKpiLevel; title: string; note: string }> = [
+  { v: 'BRANCH_STAFF', title: 'Branch Staff', note: 'Frontline staff at a branch · full KPI target' },
+  { v: 'HO_SUPPORT', title: 'HO Support', note: 'Head Office staff supporting the branches · full KPI target' },
+  { v: 'MANAGEMENT', title: 'Management Level', note: '0 KPI target, non-mandatory · figures shown, not ranked' },
+];
+const LEVEL_BADGE: Record<StaffKpiLevel, string> = {
+  BRANCH_STAFF: 'bg-slate-50 text-slate-600 border-slate-200',
+  HO_SUPPORT: 'bg-teal-50 text-teal-700 border-teal-200',
+  MANAGEMENT: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+};
+const LEVEL_RANK: Record<StaffKpiLevel, number> = { MANAGEMENT: 0, HO_SUPPORT: 1, BRANCH_STAFF: 2 };
 const idKey = (x: string) => String(x || '').trim().toLowerCase();
 const blank = {
   emp_id: '',
@@ -79,7 +90,9 @@ export const StaffAccountsTab: React.FC<{
   const [deleting, setDeleting] = useState(false);
 
   // (28 Nov 2026) KPI roles: Management Level (database list) and Team leads (Team KPI in the Merchant Visit app)
-  const [mgmtIds, setMgmtIds] = useState<Set<string>>(() => new Set(getManagementExemptStaff().map((m) => idKey(m.staffId)).filter(Boolean)));
+  const levelMap = () => new Map(getManagementExemptStaff().filter((m) => m.staffId).map((m) => [idKey(m.staffId), m.level as StaffKpiLevel]));
+  const [levels, setLevels] = useState<Map<string, StaffKpiLevel>>(levelMap);
+  const levelOf = useCallback((empId: string): StaffKpiLevel => levels.get(idKey(empId)) || 'BRANCH_STAFF', [levels]);
   const [teamLeads, setTeamLeads] = useState<Map<string, KpiTeamLead>>(new Map());
   const [kpiForm, setKpiForm] = useState<KpiRoleForm>(blankKpi);
   const [kpiErr, setKpiErr] = useState('');
@@ -92,7 +105,7 @@ export const StaffAccountsTab: React.FC<{
   }, []);
   useEffect(() => {
     if (!isAdmin) return;
-    const onMgmt = () => setMgmtIds(new Set(getManagementExemptStaff().map((m) => idKey(m.staffId)).filter(Boolean)));
+    const onMgmt = () => setLevels(levelMap());
     window.addEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, onMgmt);
     void loadManagementList().catch((e) => setKpiErr(e instanceof Error ? e.message : String(e)));
     void loadTeamLeads();
@@ -114,9 +127,9 @@ export const StaffAccountsTab: React.FC<{
   const kpiOf = useCallback(
     (empId: string): KpiRoleForm => {
       const t = teamLeads.get(idKey(empId));
-      return { mgmt: mgmtIds.has(idKey(empId)), tl: !!t, tlBranches: t ? [...t.branchIds] : [], tlMembers: t ? t.memberIds.join(', ') : '', tlActive: t ? t.active : true };
+      return { level: levelOf(empId), tl: !!t, tlBranches: t ? [...t.branchIds] : [], tlMembers: t ? t.memberIds.join(', ') : '', tlActive: t ? t.active : true };
     },
-    [mgmtIds, teamLeads]
+    [levelOf, teamLeads]
   );
 
   const onlineByEmp = useMemo(() => {
@@ -177,18 +190,18 @@ export const StaffAccountsTab: React.FC<{
       if (statusFilter === 'ACTIVE' && !a.active) return false;
       if (statusFilter === 'REVOKED' && a.active) return false;
       if (!s) return true;
-      const kpiRole = (mgmtIds.has(idKey(a.empId)) ? 'management ' : '') + (teamLeads.has(idKey(a.empId)) ? 'team lead' : '');
+      const kpiRole = KPI_LEVEL_LABEL[levelOf(a.empId)] + (teamLeads.has(idKey(a.empId)) ? ' team lead' : '');
       return [a.empId, a.name, a.branchId, branchName(a.branchId), ROLE_LABEL[a.role], getLocation(a), kpiRole].some((v) =>
         String(v).toLowerCase().includes(s)
       );
     });
-  }, [list, dq, statusFilter, branchName, getLocation, isStaffOnline, mgmtIds, teamLeads]);
+  }, [list, dq, statusFilter, branchName, getLocation, isStaffOnline, levelOf, teamLeads]);
 
   const { sorted: shown, sort: stSort, toggle: stToggle } = useSort<StaffAccount>(matched, {
     emp: (a) => Number(a.empId) || a.empId,
     name: (a) => a.name,
     // (28 Nov 2026) KPI Role column: Management first, then Team leads, then frontline staff
-    kpi: (a) => (mgmtIds.has(idKey(a.empId)) ? 0 : 2) + (teamLeads.has(idKey(a.empId)) ? 0 : 1),
+    kpi: (a) => LEVEL_RANK[levelOf(a.empId)] * 2 + (teamLeads.has(idKey(a.empId)) ? 0 : 1),
     online: (a) => (isStaffOnline(a) ? 0 : 1),
     role: (a) => ROLE_LABEL[a.role],
     branch: (a) => Number(a.branchId) || a.branchId,
@@ -356,9 +369,9 @@ export const StaffAccountsTab: React.FC<{
       const before = isNew ? blankKpi : kpiOf(cleanEmp);
       const kpiMsgs: string[] = [];
       try {
-        if (before.mgmt !== kpiForm.mgmt) {
-          await setManagementLevel([{ staffId: cleanEmp, staffName: form.name.trim(), on: kpiForm.mgmt }]);
-          kpiMsgs.push(kpiForm.mgmt ? 'Management Level on' : 'Management Level off');
+        if (before.level !== kpiForm.level) {
+          await setManagementLevel([{ staffId: cleanEmp, staffName: form.name.trim(), on: kpiForm.level !== 'BRANCH_STAFF', level: kpiForm.level }]);
+          kpiMsgs.push(KPI_LEVEL_LABEL[kpiForm.level] + ' (KPI level)');
         }
         const sameList = (x: string[], y: string[]) => x.length === y.length && [...x].sort().join(',') === [...y].sort().join(',');
         const beforeMembers = before.tlMembers.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
@@ -620,13 +633,19 @@ export const StaffAccountsTab: React.FC<{
                 <span className="text-[10.5px] text-slate-500">Used by the KPI page and the Merchant Visit app (Staff ID {form.emp_id.trim() || '—'})</span>
               </div>
               {kpiErr && <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{kpiErr}</div>}
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input type="checkbox" className="mt-0.5" checked={kpiForm.mgmt} onChange={(e) => setKpiForm({ ...kpiForm, mgmt: e.target.checked })} data-staff-kpi-mgmt />
-                <span>
-                  <span className="block text-xs font-bold text-slate-900">Management Level · 0 KPI target, non-mandatory</span>
-                  <span className="block text-[11px] text-slate-500">Shown on the KPI page with their figures, but not measured against a target and not ranked as frontline staff.</span>
-                </span>
-              </label>
+              <div role="radiogroup" aria-label="KPI level" className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-staff-kpi-level>
+                {LEVEL_OPTIONS.map((o) => {
+                  const on = kpiForm.level === o.v;
+                  return (
+                    <button key={o.v} type="button" role="radio" aria-checked={on} data-level={o.v}
+                      onClick={() => setKpiForm({ ...kpiForm, level: o.v })}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${on ? 'bg-white border-[#002F4A] ring-2 ring-[#002F4A]/15 shadow-2xs' : 'bg-white/60 border-slate-200 hover:bg-white'}`}>
+                      <span className={`block text-xs ${on ? 'font-extrabold text-slate-900' : 'font-bold text-slate-700'}`}>{o.title}</span>
+                      <span className="block text-[10.5px] text-slate-500 mt-0.5">{o.note}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5" checked={kpiForm.tl} onChange={(e) => setKpiForm({ ...kpiForm, tl: e.target.checked })} data-staff-kpi-tl />
                 <span>
@@ -797,7 +816,7 @@ export const StaffAccountsTab: React.FC<{
                   locationLabel={getLocation(a)}
                   onlineInfo={onlineByEmp.get(String(a.empId).trim()) || onlineByEmp.get(a.name.trim().toLowerCase())}
                   editable={isAdmin && canEdit(a)}
-                  mgmt={mgmtIds.has(idKey(a.empId))}
+                  level={levelOf(a.empId)}
                   teamLead={teamLeads.get(idKey(a.empId))}
                   onEdit={openEdit}
                   onToggleStatus={handleToggleStatus}
@@ -913,13 +932,13 @@ const StaffRow = memo(function StaffRow({
   locationLabel,
   onlineInfo,
   editable,
-  mgmt = false,
+  level = 'BRANCH_STAFF',
   teamLead,
   onEdit,
   onToggleStatus,
 }: {
   a: StaffAccount;
-  mgmt?: boolean;
+  level?: StaffKpiLevel;
   teamLead?: KpiTeamLead;
   no: number;
   branchLabel: string;
@@ -948,19 +967,16 @@ const StaffRow = memo(function StaffRow({
       </td>
       <td className="px-3 py-2.5" data-kpi-role-cell>
         <div className="flex flex-wrap items-center gap-1">
-          {mgmt && (
-            <span title="Management Level: 0 KPI target, non-mandatory" data-badge-mgmt
-              className="inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              Management
-            </span>
-          )}
+          <span title={LEVEL_OPTIONS.find((o) => o.v === level)?.note} data-badge-level={level}
+            className={`inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${LEVEL_BADGE[level]}`}>
+            {KPI_LEVEL_LABEL[level]}
+          </span>
           {teamLead && (
             <span title={`Team lead (Team KPI in the Merchant Visit app): branches ${teamLead.branchIds.join(', ') || '—'}${teamLead.memberIds.length ? ` + ${teamLead.memberIds.length} staff` : ''}${teamLead.active ? '' : ' · switched off'}`} data-badge-tl
               className={`inline-flex items-center whitespace-nowrap px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${teamLead.active ? 'bg-[#002F4A]/5 text-[#002F4A] border-[#002F4A]/20' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
               Team lead · {teamLead.branchIds.length} br.
             </span>
           )}
-          {!mgmt && !teamLead && <span className="text-slate-400">—</span>}
         </div>
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap">
