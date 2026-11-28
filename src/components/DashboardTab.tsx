@@ -2738,12 +2738,51 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const kpiPending = isSupabaseConfigured && kpiData === null && !kpiSettled;
   const installsPending = isSupabaseConfigured && scopedFieldInstalls === null && fieldInstallsLoading;
   const queuesPending = Boolean(actionQueues?.loading);
-  const reachTotal =
-    channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
-  const reachSharePct =
-    channelActivity.totalTasks > 0
-      ? Math.min(100, Math.round(((channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccCount) / channelActivity.totalTasks) * 100))
-      : 0;
+  const [channelMixIdx, setChannelMixIdx] = useState(0);
+  const [channelMixPaused, setChannelMixPaused] = useState(false);
+
+  const channelMixItems = useMemo(() => {
+    const order = ['pos', 'sb', 'khqr', 'mv', 'cc'] as const;
+    const byId = new Map(channelActivity.rows.map((r) => [r.id, r]));
+    const footerById: Record<(typeof order)[number], string> = {
+      pos: `${fmtNum(hardwareSummary.pos)} in stock · ${fmtNum(queues.posField)} pending`,
+      sb: `${fmtNum(hardwareSummary.sb)} in stock · ${fmtNum(queues.sbField)} pending`,
+      khqr: `${fmtNum(scopedKpiTotals.raw.khqrInstall)} new · ${fmtNum(scopedKpiTotals.raw.khqrReplace)} replace`,
+      mv: 'Field visits & merchant support',
+      cc: `${fmtNum(channelActivity.ccCount)}/${fmtNum(channelActivity.ccSubmittedShow)} confirmed · ${fmtNum(queues.ccPend)} pending`,
+    };
+    return order
+      .map((id) => {
+        const row = byId.get(id);
+        if (!row) return null;
+        return {
+          ...row,
+          id,
+          shortMeta: footerById[id],
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [
+    channelActivity.rows,
+    channelActivity.ccCount,
+    channelActivity.ccSubmittedShow,
+    hardwareSummary.pos,
+    hardwareSummary.sb,
+    queues.posField,
+    queues.sbField,
+    queues.ccPend,
+    scopedKpiTotals.raw.khqrInstall,
+    scopedKpiTotals.raw.khqrReplace,
+  ]);
+
+  useEffect(() => {
+    if (channelMixPaused || channelMixItems.length <= 1) return;
+    const timer = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      setChannelMixIdx((prev) => (prev + 1) % channelMixItems.length);
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [channelMixPaused, channelMixItems.length]);
 
   const velocityPeak = useMemo(() => {
     let peakVal = 0;
@@ -2851,7 +2890,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
     const tasksVals = sparkDays.map((p) => p.pos + p.sb + p.khqr + p.mv + p.cc);
     const deploymentVals = sparkDays.map((p) => p.pos + p.sb);
-    const reachVals = sparkDays.map((p) => p.khqr + p.mv + p.cc);
 
     // Approval Queue: trailing 6-month pending installation backlog trajectory (falls back to current queue total)
     const pendingHistVals = (monthlyInstallComparison.allBuckets || [])
@@ -2869,7 +2907,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         unitLabel: 'approval queue',
         negativeHex: isLight ? '#d97706' : '#fbbf24',
       }),
-      outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
+      channels: {
+        pos: analyzeSparkTrend(sparkDays.map((p) => p.pos), { isLight, unitLabel: 'POS tasks' }),
+        sb: analyzeSparkTrend(sparkDays.map((p) => p.sb), { isLight, unitLabel: 'Sound Box tasks' }),
+        khqr: analyzeSparkTrend(sparkDays.map((p) => p.khqr), { isLight, unitLabel: 'KHQR tasks' }),
+        mv: analyzeSparkTrend(sparkDays.map((p) => p.mv), { isLight, unitLabel: 'merchant visits' }),
+        cc: analyzeSparkTrend(sparkDays.map((p) => p.cc), { isLight, unitLabel: 'credit cards' }),
+      },
     };
   }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, monthlyInstallComparison.allBuckets, queues.total, isLight]);
 
@@ -3613,69 +3657,124 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             );
           })()}
 
-          {/* KPI 4: Merchant Outreach */}
-          <button
-            type="button"
-            onClick={() => onNavigateTab?.('mobile_sync_khqr')}
-            title="Open KHQR Review"
-            className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left silk-lift`}
-            style={{ '--silk-i': 3 } as React.CSSProperties}
-          >
-            <div className="w-full">
-              <div className="flex items-center justify-between gap-2">
-                <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
-                  Merchant Outreach
-                </span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
-                  <Store className="w-4 h-4" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <FigureSlot pending={kpiPending}><Odometer value={reachTotal} format duration={220} /></FigureSlot>
-                  </div>
-                  {kpiPending ? (
-                    <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
-                  ) : (
-                    <span
-                      data-kpi-delta="outreach"
-                      className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
-                      style={{
-                        color: kpiSparklines.outreach.colorHex,
-                        backgroundColor: `${kpiSparklines.outreach.colorHex}18`,
-                      }}
+          {/* KPI 4: Dynamic 5-Channel Mix (auto-cycles every 10s, pauses on hover) */}
+          {(() => {
+            const safeIdx = channelMixItems.length > 0 ? channelMixIdx % channelMixItems.length : 0;
+            const activeMix = channelMixItems[safeIdx];
+            if (!activeMix) return null;
+            const MixIcon = activeMix.icon;
+            const mixSpark = kpiSparklines.channels[activeMix.id];
+            return (
+              <div
+                role={onNavigateTab ? 'button' : undefined}
+                tabIndex={onNavigateTab ? 0 : undefined}
+                onClick={() => onNavigateTab?.(activeMix.tab)}
+                onKeyDown={(e) => {
+                  if (!onNavigateTab) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onNavigateTab(activeMix.tab);
+                  }
+                }}
+                onMouseEnter={() => setChannelMixPaused(true)}
+                onMouseLeave={() => setChannelMixPaused(false)}
+                title={`${activeMix.shortLabel} (${activeMix.sharePct}% share) — auto-cycles across all 5 channels every 10s · click to open ${activeMix.shortLabel}`}
+                className={`${kpiCardClass} ${kpiInteractiveClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0 w-full text-left silk-lift`}
+                style={{ '--silk-i': 3 } as React.CSSProperties}
+              >
+                <div className="w-full">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span data-kpi-title className={`block text-xs font-semibold truncate ${kpiSubtextClass}`}>
+                        {activeMix.shortLabel}
+                      </span>
+                      <div
+                        className="mt-1 flex items-center gap-1"
+                        role="tablist"
+                        aria-label="Channel mix switcher"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {channelMixItems.map((ch, idx) => {
+                          const isCur = idx === safeIdx;
+                          return (
+                            <button
+                              key={ch.id}
+                              type="button"
+                              role="tab"
+                              aria-selected={isCur}
+                              aria-label={`Show ${ch.shortLabel}`}
+                              title={ch.shortLabel}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChannelMixIdx(idx);
+                              }}
+                              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                                isCur ? 'w-4' : 'w-1.5 bg-slate-300/80 hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-400'
+                              }`}
+                              style={isCur ? { backgroundColor: ch.hexColor } : undefined}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-105 ${
+                        isLight ? activeMix.iconWrap : 'bg-white/10 text-white'
+                      }`}
                     >
-                      {kpiSparklines.outreach.direction === 'up' ? '▲' : kpiSparklines.outreach.direction === 'down' ? '▼' : '●'}{' '}
-                      {kpiSparklines.outreach.badgeText}
-                    </span>
+                      <MixIcon className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
+                        <FigureSlot pending={kpiPending}><Odometer value={activeMix.primaryValue} format duration={260} /></FigureSlot>
+                      </div>
+                      {kpiPending ? (
+                        <span className="mt-1.5 inline-block skeleton h-4 w-12 rounded-full" aria-hidden="true" />
+                      ) : (
+                        <span
+                          data-kpi-delta={`mix-${activeMix.id}`}
+                          className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none transition-colors duration-200"
+                          style={{
+                            color: mixSpark.colorHex,
+                            backgroundColor: `${mixSpark.colorHex}18`,
+                          }}
+                        >
+                          {mixSpark.direction === 'up' ? '▲' : mixSpark.direction === 'down' ? '▼' : '●'}{' '}
+                          {mixSpark.badgeText}
+                        </span>
+                      )}
+                    </div>
+                    {kpiPending ? (
+                      <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
+                    ) : (
+                      <KpiMiniSparkline
+                        metricId={`mix-${activeMix.id}`}
+                        summary={mixSpark}
+                        cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+                  {kpiPending ? (
+                    <>
+                      <span className="skeleton h-3 w-32 rounded inline-block" aria-hidden="true" />
+                      <span className="skeleton h-3 w-8 rounded inline-block" aria-hidden="true" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="truncate">{activeMix.shortMeta}</span>
+                      <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}>
+                        {activeMix.sharePct}%
+                      </span>
+                    </>
                   )}
                 </div>
-                {kpiPending ? (
-                  <div className="skeleton h-8 w-20 rounded-lg shrink-0" aria-hidden="true" />
-                ) : (
-                  <KpiMiniSparkline
-                    metricId="outreach"
-                    summary={kpiSparklines.outreach}
-                    cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
-                  />
-                )}
               </div>
-            </div>
-            <div className={`w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              {kpiPending ? (
-                <>
-                  <span className="skeleton h-3 w-32 rounded inline-block" aria-hidden="true" />
-                  <span className="skeleton h-3 w-8 rounded inline-block" aria-hidden="true" />
-                </>
-              ) : (
-                <>
-                  <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
-                  <span className={`font-semibold whitespace-nowrap group-hover:underline ${isLight ? 'text-[#002F4A]' : 'text-slate-200'}`}>{reachSharePct}%</span>
-                </>
-              )}
-            </div>
-          </button>
+            );
+          })()}
         </section>
         </div>
       </div>
