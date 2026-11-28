@@ -97,8 +97,8 @@ if (framed) {
 function AppLoading() {
   return (
     <div className="min-h-[100dvh] flex items-start bg-[#f4f7fa]" role="status" aria-label="Loading">
-      {/* Space Black Sidebar Skeleton matching Overview + Merchant App Review sub-tree + Operations */}
-      <div className="hidden md:flex flex-col w-[248px] shrink-0 min-h-[100dvh] bg-gradient-to-b from-[#0D0F12] to-[#16191F] px-3.5 py-4" aria-hidden="true">
+      {/* Real #002F4A Sidebar Skeleton matching Overview + Merchant App Review sub-tree + Operations */}
+      <div className="hidden md:flex flex-col w-[248px] shrink-0 min-h-[100dvh] bg-[#002F4A] px-3.5 py-4" aria-hidden="true">
         <div className="flex items-center gap-2.5 px-1.5 pb-4 mb-3 border-b border-white/10">
           <div className="skeleton-dark w-9 h-9 rounded-xl shrink-0" />
           <div className="space-y-1.5 flex-1">
