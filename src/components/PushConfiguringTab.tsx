@@ -1746,18 +1746,18 @@ return (
                     aria-label="Select all in queue"
                   >
                     <div
-                      className={`w-4.5 h-4.5 rounded-[4px] border-[1.5px] flex items-center justify-center transition-all duration-150 ${
+                      className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors duration-150 ${
                         selectedSns.length === filteredDevices.length && filteredDevices.length > 0
-                          ? 'bg-white border-white text-[#002F4A] shadow-xs scale-105'
+                          ? 'bg-white border-white text-[#155484] shadow-2xs'
                           : selectedSns.length > 0
-                          ? 'bg-white/20 border-white text-white shadow-xs'
-                          : 'bg-white/10 border-white/60 hover:border-white hover:bg-white/20 shadow-2xs'
+                          ? 'bg-white/95 border-white text-[#155484] shadow-2xs'
+                          : 'bg-transparent border-white/65 hover:border-white hover:bg-white/10'
                       }`}
                     >
                       {selectedSns.length === filteredDevices.length && filteredDevices.length > 0 ? (
-                        <Check className="w-3 h-3 text-[#002F4A] stroke-[3]" />
+                        <Check className="w-2.5 h-2.5 text-[#155484] stroke-[3]" />
                       ) : selectedSns.length > 0 ? (
-                        <Minus className="w-3 h-3 text-white stroke-[3]" />
+                        <Minus className="w-2.5 h-2.5 text-[#155484] stroke-[3]" />
                       ) : null}
                     </div>
                   </button>
@@ -1817,13 +1817,13 @@ return (
                           aria-label={`Select ${dev.serial}`}
                         >
                           <div
-                            className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                            className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors duration-150 ${
                               isSelected
-                                ? 'bg-[#002F4A] border-[#002F4A] text-white shadow-xs scale-105'
-                                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-500 hover:border-[#002F4A] dark:hover:border-slate-300 shadow-2xs'
+                                ? 'bg-[#155484] border-[#155484] text-white shadow-2xs'
+                                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-500 hover:border-[#155484] dark:hover:border-slate-300'
                             }`}
                           >
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                            {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
                           </div>
                         </button>
                       </td>

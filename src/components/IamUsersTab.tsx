@@ -12,8 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Building2,
-  CheckSquare,
-  Square,
+  Check,
   AlertTriangle,
   MapPin,
   X,
@@ -308,14 +307,21 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                   <tr key={u.uid} className="hover:bg-slate-50/80">
                     <td className="py-3 px-4">
                       <button
+                        type="button"
                         onClick={() => toggleSelect(u.uid)}
-                        className="cursor-pointer text-slate-400"
+                        aria-pressed={isSelected}
+                        aria-label={`Select ${u.name}`}
+                        className="group/chk inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-slate-200/70 cursor-pointer transition-colors"
                       >
-                        {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-zinc-900" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
+                        <span
+                          className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors duration-150 ${
+                            isSelected
+                              ? 'bg-[#155484] border-[#155484] text-white shadow-2xs'
+                              : 'bg-white border-slate-300 group-hover/chk:border-[#155484]'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" aria-hidden="true" />}
+                        </span>
                       </button>
                     </td>
                     <td className="py-3 px-2 text-right text-slate-500 tabular-nums">{pg.start + rowIdx + 1}</td>

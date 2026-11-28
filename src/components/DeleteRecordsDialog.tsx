@@ -134,22 +134,22 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
         onChange();
       }
     }}
-    className={`group/btn cursor-pointer inline-flex shrink-0 items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg transition-all active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-      light ? 'hover:bg-white/20' : 'hover:bg-slate-200/75'
+    className={`group/btn cursor-pointer inline-flex shrink-0 items-center justify-center w-7 h-7 rounded-md transition-colors active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+      light ? 'hover:bg-white/15' : 'hover:bg-slate-200/70'
     }`}
   >
     <span
-      className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+      className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors duration-150 ${
         checked
           ? light
-            ? 'bg-emerald-500 text-white shadow-xs border border-emerald-400'
-            : 'bg-[#002F4A] text-white shadow-xs border border-[#002F4A]'
+            ? 'bg-white border-white text-[#155484] shadow-2xs'
+            : 'bg-[#155484] border-[#155484] text-white shadow-2xs'
           : light
-          ? 'border-2 border-white/80 group-hover/btn:border-white group-hover/nocell:border-white bg-white/10'
-          : 'border-2 border-slate-300 group-hover/btn:border-[#002F4A] group-hover/nocell:border-[#002F4A] bg-white shadow-2xs'
+          ? 'border-white/65 bg-transparent group-hover/btn:border-white group-hover/nocell:border-white group-hover/btn:bg-white/10'
+          : 'border-slate-300 bg-white group-hover/btn:border-[#155484] group-hover/nocell:border-[#155484]'
       }`}
     >
-      {checked && <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />}
+      {checked && <Check className="w-2.5 h-2.5 stroke-[3]" aria-hidden="true" />}
     </span>
   </button>
 );
