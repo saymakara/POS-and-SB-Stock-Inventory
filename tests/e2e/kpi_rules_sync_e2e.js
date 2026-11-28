@@ -37,6 +37,8 @@ async function api(route) {
     return json(route, 200, r);
   }
   if (path === '/rest/v1/rpc/kpi_sync_from_mv') {
+    // (28 Nov 2026) one Sync button asks for both: the visit activities and the POS / Sound Box forms (none missing here)
+    if (body.p.source === 'field') return json(route, 200, { applied: !!body.p.apply, added: 0, new: [], deleted_skipped: [], activities_checked: 0, already_have_rule: 0, rules: [], source: 'field' });
     calls.push(['sync', body.p]);
     const have = new Set(rules.map((r) => r.code));
     const cand = fresh.filter((c) => !have.has(c.code));
@@ -110,8 +112,8 @@ async function api(route) {
   // ---- nothing left
   const before = calls.filter((c) => c[0] === 'sync').length;
   await p.locator('[data-kpi-sync]').click(); await sleep(300);
-  await p.waitForFunction(() => /Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(document.body.innerText), null, { timeout: 4000 }).catch(() => {});
-  ok(/Up to date\s*\n?\s*All 17 Merchant Visit tasks already have a KPI task/i.test(await text()) && !(await p.locator('[data-kpi-sync-apply]').count()) && calls.filter((c) => c[0] === 'sync').length === before + 1, 'when nothing is missing, Sync just says it is up to date');
+  await p.waitForFunction(() => /Up to date\s*\n?\s*All 17 Merchant Visit app tasks already have a KPI task/i.test(document.body.innerText), null, { timeout: 4000 }).catch(() => {});
+  ok(/Up to date\s*\n?\s*All 17 Merchant Visit app tasks already have a KPI task/i.test(await text()) && !(await p.locator('[data-kpi-sync-apply]').count()) && calls.filter((c) => c[0] === 'sync').length === before + 1, 'when nothing is missing, Sync just says it is up to date');
 
   // ---- an Inactive task at the bottom of a long page (owner, 22 Nov 2026: "I cannot delete"): the window must open on screen
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await sleep(300);

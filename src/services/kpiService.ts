@@ -980,6 +980,8 @@ export interface KpiSyncCandidate {
   lastSeen: string | null;
   /** (28 Nov 2026) POS & Sound Box forms: the points these records earn today (the new task starts with them) */
   points?: number;
+  /** (28 Nov 2026) where it was found: Merchant Visit activities or the POS Terminal / Sound Box forms */
+  source?: 'mv' | 'field';
   deletedAt?: string | null;
   deletedBy?: string | null;
 }
@@ -994,13 +996,39 @@ export interface KpiSyncResult {
   source: KpiSyncSource;
 }
 /** (28 Nov 2026) 'mv' = Merchant Visit activities; 'field' = the POS Terminal and Sound Box forms (migration 20261128_01) */
-export type KpiSyncSource = 'mv' | 'field';
+export type KpiSyncSource = 'mv' | 'field' | 'all';
 
 /**
  * (22 Nov 2026) Sync KPI tasks from the Merchant Visit app (migration 20261122_02, Super Admin). `apply` false only lists the
  * activities the app has sent that have no KPI task yet; `apply` true adds them (0 pts, inactive - a task deleted before comes
  * back as it was when `includeDeleted`). Tasks you deleted are left out unless `includeDeleted`.
  */
+/**
+ * (28 Nov 2026) One "Sync from Merchant Visit" for everything the Merchant Visit app sends: the visit activities AND the
+ * POS Terminal / Sound Box forms (e.g. Sound Box Maintenance). Both are checked together and shown as one list.
+ * A server without 20261128_01 has no form sync: the visit activities are still synced.
+ */
+export async function syncKpiFromMerchantVisitApp(apply: boolean, includeDeleted = false): Promise<KpiSyncResult> {
+  const [mv, field] = await Promise.all([
+    syncKpiFromMerchantVisit(apply, includeDeleted, 'mv'),
+    syncKpiFromMerchantVisit(apply, includeDeleted, 'field').catch((e) => {
+      if (/not updated yet/.test(String(e instanceof Error ? e.message : e))) return null;
+      throw e;
+    }),
+  ]);
+  if (!field) return { ...mv, source: 'all' };
+  return {
+    applied: mv.applied || field.applied,
+    added: mv.added + field.added,
+    candidates: [...mv.candidates, ...field.candidates],
+    deletedSkipped: [...mv.deletedSkipped, ...field.deletedSkipped],
+    activitiesChecked: mv.activitiesChecked + field.activitiesChecked,
+    alreadyHaveRule: mv.alreadyHaveRule + field.alreadyHaveRule,
+    rules: [...mv.rules, ...field.rules],
+    source: 'all',
+  };
+}
+
 export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = false, source: KpiSyncSource = 'mv'): Promise<KpiSyncResult> {
   const p: Record<string, unknown> = { apply, include_deleted: includeDeleted };
   if (source === 'field') p.source = 'field';
@@ -1028,11 +1056,12 @@ export async function syncKpiFromMerchantVisit(apply: boolean, includeDeleted = 
   });
   const rules = (Array.isArray(d.rules) ? d.rules : []).map(mapRule);
   rules.forEach(patchCachedKpiRule);
+  const tag = (c: KpiSyncCandidate): KpiSyncCandidate => ({ ...c, source: source === 'field' ? 'field' : 'mv' });
   return {
     applied: !!d.applied,
     added: Number(d.added) || 0,
-    candidates: (Array.isArray(d.new) ? d.new : []).map(cand),
-    deletedSkipped: (Array.isArray(d.deleted_skipped) ? d.deleted_skipped : []).map(cand),
+    candidates: (Array.isArray(d.new) ? d.new : []).map(cand).map(tag),
+    deletedSkipped: (Array.isArray(d.deleted_skipped) ? d.deleted_skipped : []).map(cand).map(tag),
     activitiesChecked: Number(d.activities_checked) || 0,
     alreadyHaveRule: Number(d.already_have_rule) || 0,
     rules,
