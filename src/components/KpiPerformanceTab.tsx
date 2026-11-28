@@ -16,7 +16,7 @@ import { usePager } from '../utils/usePager';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv } from '../utils/exportCsv';
-import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT } from '../utils/kpiManagementUtils';
+import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT, loadManagementList, watchManagementList } from '../utils/kpiManagementUtils';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import type { StaffAccount } from '../services/supabaseService';
 import { normalizeStaffName } from '../utils/staffUtils';
@@ -1137,6 +1137,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   useEffect(() => {
     const handler = () => setExemptVersion((v) => v + 1);
     window.addEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, handler);
+    // (28 Nov 2026) the Management Level list comes from the database (set in the Staff Directory)
+    watchManagementList();
+    void loadManagementList().catch(() => undefined);
     return () => window.removeEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, handler);
   }, []);
   const exemptSet = useMemo(() => getManagementExemptSet(), [exemptVersion]);

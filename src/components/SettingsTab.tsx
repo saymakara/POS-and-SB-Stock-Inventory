@@ -12,7 +12,6 @@ import {
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
 import { KpiRulesAdminSection } from './KpiRulesAdminSection';
-import { KpiTeamLeadsSection } from './KpiTeamLeadsSection';
 import { KhqrRetentionSection } from './KhqrRetentionSection';
 import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
 import { onPortalSync } from '../utils/portalSync';
@@ -720,7 +719,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <p className="text-xs text-rose-500">Could not load KPI settings. Please try again.</p>
               </div>
             )}
-            {isAdminLike && <KpiTeamLeadsSection canEdit={isAdminLike} branches={branches} toast={(msg) => onToast?.(msg)} />}   {/* (11 Nov 2026) Team KPI in the phone app */}
           </div>
         )}
         {/* SUBTAB: System Health (31 Oct 2026) */}
