@@ -82,6 +82,10 @@ const fifo = (a: Device, b: Device) => {
   return a.serial < b.serial ? -1 : a.serial > b.serial ? 1 : 0;
 };
 
+/** Compact display ID (e.g. REQ-20261125-94FEED -> REQ-94FEED) since Date already has its own column. */
+const formatShortReqId = (id: string): string =>
+  id ? id.replace(/^(REQ|RET)-\d{8}-([A-Z0-9]+)$/i, '$1-$2') : '';
+
 const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
   role,
   requisitions,
@@ -564,11 +568,11 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
               <tr>
                 <th className="col-no">No.</th>
                 <SortTh k="date" sort={reqSort} onSort={reqToggle} className="w-[12%] min-w-[144px] whitespace-nowrap">Date</SortTh>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="w-[14%] min-w-[172px] whitespace-nowrap">Request ID</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="w-[10%] min-w-[118px] whitespace-nowrap">Request ID</SortTh>
                 <SortTh k="type" sort={reqSort} onSort={reqToggle} className="w-[11%] min-w-[126px] whitespace-nowrap">Request Type</SortTh>
                 <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="w-[17%] min-w-[190px]">Staff / Branch</SortTh>
                 <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="w-[14%] min-w-[165px] whitespace-nowrap">Quantity</SortTh>
-                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="w-[18%] min-w-[200px]">Reason</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="w-[22%] min-w-[200px]">Reason</SortTh>
                 <SortTh k="status" sort={reqSort} onSort={reqToggle} className="w-[8%] min-w-[105px] whitespace-nowrap">Status</SortTh>
                 <th className="w-[6%] min-w-[92px] text-right col-actions">Actions</th>
               </tr>
@@ -638,9 +642,9 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                         type="button"
                         onClick={() => setSelectedRequisition(req)}
                         className="serial-btn font-mono"
-                        title="View requisition details"
+                        title={`View requisition details (${req.reqId})`}
                       >
-                        {req.reqId}
+                        {formatShortReqId(req.reqId)}
                       </button>
                     </td>
                     <td className="whitespace-nowrap">
@@ -682,26 +686,23 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                             onClick={() => setSelectedRequisition(req)}
                           >
                             {/* Line 1: Primary Hardware Units or Total Materials */}
-                            <div className="cell-main flex items-center gap-2 whitespace-nowrap">
+                            <div className="cell-main flex items-center gap-1.5 whitespace-nowrap">
                               {req.posQty > 0 && (
-                                <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200">
-                                  <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" aria-hidden />
-                                  <span>{req.posQty} POS</span>
+                                <span className="text-slate-800 dark:text-slate-200">
+                                  {req.posQty} POS
                                 </span>
                               )}
                               {req.posQty > 0 && req.sbQty > 0 && (
                                 <span className="text-slate-300 dark:text-slate-600">·</span>
                               )}
                               {req.sbQty > 0 && (
-                                <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200">
-                                  <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
-                                  <span>{req.sbQty} SB</span>
+                                <span className="text-slate-800 dark:text-slate-200">
+                                  {req.sbQty} SB
                                 </span>
                               )}
                               {!hasDevices && totalMat > 0 && (
-                                <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                                  <Boxes className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                                  <span>{totalMat} Materials</span>
+                                <span className="text-amber-700 dark:text-amber-400">
+                                  {totalMat} Materials
                                 </span>
                               )}
                               {!hasDevices && totalMat === 0 && (

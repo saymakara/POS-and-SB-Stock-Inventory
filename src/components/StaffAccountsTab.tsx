@@ -3,7 +3,7 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useStat
 import { useSort, SortTh } from '../utils/sort';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
-import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin, CheckCircle2, Ban, Trash2, AlertTriangle, X } from 'lucide-react';
+import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, CheckCircle2, Ban, Trash2, AlertTriangle, X } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, saveStaffAccount, deleteStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
 import { getCachedStaff, loadStaff, onStaffList, setCachedStaff } from '../services/staffCache';
@@ -1005,26 +1005,28 @@ const StaffRow = memo(function StaffRow({
       <td className="px-3 py-2.5">
         {branchLabel} · {a.branchId}
       </td>
-      <td className="px-3 py-2.5">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold text-[11px]">
-          <MapPin className="w-3 h-3 text-slate-500 dark:text-slate-400" />
-          <span>{locationLabel}</span>
-        </span>
+      <td className="px-3 py-2.5 text-slate-700 dark:text-slate-300 whitespace-nowrap">
+        {locationLabel}
       </td>
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
         <div className="flex items-center justify-end gap-2.5">
           <div className="inline-flex items-center gap-1.5 text-xs">
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                a.active ? 'bg-emerald-500' : 'bg-rose-500'
+                !a.active ? 'bg-rose-500' : a.mustChangePassword ? 'bg-amber-500' : 'bg-emerald-500'
               }`}
             />
-            <span className={a.active ? 'text-slate-800 font-medium' : 'text-slate-400 font-medium'}>
-              {a.active ? 'Retained' : 'Revoked'}
+            <span
+              className={
+                !a.active
+                  ? 'text-slate-400 font-medium'
+                  : a.mustChangePassword
+                    ? 'text-slate-600 font-medium'
+                    : 'text-slate-800 font-medium'
+              }
+            >
+              {!a.active ? 'Revoked' : a.mustChangePassword ? '1st login' : 'Retained'}
             </span>
-            {a.mustChangePassword && (
-              <span className="text-[10px] text-slate-400 font-mono">· 1st login</span>
-            )}
           </div>
 
           {editable && (

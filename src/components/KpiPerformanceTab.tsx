@@ -493,10 +493,10 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KT_VB_W = 620;
-const KT_VB_H = 360;
-const KT_CX = 310;
-const KT_CY = 180;
+const KT_VB_W = 592;
+const KT_VB_H = 348;
+const KT_CX = 296;
+const KT_CY = 174;
 const KT_R_INNER = 88;
 const KT_R_OUTER = 104;
 const KT_R_TRACK = (KT_R_INNER + KT_R_OUTER) / 2;
@@ -715,10 +715,10 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       return { spec, sx, sy, side, targetY };
     });
 
-    const CALLOUT_H = 54;
-    const MIN_GAP = 70;
-    const Y_MIN = 36;
-    const Y_MAX = KT_VB_H - 36;
+    const CALLOUT_H = 46;
+    const MIN_GAP = 62;
+    const Y_MIN = 32;
+    const Y_MAX = KT_VB_H - 32;
 
     const placeSide = (side: 'left' | 'right') => {
       const group = items
@@ -759,8 +759,8 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             : Math.max(g.sx + 28, KT_CX + clearDx + 24);
         const ex =
           side === 'left'
-            ? Math.max(180, Math.min(KT_CX - 28, rawEx))
-            : Math.min(KT_VB_W - 180, Math.max(KT_CX + 28, rawEx));
+            ? Math.max(168, Math.min(KT_CX - 28, rawEx))
+            : Math.min(KT_VB_W - 164, Math.max(KT_CX + 28, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx - 6, ex + 10)
@@ -837,7 +837,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-1 sm:px-1.5 pt-1 pb-2 flex-1 flex items-center justify-center">
         {/* Dashboard-Style Slim Donut + Curved Leaders + 3 Floating Pill Callouts */}
         <div
-          className="relative w-full max-w-[620px] aspect-[620/360] flex items-center justify-center"
+          className="relative w-full max-w-[592px] aspect-[592/348] flex items-center justify-center"
           onMouseLeave={() => setHoveredKey(null)}
         >
           <svg
@@ -1019,17 +1019,17 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                       }
                     : undefined),
                 }}
-                className={`absolute px-2.5 py-1.5 @[380px]:px-3.5 @[380px]:py-2.5 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col items-start justify-center gap-0.5 @[380px]:gap-1 text-left leading-snug min-w-[126px] @[440px]:min-w-[154px] ${
+                className={`absolute px-2 py-1 @[380px]:px-3 @[380px]:py-1.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start justify-center gap-0.5 text-left leading-snug ${
                   isActive
                     ? 'shadow-sm'
-                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+                    : 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
-                <span className="inline-flex items-center gap-1.5 @[440px]:gap-2 text-[9px] @[360px]:text-[10.5px] @[440px]:text-[12px] font-bold whitespace-nowrap text-slate-900">
-                  <span className="w-2 h-2 @[440px]:w-2.5 @[440px]:h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
+                <span className="inline-flex items-center gap-1.5 text-[8.5px] @[360px]:text-[9.5px] @[440px]:text-[11px] font-bold whitespace-nowrap text-slate-900">
+                  <span className="w-1.5 h-1.5 @[440px]:w-2 @[440px]:h-2 rounded-full shrink-0" style={{ backgroundColor: c.spec.color }} />
                   <span>{c.spec.label}</span>
                 </span>
-                <span className="text-[8.5px] @[360px]:text-[10px] @[440px]:text-[11.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3.5 @[440px]:pl-4.5 text-slate-500">
+                <span className="text-[8px] @[360px]:text-[9px] @[440px]:text-[10.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3 @[440px]:pl-3.5 text-slate-500">
                   <strong className="font-bold" style={{ color: c.spec.pctColor }}>
                     {c.spec.pctText}
                   </strong>{' '}
@@ -6991,7 +6991,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         )}
                                       </td>
                                       <td
-                                        className="sticky left-[252px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-mono text-xs text-slate-600 tabular-nums border-r border-slate-100 font-normal w-[68px] min-w-[68px] max-w-[68px] whitespace-nowrap"
+                                        className="sticky left-[252px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-figure font-medium text-[13px] text-slate-800 tabular-nums border-r border-slate-100 w-[68px] min-w-[68px] max-w-[68px] whitespace-nowrap"
                                         title={row.id || undefined}
                                       >
                                         {row.id || '—'}
@@ -7738,7 +7738,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             )}
                           </td>
                           <td
-                            className="sticky left-[252px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-mono text-xs text-slate-600 tabular-nums border-r border-slate-100 font-normal w-[68px] min-w-[68px] max-w-[68px] whitespace-nowrap"
+                            className="sticky left-[252px] bg-white group-hover:bg-slate-50 z-10 px-1.5 py-2 text-center font-figure font-medium text-[13px] text-slate-800 tabular-nums border-r border-slate-100 w-[68px] min-w-[68px] max-w-[68px] whitespace-nowrap"
                             title={row.staffId || undefined}
                           >
                             {row.staffId || '—'}
@@ -7962,7 +7962,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 </span>
                               )}
                             </span>
-                            <span className="text-center font-mono text-xs text-slate-600 tabular-nums whitespace-nowrap">
+                            <span className="text-center font-figure font-medium text-[13px] text-slate-800 tabular-nums whitespace-nowrap">
                               {s.staffId || '—'}
                             </span>
                             <span
